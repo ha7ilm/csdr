@@ -326,10 +326,10 @@ E.g. you can send `-0.05 0.02\n`
 
 `csdr` was tested with GNU Radio Companion flowgraphs. These flowgraphs are available under the directory `grc_tests`, and they require the `gr-ha5kfu` set of blocks for GNU Radio.  
 
-Licensing
----------
+# [Licensing] (#licensing)
+
 Most of the code for `libcsdr` is under BSD license.  
-[link](#licensing) However, before the implementation of some algoritms, GPL-licensed code from other applications have been reviewed.
+However, before the implementation of some algoritms, GPL-licensed code from other applications have been reviewed.
 In order to eliminate any licesing issues, these parts are placed under a different file.
 However, the library is still fully functional with BSD-only code, altough having only less-optimized versions of some algorithms.  
 It should also be noted that if you compile with `-DUSE_FFTW` and `-DLIBCSDR_GPL` (as default), the GPL license would apply on the whole result.
