@@ -1,0 +1,74 @@
+#!/usr/bin/python
+"""
+This software is part of libcsdr, a set of simple DSP routines for 
+Software Defined Radio.
+
+Copyright (c) 2014, Andras Retzler <randras@sdr.hu>
+All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+    * Redistributions of source code must retain the above copyright
+      notice, this list of conditions and the following disclaimer.
+    * Redistributions in binary form must reproduce the above copyright
+      notice, this list of conditions and the following disclaimer in the
+      documentation and/or other materials provided with the distribution.
+    * Neither the name of the copyright holder nor the
+      names of its contributors may be used to endorse or promote products
+      derived from this software without specific prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL ANDRAS RETZLER BE LIABLE FOR ANY
+DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
+ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+"""
+
+import sys
+
+try:
+	vectfile=open(sys.argv[1],"r").readlines()
+except:
+	print "parsevect: can't open input file"
+	quit()
+
+lastcfile=""
+cfile=[]
+def loadcfile(what):
+	global lastcfile, cfile
+	if lastcfile!=what:
+		cfile=open(what,"r").readlines()
+		lastcfile=what
+
+print """
+Auto-vectorization built into gcc can increase the execution speed of algorithms with automatic 
+generation of SIMD instructions if the CPU is capable.
+We parse the output of the vectorizer to analyze which loops could be optimized (thus speeded up) this way. 
+Warning! The result may be different on different CPU architectures...
+
+Colors: 
+\033[1;31m  - can't be vectorized
+\033[1;32m  - successfully vectorized
+\033[1;33m  - not intended to be vectorized (not important)
+\033[1;0m"""
+
+checkline = lambda k: cfile[linenum-k] if "//@" in cfile[linenum-k] else corresponds
+
+for row in vectfile:
+	if "LOOP VECTORIZED" in row or "not vectorized" in row: 
+		filename=row.split(":")[0]
+		loadcfile(filename)
+		linenum=int(row.split(":")[1])
+		corresponds="//@"		
+		corresponds=checkline(1)
+		corresponds=checkline(2)
+		corresponds=corresponds.split("//@")[1][:-1]
+		yellow=corresponds.startswith("@")
+		if yellow: corresponds=corresponds[1:]
+		print row[:-1], "\033[1;33m" if yellow else "\033[1;31m" if "not " in row else "\033[1;32m", corresponds, "\033[1;0m"
+

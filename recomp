@@ -1,0 +1,4 @@
+#!/bin/bash
+sudo killall csdr
+make
+sudo make install
