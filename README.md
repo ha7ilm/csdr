@@ -4,7 +4,7 @@ libcsdr
 *libcsdr* is a set of simple DSP routines for Software Defined Radio.  
 It is mostly useful for AM/FM/SSB demodulation and spectrum display.  
 Feel free to use it in your projects.  
-Most of the code is available under the permissive BSD license, with some optional parts under GPL. For additional details, see <a href="licensing">licensing</a>.
+Most of the code is available under the permissive BSD license, with some optional parts under GPL. For additional details, see <a href="#licensing">licensing</a>.
 
 - The package comes with a command-line tool `csdr`, which lets you build DSP processing chains by shell pipes.
 - The code of *libcsdr* was intended to be easy to follow.
