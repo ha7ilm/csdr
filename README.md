@@ -81,7 +81,7 @@ The first parameter is the frequency in MHz, and the second optional parameter i
 
 	csdr firdes_bandpass_c 0 0.5 59 HAMMING --octave | octave -i
 
-- ...and then plot its frequency response with octave. 
+- ...and then plot its frequency response with octave. (You can close octave window by issuing Ctrl-C in the terminal window.)
 - It will design a filter that lets only the positive frequencies pass (low cut is 0, high cut is 0.5 - these are relative to the sampling rate).
 - If `--octave` and everything that follows is removed from the command, you get only the taps. E. g. the raw output of `firdes_lowpass_f` can be easily copied to C code.
 
