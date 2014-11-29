@@ -24,7 +24,7 @@ Credits
 -------
 The library was written by Andras Retzler, HA7ILM &lt;<randras@sdr.hu>&gt;.
 
-I would like to say special thanks to Péter Horváth, HA5CQA and János Selmeczi, HA5FT for their continous help and support.
+I would like to say special thanks to Péter Horváth, PhD (HA5CQA) and János Selmeczi, PhD (HA5FT) for their continous help and support.
 
 Usage by example
 ----------------

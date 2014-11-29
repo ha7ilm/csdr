@@ -1,5 +1,5 @@
 # This software is part of libcsdr, a set of simple DSP routines for 
-# Software Defined Radio under BSD license.
+# Software Defined Radio.
 #
 # Copyright (c) 2014, Andras Retzler <randras@sdr.hu>
 # All rights reserved.
