@@ -328,7 +328,7 @@ E.g. you can send `-0.05 0.02\n`
 
 ## [Licensing] (#licensing)
 
-Most of the code for `libcsdr` is under BSD license.  
+Most of the code of `libcsdr` is under BSD license.  
 However, before the implementation of some algoritms, GPL-licensed code from other applications have been reviewed.
 In order to eliminate any licesing issues, these parts are placed under a different file.
 However, the library is still fully functional with BSD-only code, altough having only less-optimized versions of some algorithms.  
