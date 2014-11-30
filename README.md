@@ -324,7 +324,7 @@ E.g. you can send `-0.05 0.02\n`
 
 #### Testbench
 
-`csdr` was tested with GNU Radio Companion flowgraphs. These flowgraphs are available under the directory `grc_tests`, and they require the `gr-ha5kfu` set of blocks for GNU Radio.  
+`csdr` was tested with GNU Radio Companion flowgraphs. These flowgraphs are available under the directory `grc_tests`, and they require the <a href="https://github.com/simonyiszk/gr-ha5kfu">gr-ha5kfu</a> set of blocks for GNU Radio.  
 
 ## [Licensing] (#licensing)
 

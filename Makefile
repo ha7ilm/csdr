@@ -44,7 +44,7 @@ all: clean-vect
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
 	c99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -o libcsdr.so
-	-./parsevect dumpvect*.vect libcsdr.c
+	-./parsevect dumpvect*.vect
 	c99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
 arm-cross: clean-vect
 	#note: this doesn't work since having added FFTW
@@ -52,7 +52,7 @@ arm-cross: clean-vect
 clean-vect:
 	rm -f dumpvect*.vect
 clean: clean-vect
-	rm libcsdr.so csdr 
+	rm -f libcsdr.so csdr 
 install: 
 	install -m 0755 libcsdr.so /usr/lib
 	install -m 0755 csdr /usr/bin
