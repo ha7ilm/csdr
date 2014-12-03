@@ -99,9 +99,9 @@ void shift_addition_cc_test(shift_addition_data_t d)
 float agc_ff(float* input, float* output, int input_size, float reference, float attack_rate, float decay_rate, float max_gain, short hang_time, short attack_wait_time, float gain_filter_alpha, float last_gain)
 {
 	/*
-		Default working parameter values for voice:
-			attack_rate = 0.001
-			decay_rate = 0.01
+		Notes on parameters (with some default values):
+			attack_rate = 0.01
+			decay_rate = 0.001
 			hang_time = (hang_time_ms / 1000) * sample_rate
 				hang_time is given in samples, and should be about 4ms.
 				hang_time can be switched off by setting it to zero (not recommended).
