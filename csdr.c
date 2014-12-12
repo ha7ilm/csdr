@@ -44,11 +44,6 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdarg.h> 
 #include "libcsdr.h"
 #include "libcsdr_gpl.h"
-/*
-	example chains defined:
-		rtl_sdr -f 90000000 -s 2400000 - | csdr convert_u8_c | csdr shift_cc -0.20833 | csdr decimate_cc 5 0.1 | \
-			csdr fmdemod | csdr resample_rr 240000 48000 | csdr audio 48000
-*/
 
 char usage[]=
 "csdr - a simple commandline tool for Software Defined Radio receiver DSP.\n\n"
@@ -448,6 +443,7 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			fread(input_buffer+BUFSIZE-processed, sizeof(float), processed, stdin);
 			processed=deemphasis_nfm_ff(input_buffer, output_buffer, BUFSIZE, sample_rate);
+			if(!processed) return badsyntax("deemphasis_nfm_ff: invalid sample rate (this function works only with specific sample rates).");  
 			memmove(input_buffer,input_buffer+processed,(BUFSIZE-processed)*sizeof(float)); //memmove lets the source and destination overlap
 			fwrite(output_buffer, sizeof(float), processed, stdout);
 		}

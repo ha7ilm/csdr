@@ -624,8 +624,11 @@ int deemphasis_nfm_ff (float* input, float* output, int input_size, int sample_r
 	*/
 	float* taps;
 	int taps_length=0;
+
 	DNFMFF_ADD_ARRAY(48000)
+	DNFMFF_ADD_ARRAY(44100)
 	DNFMFF_ADD_ARRAY(8000)
+
 	if(!taps_length) return 0; //sample rate n
 	int i;
 	for(i=0;i<input_size-taps_length;i++) //@deemphasis_nfm_ff: outer loop
