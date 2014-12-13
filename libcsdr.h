@@ -86,7 +86,7 @@ float firdes_wkernel_hamming(float input);
 float firdes_wkernel_boxcar(float input);
 window_t firdes_get_window_from_string(char* input);
 char* firdes_get_string_from_window(window_t window);
-int firdes_filter_len(float rolloff);
+int firdes_filter_len(float transition_bw);
 
 //demodulators
 complexf fmdemod_quadri_cf(complexf* input, float* output, int input_size, float *temp, complexf last_sample);

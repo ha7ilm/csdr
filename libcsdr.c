@@ -165,9 +165,9 @@ void firdes_bandpass_c(complexf *output, int length, float lowcut, float highcut
 	}
 }
 
-int firdes_filter_len(float rolloff)
+int firdes_filter_len(float transition_bw)
 {
-	int result=4.0/rolloff;
+	int result=4.0/transition_bw;
 	if (result%2==0) result++; //number of symmetric FIR filter taps should be odd
 	return result;
 }
