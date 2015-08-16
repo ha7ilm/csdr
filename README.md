@@ -10,8 +10,6 @@ Most of the code is available under the permissive BSD license, with some option
 - The code of *libcsdr* was intended to be easy to follow.
 - *libcsdr* was designed to use auto-vectorization available in *gcc*. It means that it can achieve some speedup by taking advantage of SIMD command sets available in today's CPUs (e.g. SSE on x86 and NEON on ARM).
 
-Moreover, *libcsdr* serves as the base for the new, experimental <a href="#sdr.js">sdr.js</a>, which takes Software Defined Radio DSP to today's web browsers that provide JavScript JIT compilation. 
-
 How to compile
 --------------
 The project was only tested on Linux. It has the following dependencies: `libfftw3-dev`
@@ -377,11 +375,11 @@ E.g. you can send `-0.05 0.02\n`
 
 ## [sdr.js] (#sdr.js)
 
-*sdr.js* is *libcsdr* compiled to JavaScript code with *Emscripten*. Nowadays JavaScript runs quite fast in browsers, as all major browser vendors included JavaScript JIT machines into their product. You can find a <a href="https://kripken.github.io/mloc_emscripten_talk/cppcon.html">great introductory slideshow here</a> about *Emscripten*.
+*sdr.js* is *libcsdr* compiled to JavaScript code with *Emscripten*. Nowadays JavaScript runs quite fast in browsers, as all major browser vendors included JavaScript JIT machines into their product. You can find a <a href="https://kripken.github.io/mloc_emscripten_talk/cppcon.html">great introductory slideshow here</a> on the concept behind *Emscripten* and *asm.js*.
 
 The purpose of *sdr.js* is to make SDR DSP processing available in the web browser. However, it is not easy to use in production yet. By now, only those functions have wrappers that the front-end of OpenWebRX uses.
 
-To compile *sdr.js*, you will need <a href="http://emscripten.org/">emscripten</a>. (It turns out that *emscripten* is already included in Ubuntu repositories.)
+To compile *sdr.js*, first get <a href="http://emscripten.org/">Emscripten</a>. (It turns out that there is an *emscripten* package in Ubuntu repositories.)
 
 To install and build dependencies (for now, only FFTW3):
 
