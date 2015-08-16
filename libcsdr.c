@@ -205,6 +205,64 @@ float shift_math_cc(complexf *input, complexf* output, int input_size, float rat
 	return phase;
 }
 
+
+
+shift_table_data_t shift_table_init(int table_size)
+{
+	//RTODO
+	shift_table_data_t output;
+	output.table=(float*)malloc(sizeof(float)*table_size);
+	output.table_size=table_size;
+	for(int i=0;i<table_size;i++)
+	{
+		output.table[i]=sin(((float)i/table_size)*(PI/2));
+	}
+	return output;
+}
+
+void shift_table_deinit(shift_table_data_t table_data)
+{
+	free(table_data.table);
+}
+
+float shift_table_cc(complexf* input, complexf* output, int input_size, float rate, shift_table_data_t table_data, float starting_phase)
+{
+	//RTODO
+	rate*=2;
+	//Shifts the complex spectrum. Basically a complex mixer. This version uses a pre-built sine table.
+	float phase=starting_phase;
+	float phase_increment=rate*PI;
+	float cosval, sinval;
+	for(int i=0;i<input_size; i++) //@shift_math_cc
+	{
+		int sin_index, cos_index, temp_index, sin_sign, cos_sign;
+		//float vphase=fmodf(phase,PI/2); //between 0 and 90deg
+		int quadrant=phase/(PI/2); //between 0 and 3
+		float vphase=phase-quadrant*(PI/2);
+		sin_index=(vphase/(PI/2))*table_data.table_size; 
+		cos_index=table_data.table_size-1-sin_index;
+		if(quadrant&1) //in quadrant 1 and 3
+		{
+			temp_index=sin_index;
+			sin_index=cos_index;
+			cos_index=temp_index;
+		}
+		sin_sign=(quadrant>1)?-1:1; //in quadrant 2 and 3
+		cos_sign=(quadrant&&quadrant<3)?-1:1; //in quadrant 1 and 2
+		sinval=sin_sign*table_data.table[sin_index];
+		cosval=cos_sign*table_data.table[cos_index];
+		//we multiply two complex numbers.
+		//how? enter this to maxima (software) for explanation:
+		//   (a+b*%i)*(c+d*%i), rectform;
+		iof(output,i)=cosval*iof(input,i)-sinval*qof(input,i);
+		qof(output,i)=sinval*iof(input,i)+cosval*qof(input,i);
+		phase+=phase_increment;
+		while(phase>2*PI) phase-=2*PI; //@shift_math_cc: normalize phase
+		while(phase<0) phase+=2*PI;
+	}
+	return phase;
+}
+
 int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decimation, float *taps, int taps_length)
 {
 	//Theory: http://www.dspguru.com/dsp/faqs/multirate/decimation
@@ -339,6 +397,8 @@ fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, i
 
 void apply_fir_fft_cc(FFT_PLAN_T* plan, FFT_PLAN_T* plan_inverse, complexf* taps_fft, complexf* last_overlap, int overlap_size)
 {
+	//use the overlap & add method for filtering
+
 	//calculate FFT on input buffer
 	fft_execute(plan);
 
@@ -593,6 +653,14 @@ complexf fmdemod_quadri_cf(complexf* input, float* output, int input_size, float
 	return input[input_size-1];
 }
 
+inline int is_nan(float f) 
+{
+	//http://stackoverflow.com/questions/570669/checking-if-a-double-or-float-is-nan-in-c
+    unsigned u = *(unsigned*)&f;
+    return (u&0x7F800000) == 0x7F800000 && (u&0x7FFFFF); // Both NaN and qNan.
+}
+
+
 float deemphasis_wfm_ff (float* input, float* output, int input_size, float tau, int sample_rate, float last_output)
 {
 	/* 
@@ -604,6 +672,7 @@ float deemphasis_wfm_ff (float* input, float* output, int input_size, float tau,
 	*/
 	float dt = 1.0/sample_rate;
 	float alpha = dt/(tau+dt);
+	if(is_nan(last_output)) last_output=0.0; //if last_output is NaN
 	output[0]=alpha*input[0]+(1-alpha)*last_output; 
 	for (int i=1;i<input_size;i++) //@deemphasis_wfm_ff
        output[i]=alpha*input[i]+(1-alpha)*output[i-1]; //this is the simplest IIR LPF
@@ -628,6 +697,7 @@ int deemphasis_nfm_ff (float* input, float* output, int input_size, int sample_r
 	DNFMFF_ADD_ARRAY(48000)
 	DNFMFF_ADD_ARRAY(44100)
 	DNFMFF_ADD_ARRAY(8000)
+	DNFMFF_ADD_ARRAY(11025)
 
 	if(!taps_length) return 0; //sample rate n
 	int i;

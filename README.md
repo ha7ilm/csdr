@@ -10,6 +10,8 @@ Most of the code is available under the permissive BSD license, with some option
 - The code of *libcsdr* was intended to be easy to follow.
 - *libcsdr* was designed to use auto-vectorization available in *gcc*. It means that it can achieve some speedup by taking advantage of SIMD command sets available in today's CPUs (e.g. SSE on x86 and NEON on ARM).
 
+Moreover, *libcsdr* serves as the base for the new, experimental <a href="#sdr.js">sdr.js</a>, which takes Software Defined Radio DSP to today's web browsers that provide JavScript JIT compilation. 
+
 How to compile
 --------------
 The project was only tested on Linux. It has the following dependencies: `libfftw3-dev`
@@ -155,15 +157,33 @@ It multiplies all samples by `gain`.
 
 It copies the input to the output.
 
+	none
+
+The `csdr` process just exits with 0.
+
 	yes_f <to_repeat> [buf_times]
 
 It outputs continously the `to_repeat` float number. 
 If `buf_times` is not given, it never stops.
 Else, after outputing `buf_times` number of buffers (the size of which is stated in the `BUFSIZE` macro), it exits.
 
+	detect_nan_ff
+
+Along with copying its input samples to the output, it prints a warning message to *stderr* if it finds any IEEE floating point NaN values among the samples.
+
+	floatdump_f
+
+It prints any floating point input samples. 
+The format string used is `"%g "`.
+
+	flowcontrol <data_rate> <reads_per_second>
+
+It limits the data rate of a stream to a given `data_rate` number of bytes per second.
+It copies `data_rate / reads_per_second` bytes from the input to the output, doing it `reads_per_second` times every second.
+
 	shift_math_cc <rate>
 
-It shifts the complex spectrum by `rate`.
+It shifts the signal in the frequency domain by `rate`.
 `rate` is a floating point number between -0.5 and 0.5. 
 `rate` is relative to the sampling rate. 
 
@@ -178,6 +198,17 @@ Internally, this function uses trigonometric addition formulas to generate sine 
 	shift_addition_cc_test
 
 This function was used to test the accuracy of the method above.
+
+	shift_table_cc <rate> [table_size]
+
+Operation is the same as with `shift_math_cc`.
+Internally, this function uses a look-up table (LUT) to recall the values of the sine function (for the first quadrant).
+The higher the table size is, the smaller the phase error is.
+
+	decimating_shift_addition_cc <rate> [decimation]
+
+It shifts the input signal in the frequency domain, and also decimates it, without filtering. It will be useful as a part of the FFT channelizer implementation (to be done).
+It cannot be used as a channelizer by itself, use `fir_decimate_cc` instead.
 
 	dcblock_ff
 
@@ -214,7 +245,7 @@ It uses fixed filters so it works only on predefined sample rates, for the actua
 
 It is an AM demodulator that uses `sqrt`. On some architectures `sqrt` can be directly calculated by dedicated CPU instructions, but on others it may be slower. 
 
-amdemod_estimator_cf
+	amdemod_estimator_cf
 
 It is an AM demodulator that uses an estimation method that is faster but less accurate than `amdemod_cf`.
 
@@ -296,9 +327,27 @@ FFTW can be faster if we let it optimalize a while before starting the first tra
 It measures the time taken to process `fft_cycles` transforms of `fft_size`.
 It lets FFTW optimalize if used with the `--benchmark` switch.
 
-	lowpower_cf [add_db]
+	logpower_cf [add_db]
 
 Calculates `10*log10(i^2+q^2)+add_db` for the input complex samples. It is useful for drawing power spectrum graphs.
+
+	encode_ima_adpcm_i16_u8
+
+Encodes the audio stream to IMA ADPCM, which decreases the size to 25% of the original.
+
+	decode_ima_adpcm_u8_i16
+
+Decodes the audio stream from IMA ADPCM.
+
+	compress_fft_adpcm_f_u8 <fft_size>
+
+Encodes the FFT output vectors of `fft_size`. It should be used on the data output from `logpower_cf`.
+It resets the ADPCM encoder at the beginning of every vector, and to compensate it, `COMPRESS_FFT_PAD_N` samples are added at beginning (these equal to the first relevant sample).
+The actual number of padding samples can be determined by running `cat csdr.c | grep "define COMPRESS_FFT_PAD_N"`.
+
+	fft_exchange_sides_ff <fft_size>
+
+It exchanges the first and second part of the FFT vector, to prepare it for the waterfall/spectrum display. It should operate on the data output from `logpower_cf`.
 
 #### Control via pipes
 
@@ -325,6 +374,28 @@ E.g. you can send `-0.05 0.02\n`
 #### Testbench
 
 `csdr` was tested with GNU Radio Companion flowgraphs. These flowgraphs are available under the directory `grc_tests`, and they require the <a href="https://github.com/simonyiszk/gr-ha5kfu">gr-ha5kfu</a> set of blocks for GNU Radio.  
+
+## [sdr.js] (#sdr.js)
+
+*sdr.js* is *libcsdr* compiled to JavaScript code with *Emscripten*. Nowadays JavaScript runs quite fast in browsers, as all major browser vendors included JavaScript JIT machines into their product. You can find a <a href="https://kripken.github.io/mloc_emscripten_talk/cppcon.html">great introductory slideshow here</a> about *Emscripten*.
+
+The purpose of *sdr.js* is to make SDR DSP processing available in the web browser. However, it is not easy to use in production yet. By now, only those functions have wrappers that the front-end of OpenWebRX uses.
+
+To compile *sdr.js*, you will need <a href="http://emscripten.org/">emscripten</a>. (It turns out that *emscripten* is already included in Ubuntu repositories.)
+
+To install and build dependencies (for now, only FFTW3):
+
+	make emcc-get-deps
+
+To compile *sdr.js* (which will be created in the `sdr.js` subdirectory):
+
+	make emcc
+
+You can test *sdr.js* by opening *sdr.html*. It contains a test for *firdes_lowpass_f* for this time.
+
+To remove *sdr.js* and the compiled dependencies:
+
+	make emcc-clean
 
 ## [Licensing] (#licensing)
 

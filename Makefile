@@ -38,9 +38,10 @@ PARAMS_RASPI = -mfloat-abi=hard -mcpu=arm1176jzf-s -mfpu=vfp -funsafe-math-optim
 PARAMS_ARM = $(if $(call cpufeature,BCM2708,dummy-text),$(PARAMS_RASPI),$(PARAMS_NEON))
 PARAMS_SIMD = $(if $(call cpufeature,sse,dummy-text),$(PARAMS_SSE),$(PARAMS_ARM))
 PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
-PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL
+PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
 PARAMS_SO = -fpic  
 PARAMS_MISC = -Wno-unused-result
+FFTW_PACKAGE = fftw-3.3.3
 
 all: clean-vect
 	@echo NOTE: you may have to manually edit Makefile to optimize for your CPU \(especially if you compile on ARM, please edit PARAMS_NEON\).
@@ -64,3 +65,22 @@ install:
 uninstall:
 	rm /usr/lib/libcsdr.so /usr/bin/csdr /usr/bin/csdr-fm
 	ldconfig
+emcc-clean:
+	-rm sdr.js/sdr.js
+	-rm sdr.js/sdrjs-compiled.js
+	-rm -rf sdr.js/$(FFTW_PACKAGE)
+emcc-get-deps:
+	echo "getting and compiling fftw3 with emscripten..."
+	cd sdr.js; \
+	wget http://fftw.org/$(FFTW_PACKAGE).tar.gz; \
+	tar -xvf $(FFTW_PACKAGE).tar.gz; \
+	rm $(FFTW_PACKAGE).tar.gz; \
+	cd $(FFTW_PACKAGE); \
+	emconfigure ./configure --enable-float --disable-fortran --prefix=`pwd`/emscripten-install --libdir=`pwd`/emscripten-lib; \
+	emmake make; \
+	emmake make install
+emcc:
+	emcc -O3 -Isdr.js/$(FFTW_PACKAGE)/api -Lsdr.js/$(FFTW_PACKAGE)/emscripten-lib -o sdr.js/sdrjs-compiled.js fft_fftw.c libcsdr_wrapper.c -DLIBCSDR_GPL -DUSE_IMA_ADPCM -DUSE_FFTW -lfftw3f -s EXPORTED_FUNCTIONS="`python sdr.js/exported_functions.py`"
+	cat sdr.js/sdrjs-header.js sdr.js/sdrjs-compiled.js sdr.js/sdrjs-footer.js > sdr.js/sdr.js
+emcc-beautify:
+	bash -c 'type js-beautify >/dev/null 2>&1; if [ $$? -eq 0 ]; then js-beautify sdr.js/sdr.js >sdr.js/sdr.js.beautiful; mv sdr.js/sdr.js.beautiful sdr.js/sdr.js; fi'

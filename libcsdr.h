@@ -97,6 +97,7 @@ void amdemod_estimator_cf(complexf* input, float *output, int input_size, float 
 void limit_ff(float* input, float* output, int input_size, float max_amplitude);
 
 //filters, decimators, resamplers, shift, etc.
+float fir_one_pass_ff(float* input, float* taps, int taps_length);
 int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decimation, float *taps, int taps_length);
 int deemphasis_nfm_ff (float* input, float* output, int input_size, int sample_rate);
 float deemphasis_wfm_ff (float* input, float* output, int input_size, float tau, int sample_rate, float last_output);
@@ -146,6 +147,16 @@ typedef struct fractional_decimator_ff_s
 } fractional_decimator_ff_t;
 fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, fractional_decimator_ff_t d);
 
+typedef struct shift_table_data_s
+{
+	float* table;
+	int table_size;	
+} shift_table_data_t;
+void shift_table_deinit(shift_table_data_t table_data);
+shift_table_data_t shift_table_init(int table_size);
+float shift_table_cc(complexf* input, complexf* output, int input_size, float rate, shift_table_data_t table_data, float starting_phase);
+
+
 int log2n(int x);
 int next_pow2(int x);
 void apply_fir_fft_cc(FFT_PLAN_T* plan, FFT_PLAN_T* plan_inverse, complexf* taps_fft, complexf* last_overlap, int overlap_size);
@@ -156,6 +167,4 @@ void convert_f_u8(float* input, unsigned char* output, int input_size);
 void convert_f_i16(float* input, short* output, int input_size);
 void convert_i16_f(short* input, float* output, int input_size);
 
-
-
-
+int is_nan(float f);
