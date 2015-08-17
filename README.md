@@ -373,7 +373,7 @@ E.g. you can send `-0.05 0.02\n`
 
 `csdr` was tested with GNU Radio Companion flowgraphs. These flowgraphs are available under the directory `grc_tests`, and they require the <a href="https://github.com/simonyiszk/gr-ha5kfu">gr-ha5kfu</a> set of blocks for GNU Radio.  
 
-## [sdr.js] (#sdr.js)
+## [sdr.js] (#sdrjs)
 
 *sdr.js* is *libcsdr* compiled to JavaScript code with *Emscripten*. Nowadays JavaScript runs quite fast in browsers, as all major browser vendors included JavaScript JIT machines into their product. You can find a <a href="https://kripken.github.io/mloc_emscripten_talk/cppcon.html">great introductory slideshow here</a> on the concept behind *Emscripten* and *asm.js*.
 
