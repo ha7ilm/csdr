@@ -125,7 +125,7 @@ int clipdetect_ff(float* input, int input_size)
 	return 0;
 }
 
-int clone()
+int clone_()
 {
 		static unsigned char clone_buffer[BUFSIZE];
 		for(;;)
@@ -291,7 +291,7 @@ int main(int argc, char *argv[])
 	}
 	if(!strcmp(argv[1],"clone"))
 	{
-		clone();
+		clone_();
 	}
 	if(!strcmp(argv[1],"limit_ff"))
 	{
@@ -817,7 +817,7 @@ int main(int argc, char *argv[])
 
 		if(suboptimal) fprintf(stderr,"note: suboptimal rational resampler chosen.\n");
 
-		if(decimation==1&&interpolation==1) clone(); //copy input to output in this special case (and stick in this function).
+		if(decimation==1&&interpolation==1) clone_(); //copy input to output in this special case (and stick in this function).
 
 		//Alloc output buffer
 		int resampler_output_buffer_size=(BUFSIZE*interpolation)/decimation;
@@ -863,7 +863,7 @@ int main(int argc, char *argv[])
 		}
 		else fprintf(stderr,"fractional_decimator_ff: window = %s\n",firdes_get_string_from_window(window));
 
-		if(rate==1) clone(); //copy input to output in this special case (and stick in this function).
+		if(rate==1) clone_(); //copy input to output in this special case (and stick in this function).
 
 		//Generate filter taps
 		int taps_length = firdes_filter_len(transition_bw);
