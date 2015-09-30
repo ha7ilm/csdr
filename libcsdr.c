@@ -296,11 +296,7 @@ q2:		taps
 q4, q5: accumulator for I branch and Q branch (will be the output)
 */
 
-		//fprintf(stderr, "macska\n");
-
 		asm volatile(
-			//"		vorr.f32 q4, #0\n\t" //null the accumulators
-			//"		vorr.f32 q5, #0\n\t"
 			"		vmov.f32 q4, #0.0\n\t" //another way to null the accumulators
 			"		vmov.f32 q5, #0.0\n\t"
 			"for_fdccasm: vld2.32	{q0-q1}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in q0 and the Q samples in q1), also increment the memory address in pinput (hence the "!" mark) //http://community.arm.com/groups/processors/blog/2010/03/17/coding-for-neon--part-1-load-and-stores
