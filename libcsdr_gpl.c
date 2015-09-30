@@ -189,12 +189,14 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 			{
 				if(last_peak<input_abs) 
 				{
+					
 					attack_wait_counter=attack_wait_time;
 					last_peak=input_abs;
 				}
 				if(attack_wait_counter>0)
 				{
 					attack_wait_counter--;
+					//fprintf(stderr,"A");
 					dgain=0;
 				}
 				else
@@ -203,6 +205,7 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 					dgain=error*attack_rate; 
 					//Before starting to increase the gain next time, we will be waiting until hang_time for sure.
 					hang_counter=hang_time;
+					
 				}
 			}
 			else //DECREASE IN SIGNAL LEVEL
@@ -222,7 +225,7 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 		}
 		//output[i]=gain*input[i]; //Here we do the actual scaling of the samples.
 		//Here we do the actual scaling of the samples, but we run an IIR filter on the gain values:
-		output[i]=(gain+last_gain-gain_filter_alpha*last_gain)*input[i]; //dc-pass-filter: freqz([1 -1],[1 -0.99]) y[i]=x[i]+y[i-1]-alpha*x[i-1]
+		output[i]=(gain=gain+last_gain-gain_filter_alpha*last_gain)*input[i]; //dc-pass-filter: freqz([1 -1],[1 -0.99]) y[i]=x[i]+y[i-1]-alpha*x[i-1]
 		//output[i]=input[i]*(last_gain+gain_filter_alpha*(gain-last_gain)); //LPF
 
 		last_gain=gain;
