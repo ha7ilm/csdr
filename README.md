@@ -109,6 +109,7 @@ Data types are noted as it follows:
 - `f` is `float` (single percision)
 - `c` is `complexf` (two single precision floating point values in a struct) 
 - `u8` is `unsigned char` of 1 byte/8 bits (e. g. the output of `rtl_sdr` is of `u8`)
+- `i8` is `signed char` of 1 byte/8 bits (e. g. the output of `hackrf_transfer` is of `i8`)
 - `i16` is `signed short` of 2 bytes/16 bits (e. g. sound card input is usually `i16`)
 
 Functions usually end as:
@@ -122,6 +123,8 @@ The following commands are available:
 
 - `csdr convert_u8_f` 
 - `csdr convert_f_u8` 
+- `csdr convert_i8_f`
+- `csdr convert_f_i8`
 - `csdr convert_i16_f` 
 - `csdr convert_f_i16`
 

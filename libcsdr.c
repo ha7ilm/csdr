@@ -805,6 +805,11 @@ void convert_u8_f(unsigned char* input, float* output, int input_size)
 	for(int i=0;i<input_size;i++) output[i]=((float)input[i])/(UCHAR_MAX/2.0)-1.0; //@convert_u8_f
 }
 
+void convert_i8_f(signed char* input, float* output, int input_size)
+{
+	for(int i=0;i<input_size;i++) output[i]=((float)input[i])/SCHAR_MAX; //@convert_i8_f
+}
+
 void convert_i16_f(short* input, float* output, int input_size)
 {
 	for(int i=0;i<input_size;i++) output[i]=(float)input[i]/SHRT_MAX; //@convert_i16_f
@@ -817,6 +822,15 @@ void convert_f_u8(float* input, unsigned char* output, int input_size)
 	//of at least -60 dB is shown on the FFT plot after convert_f_u8 -> convert_u8_f
 }
 
+void convert_f_i8(float* input, signed char* output, int input_size)
+{
+	/*for(int i=0;i<input_size;i++)
+	{
+		if(input[i]>1.0) input[i]=1.0;
+		if(input[i]<-1.0) input[i]=-1.0;
+	}*/
+	for(int i=0;i<input_size;i++) output[i]=input[i]*SCHAR_MAX; //@convert_f_i8
+}
 void convert_f_i16(float* input, short* output, int input_size)
 {
 	/*for(int i=0;i<input_size;i++) 
