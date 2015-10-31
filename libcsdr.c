@@ -818,6 +818,21 @@ void gain_ff(float* input, float* output, int input_size, float gain)
 	for(int i=0;i<input_size;i++) output[i]=gain*input[i]; //@gain_ff
 }
 
+/*
+  __  __           _       _       _                 
+ |  \/  |         | |     | |     | |                
+ | \  / | ___   __| |_   _| | __ _| |_ ___  _ __ ___ 
+ | |\/| |/ _ \ / _` | | | | |/ _` | __/ _ \| '__/ __|
+ | |  | | (_) | (_| | |_| | | (_| | || (_) | |  \__ \
+ |_|  |_|\___/ \__,_|\__,_|_|\__,_|\__\___/|_|  |___/
+                                                                                                        
+*/
+
+void add_dcoffset_cc(complexf* input, complexf* output, int input_size)
+{
+	for(int i=0;i<input_size;i++) iof(output,i)=0.5+iof(input,i)/2; 
+	for(int i=0;i<input_size;i++) qof(output,i)=qof(input,i)/2; 
+}
 
 /*
   ______        _     ______               _             _______                   __                     

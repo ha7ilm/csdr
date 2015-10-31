@@ -444,7 +444,6 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			if(!FREAD_C) break;
-			starting_phase=shift_math_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, rate, starting_phase);
 			FWRITE_C;
 			TRY_YIELD;
 		}
@@ -1532,6 +1531,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
+
 	if(!strcmp(argv[1],"dsb_fc"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
@@ -1544,6 +1544,19 @@ int main(int argc, char *argv[])
 				iof(output_buffer,i)=input_buffer[i];
 				qof(output_buffer,i)=0;
 			}
+			FWRITE_C;
+			TRY_YIELD;
+		}		
+	}
+
+	if(!strcmp(argv[1],"add_dcoffset_cc"))
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_R;
+			add_dcoffset_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize);
 			FWRITE_C;
 			TRY_YIELD;
 		}		

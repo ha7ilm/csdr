@@ -162,6 +162,8 @@ int next_pow2(int x);
 void apply_fir_fft_cc(FFT_PLAN_T* plan, FFT_PLAN_T* plan_inverse, complexf* taps_fft, complexf* last_overlap, int overlap_size);
 void gain_ff(float* input, float* output, int input_size, float gain);
 
+void add_dcoffset_cc(complexf* input, complexf* output, int input_size);
+
 void convert_u8_f(unsigned char* input, float* output, int input_size);
 void convert_f_u8(float* input, unsigned char* output, int input_size);
 void convert_f_i16(float* input, short* output, int input_size);
