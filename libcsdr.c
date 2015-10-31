@@ -834,6 +834,20 @@ void add_dcoffset_cc(complexf* input, complexf* output, int input_size)
 	for(int i=0;i<input_size;i++) qof(output,i)=qof(input,i)/2; 
 }
 
+float fmmod_fc(float* input, complexf* output, int input_size, float last_phase)
+{
+	float phase=last_phase;
+	for(int i=0;i<input_size;i++)
+	{
+		phase+=input[i]*PI;
+		while(phase>PI) phase-=2*PI;
+		while(phase<=-PI) phase+=2*PI;
+		iof(output,i)=cos(phase);
+		qof(output,i)=sin(phase);
+	}
+	return phase;
+}
+
 /*
   ______        _     ______               _             _______                   __                     
  |  ____|      | |   |  ____|             (_)           |__   __|                 / _|                    

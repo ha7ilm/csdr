@@ -1562,6 +1562,20 @@ int main(int argc, char *argv[])
 		}		
 	}
 
+	if(!strcmp(argv[1],"fmmod_fc"))
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+		float last_phase = 0;
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_R;
+			last_phase = fmmod_fc(input_buffer, (complexf*)output_buffer, the_bufsize, last_phase);
+			FWRITE_C;
+			TRY_YIELD;
+		}		
+	}
+
 	if(!strcmp(argv[1],"none"))
 	{
 		return 0;
