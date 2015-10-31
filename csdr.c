@@ -107,7 +107,9 @@ char usage[]=
 //also, keep in mind that shift_addition_cc works better the smaller this buffer is.
 
 int env_csdr_fixed_bufsize = 1024;
+int env_csdr_fixed_big_bufsize = 1024*16;
 int env_csdr_dynamic_bufsize_on = 0;
+int bigbufs = 0;
 
 //change on on 2015-08-29: we don't yield at all. fread() will do it if it blocks
 #define YIELD_EVERY_N_TIMES 3
@@ -215,7 +217,7 @@ int read_fifo_ctl(int fd, char* format, ...)
 
 int getbufsize()
 {
-	if(!env_csdr_dynamic_bufsize_on) return env_csdr_fixed_bufsize;
+	if(!env_csdr_dynamic_bufsize_on) return (bigbufs) ? env_csdr_fixed_big_bufsize : env_csdr_fixed_bufsize;
 	int recv_first[2];
 	fread(recv_first, sizeof(int), 2, stdin);
 	if(memcmp(recv_first, SETBUF_PREAMBLE, sizeof(char)*4)!=0)
@@ -455,6 +457,7 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"shift_table_cc"))
 	{
+		bigbufs=1;
 		if(argc<=2) return badsyntax("need required parameter (rate)"); 
 		float starting_phase=0;
 		float rate;
@@ -478,6 +481,7 @@ int main(int argc, char *argv[])
 #ifdef LIBCSDR_GPL
 	if(!strcmp(argv[1],"decimating_shift_addition_cc"))
 	{
+		bigbufs=1;
 		if(argc<=2) return badsyntax("need required parameter (rate)"); 
 		float starting_phase=0;
 		float rate;
@@ -503,6 +507,8 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"shift_addition_cc"))
 	{
+		bigbufs=1;
+
 		float starting_phase=0;
 		float rate;
 
@@ -736,6 +742,8 @@ int main(int argc, char *argv[])
 	}
 	if(!strcmp(argv[1],"fir_decimate_cc"))
 	{
+		bigbufs=1;
+
 		if(argc<=2) return badsyntax("need required parameter (decimation factor)"); 
 
 		int factor;
