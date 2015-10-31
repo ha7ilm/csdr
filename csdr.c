@@ -1532,6 +1532,22 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
+	if(!strcmp(argv[1],"dsb_fc"))
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_R;
+			for(int i=0;i<the_bufsize;i++) 
+			{
+				iof(output_buffer,i)=input_buffer[i];
+				qof(output_buffer,i)=0;
+			}
+			FWRITE_C;
+			TRY_YIELD;
+		}		
+	}
 
 	if(!strcmp(argv[1],"none"))
 	{
