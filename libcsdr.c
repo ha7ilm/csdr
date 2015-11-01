@@ -848,6 +848,22 @@ float fmmod_fc(float* input, complexf* output, int input_size, float last_phase)
 	return phase;
 }
 
+void fixed_amplitude_cc(complexf* input, complexf* output, int input_size, float new_amplitude)
+{
+	for(int i=0;i<input_size;i++)
+	{
+		//float phase=atan2(iof(input,i),qof(input,i));
+		//iof(output,i)=cos(phase)*amp;
+		//qof(output,i)=sin(phase)*amp;		
+
+		//A faster solution:
+		float amplitude_now = sqrt(iof(input,i)*iof(input,i)+qof(input,i)*qof(input,i));
+		float gain = (amplitude_now > 0) ? new_amplitude / amplitude_now : 0;
+		iof(output,i)=iof(input,i)*gain;
+		qof(output,i)=qof(input,i)*gain;
+	}	
+}
+
 /*
   ______        _     ______               _             _______                   __                     
  |  ____|      | |   |  ____|             (_)           |__   __|                 / _|                    

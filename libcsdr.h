@@ -164,6 +164,7 @@ void gain_ff(float* input, float* output, int input_size, float gain);
 
 void add_dcoffset_cc(complexf* input, complexf* output, int input_size);
 float fmmod_fc(float* input, complexf* output, int input_size, float last_phase);
+void fixed_amplitude_cc(complexf* input, complexf* output, int input_size, float amp);
 
 void convert_u8_f(unsigned char* input, float* output, int input_size);
 void convert_f_u8(float* input, unsigned char* output, int input_size);

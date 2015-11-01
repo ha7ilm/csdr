@@ -1555,7 +1555,7 @@ int main(int argc, char *argv[])
 		for(;;)
 		{
 			FEOF_CHECK;
-			FREAD_R;
+			FREAD_C;
 			add_dcoffset_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize);
 			FWRITE_C;
 			TRY_YIELD;
@@ -1571,6 +1571,24 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			FREAD_R;
 			last_phase = fmmod_fc(input_buffer, (complexf*)output_buffer, the_bufsize, last_phase);
+			FWRITE_C;
+			TRY_YIELD;
+		}		
+	}
+
+	if(!strcmp(argv[1],"fixed_amplitude_cc"))
+	{
+		if(argc<=2) return badsyntax("need required parameters (new_amplitude)"); 
+		
+		float new_amplitude;
+		sscanf(argv[2],"%g",&new_amplitude);
+
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_C;
+			fixed_amplitude_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, new_amplitude);
 			FWRITE_C;
 			TRY_YIELD;
 		}		
