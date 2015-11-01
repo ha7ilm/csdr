@@ -109,6 +109,7 @@ char usage[]=
 int env_csdr_fixed_bufsize = 1024;
 int env_csdr_fixed_big_bufsize = 1024*16;
 int env_csdr_dynamic_bufsize_on = 0;
+int env_csdr_print_bufsizes = 0;
 int bigbufs = 0;
 
 //change on on 2015-08-29: we don't yield at all. fread() will do it if it blocks
@@ -248,7 +249,7 @@ int initialize_buffers()
 {
 	if(!(the_bufsize=getbufsize())) return 0;
 	the_bufsize=unitround(the_bufsize);
-	fprintf(stderr,"%s %s: buffer size set to %d\n",argv_global[0], argv_global[1], the_bufsize);
+	if(env_csdr_print_bufsizes) fprintf(stderr,"%s %s: buffer size set to %d\n",argv_global[0], argv_global[1], the_bufsize);
 	input_buffer = 	(float*)		malloc(the_bufsize*sizeof(float) * 2); //need the 2× because we might also put complex floats into it
 	output_buffer = (float*)		malloc(the_bufsize*sizeof(float) * 2);
 	buffer_u8 = 	(unsigned char*)malloc(the_bufsize*sizeof(unsigned char));
@@ -262,7 +263,7 @@ int sendbufsize(int size)
 	//The first word is a preamble, "csdr".
 	//If the next csdr process detects it, sets the buffer size according to the second word
 	if(!env_csdr_dynamic_bufsize_on) return env_csdr_fixed_bufsize;
-	fprintf(stderr,"%s %s: next process proposed input buffer size is %d\n",argv_global[0], argv_global[1], size);
+	if(env_csdr_print_bufsizes) fprintf(stderr,"%s %s: next process proposed input buffer size is %d\n",argv_global[0], argv_global[1], size);
 	int send_first[2];
 	memcpy((char*)send_first, SETBUF_PREAMBLE, 4*sizeof(char));
 	send_first[1] = size;
@@ -288,6 +289,11 @@ int parse_env()
 			env_csdr_fixed_bufsize = atoi(envtmp);
 		}
 	}
+	envtmp=getenv("CSDR_PRINT_BUFSIZES");
+	if(envtmp) 
+	{
+		env_csdr_print_bufsizes = atoi(envtmp);
+	}
 }
 
 int main(int argc, char *argv[])
@@ -299,7 +305,7 @@ int main(int argc, char *argv[])
 
 	fcntl(STDIN_FILENO, F_SETPIPE_SZ, 65536*32);
 	fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 65536*32);
-	fprintf(stderr, "csdr: F_SETPIPE_SZ\n");
+	//fprintf(stderr, "csdr: F_SETPIPE_SZ\n");
 
 	if(!strcmp(argv[1],"setbuf"))
 	{
@@ -1534,6 +1540,9 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"dsb_fc"))
 	{
+		float q_value = 0;
+		if(argc>=3) sscanf(argv[2],"%g",&q_value);
+
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
 		{
@@ -1542,9 +1551,34 @@ int main(int argc, char *argv[])
 			for(int i=0;i<the_bufsize;i++) 
 			{
 				iof(output_buffer,i)=input_buffer[i];
-				qof(output_buffer,i)=0;
+				qof(output_buffer,i)=q_value;
 			}
 			FWRITE_C;
+			TRY_YIELD;
+		}		
+	}
+
+	if(!strcmp(argv[1],"convert_f_samplerf"))
+	{
+		if(argc<=2) return badsyntax("need required parameter (wait_for_this_sample)"); 
+		
+		unsigned wait_for_this_sample;
+		sscanf(argv[2],"%u",&wait_for_this_sample);
+
+		if(!sendbufsize(initialize_buffers())) return -2;
+		unsigned char* samplerf_buf = (unsigned char*) malloc(16*the_bufsize);
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_R;
+			for(int i=0;i<the_bufsize;i++) 
+			{
+				*((double*)(&samplerf_buf[16*i])) = input_buffer[i];
+				*((unsigned*)(&samplerf_buf[16*i+8])) = wait_for_this_sample;
+				*((unsigned*)(&samplerf_buf[16*i+12])) = 0;
+				
+			}
+			fwrite(samplerf_buf, 16, the_bufsize, stdout);
 			TRY_YIELD;
 		}		
 	}
@@ -1578,7 +1612,7 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"fixed_amplitude_cc"))
 	{
-		if(argc<=2) return badsyntax("need required parameters (new_amplitude)"); 
+		if(argc<=2) return badsyntax("need required parameter (new_amplitude)"); 
 		
 		float new_amplitude;
 		sscanf(argv[2],"%g",&new_amplitude);
@@ -1590,6 +1624,24 @@ int main(int argc, char *argv[])
 			FREAD_C;
 			fixed_amplitude_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, new_amplitude);
 			FWRITE_C;
+			TRY_YIELD;
+		}		
+	}
+
+	if(!strcmp(argv[1],"mono2stereo_i16"))
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+		float last_phase = 0;
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread (input_buffer, sizeof(short), the_bufsize, stdin);
+			for(int i=0;i<the_bufsize;i++) 
+			{
+				*(((short*)output_buffer)+2*i)=*(((short*)input_buffer)+i);
+				*(((short*)output_buffer)+2*i+1)=*(((short*)input_buffer)+i);
+			}
+			fwrite (output_buffer, sizeof(short)*2, the_bufsize, stdout);
 			TRY_YIELD;
 		}		
 	}
