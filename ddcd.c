@@ -31,8 +31,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <signal.h>
 #include <stdio.h>
 #include <getopt.h>
+#include <string.h>
+#include <stdlib.h>
 
-
+#define SOFTWARE_NAME "ddcd"
+#define MSG_START SOFTWARE_NAME ": "
 
 struct client_s
 {
@@ -40,16 +43,16 @@ struct client_s
 	int addr;
 } client_t;
 
-
+int host_port = 0;
+char host_address[100] = "127.0.0.1";
+int decimation = 0;
 
 int main(int argc, char* argv[])
 {
 	int c;
 	
 	//arguments:
-	int host_port;
-	char host_address[100] = "127.0.0.1";
-	int decimation;
+
 
 	for(;;)
 	{
@@ -75,16 +78,16 @@ int main(int argc, char* argv[])
 			break;
 		case 0:
 		case '?':
+		case ':':
 		default:
 			printf(" 0%o ??\n", c);
 		}
-
-
-		
-		
 	}
-
-	struct sockaddr_in addr_host;
+	
+	if(!decimation) { fprintf(stderr, MSG_START "missing required command line argument, --decimation.\n"); exit(1); }
+	if(!host_port) { fprintf(stderr, MSG_START "missing required command line argument, --port.\n"); exit(1); }
+	
+	/*struct sockaddr_in addr_host;
     int listen_socket;
 	std::vector<client_t> clients;
     listen_socket=socket(AF_INET,SOCK_STREAM,0);
@@ -92,5 +95,6 @@ int main(int argc, char* argv[])
     addr_host.sin_family=AF_INET;
     addr_host.sin_port=htons(8888);
     addr_host.sin_addr.s_addr=inet_addr("127.0.0.1");	
+	*/
 	
 }

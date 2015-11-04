@@ -43,20 +43,26 @@ PARAMS_SO = -fpic
 PARAMS_MISC = -Wno-unused-result
 FFTW_PACKAGE = fftw-3.3.3
 
-all: clean-vect
+.PHONY: clean-vect clean
+all: csdr ddcd
+libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c
 	@echo NOTE: you may have to manually edit Makefile to optimize for your CPU \(especially if you compile on ARM, please edit PARAMS_NEON\).
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
+	rm -f dumpvect*.vect
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -o libcsdr.so
 	-./parsevect dumpvect*.vect
+csdr: csdr.c libcsdr.so
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
+ddcd: ddcd.c libcsdr.so
+	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) ddcd.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o ddcd
 arm-cross: clean-vect
 	#note: this doesn't work since having added FFTW
 	arm-linux-gnueabihf-gcc -std=gnu99 -O3 -fshort-double -ffast-math -dumpbase dumpvect-arm -fdump-tree-vect-details -mfloat-abi=softfp -march=armv7-a -mtune=cortex-a9 -mfpu=neon -mvectorize-with-neon-quad -Wno-unused-result -Wformat=0 $(SOURCES) -lm -o ./csdr
 clean-vect:
 	rm -f dumpvect*.vect
 clean: clean-vect
-	rm -f libcsdr.so csdr 
+	rm -f libcsdr.so csdr ddcd
 install: 
 	install -m 0755 libcsdr.so /usr/lib
 	install -m 0755 csdr /usr/bin
