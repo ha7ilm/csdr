@@ -28,19 +28,28 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
+#include "ddcd.h"
 #include <signal.h>
 #include <stdio.h>
 #include <getopt.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <iostream>
+#include <vector>
+#include <unistd.h>
 
 #define SOFTWARE_NAME "ddcd"
 #define MSG_START SOFTWARE_NAME ": "
 
-struct client_s
+typedef struct client_s
 {
+	struct sockaddr_in addr;
 	int socket;
-	int addr;
+	pid_t pid;
+	int pipefd[2];
 } client_t;
 
 int host_port = 0;
@@ -51,9 +60,6 @@ int main(int argc, char* argv[])
 {
 	int c;
 	
-	//arguments:
-
-
 	for(;;)
 	{
 		int option_index = 0;
@@ -87,14 +93,58 @@ int main(int argc, char* argv[])
 	if(!decimation) { fprintf(stderr, MSG_START "missing required command line argument, --decimation.\n"); exit(1); }
 	if(!host_port) { fprintf(stderr, MSG_START "missing required command line argument, --port.\n"); exit(1); }
 	
-	/*struct sockaddr_in addr_host;
+	struct sockaddr_in addr_host;
     int listen_socket;
-	std::vector<client_t> clients;
+	std::vector<client_t*> clients(10);
     listen_socket=socket(AF_INET,SOCK_STREAM,0);
     memset(&addr_host,'0',sizeof(addr_host));
     addr_host.sin_family=AF_INET;
-    addr_host.sin_port=htons(8888);
-    addr_host.sin_addr.s_addr=inet_addr("127.0.0.1");	
-	*/
-	
+    addr_host.sin_port=htons(host_port);
+
+    if( (addr_host.sin_addr.s_addr=inet_addr(host_address)) == INADDR_NONE) 
+	{ fprintf(stderr, MSG_START "invalid host address.\n"); exit(1); }
+
+	if( bind(listen_socket, (struct sockaddr*) &addr_host, sizeof(addr_host)) < 0)
+	{ fprintf(stderr, MSG_START "cannot bind() address to the socket.\n"); exit(1); }
+
+	if( listen(listen_socket, 10) == -1)
+	{ fprintf(stderr, MSG_START "cannot listen() on socket.\n"); exit(1); }
+
+	for(;;)
+	{
+		struct sockaddr_in addr_cli;
+		socklen_t addr_cli_len;
+		int new_socket;
+
+		if( (new_socket = accept(listen_socket, (struct sockaddr*)&addr_cli, &addr_cli_len)) == -1)
+		{ 
+			fprintf(stderr, MSG_START "cannot accept() a connection.\n"); 
+			continue; 
+		}
+
+		client_t* new_client = new client_t;
+		memcpy(&new_client->addr, &addr_cli, sizeof(new_client->addr));
+		new_client->socket = new_socket;
+		
+		if(new_client->pid = fork())
+		{
+			//We're the parent
+			clients.push_back(new_client);
+			printf("client pid: %d\n", new_client->pid);
+		}
+		else
+		{
+			//We're the client
+			client();
+			break;
+		}
+	}
+
+	return 0;
+}
+
+void client()
+{
+	printf("I'm the client\n");
+	for(;;) sleep(1);	
 }
