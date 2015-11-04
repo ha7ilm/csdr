@@ -100,22 +100,23 @@ int main(int argc, char* argv[])
     memset(&addr_host,'0',sizeof(addr_host));
     addr_host.sin_family=AF_INET;
     addr_host.sin_port=htons(host_port);
+	addr_host.sin_addr.s_addr = INADDR_ANY;
 
-    if( (addr_host.sin_addr.s_addr=inet_addr(host_address)) == INADDR_NONE) 
+    if( (addr_host.sin_addr.s_addr=inet_addr(host_address)) == INADDR_NONE ) 
 	{ fprintf(stderr, MSG_START "invalid host address.\n"); exit(1); }
 
-	if( bind(listen_socket, (struct sockaddr*) &addr_host, sizeof(addr_host)) < 0)
+	if( bind(listen_socket, (struct sockaddr*) &addr_host, sizeof(addr_host)) < 0 )
 	{ fprintf(stderr, MSG_START "cannot bind() address to the socket.\n"); exit(1); }
 
-	if( listen(listen_socket, 10) == -1)
+	if( listen(listen_socket, 10) == -1 )
 	{ fprintf(stderr, MSG_START "cannot listen() on socket.\n"); exit(1); }
 
 	for(;;)
 	{
 		struct sockaddr_in addr_cli;
-		socklen_t addr_cli_len;
+		socklen_t addr_cli_len = sizeof(addr_cli);
 		int new_socket;
-
+			
 		if( (new_socket = accept(listen_socket, (struct sockaddr*)&addr_cli, &addr_cli_len)) == -1)
 		{ 
 			fprintf(stderr, MSG_START "cannot accept() a connection.\n"); 
