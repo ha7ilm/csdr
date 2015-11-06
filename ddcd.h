@@ -13,6 +13,8 @@
 #include <vector>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <sys/wait.h>
 
 typedef struct client_s
 {
@@ -20,6 +22,7 @@ typedef struct client_s
 	int socket;
 	pid_t pid;
 	int pipefd[2];
+	int error;
 } client_t;
 
 

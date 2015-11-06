@@ -39,6 +39,7 @@ char host_address[100] = "127.0.0.1";
 int decimation = 0;
 int bufsize = 1024;
 int bufsizeall;
+int pipe_max_size;
 char* buf;
 
 int set_nonblocking(int fd)
@@ -137,6 +138,22 @@ int main(int argc, char* argv[])
 	FD_SET(STDIN_FILENO, &select_fds);
 	int highfd = ((listen_socket>STDIN_FILENO)?listen_socket:STDIN_FILENO)  + 1;
 
+	FILE* tempfile = fopen("/proc/sys/fs/pipe-max-size","r");
+	if(!tempfile)
+	{
+		perror(MSG_START "cannot read /proc/sys/fs/pipe-max-size");
+	}
+	else
+	{
+		char pipe_max_size_str[100];
+		int tfread = fread(pipe_max_size_str, 1, 100, tempfile);
+		pipe_max_size_str[tfread]='\0';
+		pipe_max_size = atoi(pipe_max_size_str);
+		//fprintf(stderr, MSG_START "note: pipe_max_size = %d\n", pipe_max_size);
+		//if(pipe_max_size>4096 && fcntl(STDIN_FILENO, F_SETPIPE_SZ, pipe_max_size)==-1)
+		//	perror("failed to fcntl(STDIN_FILENO, F_SETPIPE_SZ, ...)");
+	}
+
 	for(;;)
 	{
 		//Let's wait until there is any new data to read, or any new connection!
@@ -146,6 +163,7 @@ int main(int argc, char* argv[])
 		if( (new_socket = accept(listen_socket, (struct sockaddr*)&addr_cli, &addr_cli_len)) != -1)
 		{ 
 			this_client = new client_t;
+			this_client->error = 0;
 			memcpy(&this_client->addr, &addr_cli, sizeof(this_client->addr));
 			this_client->socket = new_socket;
 			if(pipe(this_client->pipefd) == -1)
@@ -153,6 +171,8 @@ int main(int argc, char* argv[])
 				perror(MSG_START "cannot open new pipe() for the client.\n");
 				continue;
 			}
+			if(fcntl(this_client->pipefd[1], F_SETPIPE_SZ, pipe_max_size) == -1)
+				perror("failed to F_SETPIPE_SZ for the client pipe!");
 			if(this_client->pid = fork())
 			{
 				//We're the parent
@@ -175,14 +195,33 @@ int main(int argc, char* argv[])
 		}
 		else if(retval != -1)
 		{
-			for (int i=0;i<clients.size(); i++)
+			for (int i=0; i<clients.size(); i++)
 			{
 				if(write(clients[i]->pipefd[1], buf, retval)==-1)
-					print_client(clients[i], "lost buffer, failed to write pipe");
+				{
+					
+					if(!clients[i]->error) print_client(clients[i], "lost buffer, failed to write pipe");
+					else clients[i]->error=1;
+					//fprintf(stderr, MSG_START "errno is %d\n", errno); //usually 11
+					int wpstatus;
+					int wpresult = waitpid(clients[i]->pid, &wpstatus, WNOHANG);
+					if(wpresult == -1) print_client(clients[i], "error while waitpid()!");
+					else if(wpresult == 0) 
+					{
+						//Client exited!
+						print_client(clients[i], "closing client from main process.");
+						close(clients[i]->pipefd[1]);
+						close(clients[i]->socket);
+						delete clients[i];
+						clients.erase(clients.begin()+i);
+						print_client(clients[i], "okay.");
+					}
+				}
+				else clients[i]->error=0;
 			}
 		}
 		//TODO: at the end, server closes pipefd[1] for client
-		//close(this_client->pipefd[1]);
+		//
 	}
 
 	return 0;
@@ -200,11 +239,15 @@ void client_cleanup()
 
 void client()
 {
-	printf("I'm the client\n");
+	fprintf(stderr, "I'm the client\n");
 	for(;;)
 	{
 		read(this_client->pipefd[0],buf,bufsizeall);
-		send(this_client->socket,buf,bufsizeall,0);
+		if(send(this_client->socket,buf,bufsizeall,0)==-1)
+		{
+			print_client(this_client, "closing.");
+			exit(0);
+		}
 	}	
 }
 
