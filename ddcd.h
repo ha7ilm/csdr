@@ -29,3 +29,4 @@ typedef struct client_s
 void client();
 void error_exit(const char* why);
 void print_client(client_t* client, const char* what);
+int proc_exists(pid_t pid);

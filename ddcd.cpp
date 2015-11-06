@@ -51,6 +51,12 @@ int set_nonblocking(int fd)
 	return 1;
 }
 
+int proc_exists(pid_t pid)
+{
+	if(pid==0 || pid==1) return 1;
+	return kill(pid, 0) != -1;
+}
+
 client_t* this_client;
 
 int main(int argc, char* argv[])
@@ -119,12 +125,11 @@ int main(int argc, char* argv[])
 	if( listen(listen_socket, 10) == -1 )
 		error_exit(MSG_START "cannot listen() on socket.\n");
 
+	fprintf(stderr,MSG_START "listening on %s:%d\n", inet_ntoa(addr_host.sin_addr), host_port);
+
 	struct sockaddr_in addr_cli;
 	socklen_t addr_cli_len = sizeof(addr_cli);
 	int new_socket;
-
-	//The server will wait on these sockets later...
-
 
 	//Set stdin and listen_socket to non-blocking
 	if(set_nonblocking(STDIN_FILENO) || set_nonblocking(listen_socket))
@@ -200,13 +205,20 @@ int main(int argc, char* argv[])
 				if(write(clients[i]->pipefd[1], buf, retval)==-1)
 				{
 					
-					if(!clients[i]->error) print_client(clients[i], "lost buffer, failed to write pipe");
-					else clients[i]->error=1;
+					if(!clients[i]->error) 
+					{
+						print_client(clients[i], "lost buffer, failed to write pipe.");
+						clients[i]->error=1;
+					}
 					//fprintf(stderr, MSG_START "errno is %d\n", errno); //usually 11
-					int wpstatus;
-					int wpresult = waitpid(clients[i]->pid, &wpstatus, WNOHANG);
-					if(wpresult == -1) print_client(clients[i], "error while waitpid()!");
-					else if(wpresult == 0) 
+					//int wpstatus;
+					//int wpresult = waitpid(clients[i]->pid, &wpstatus, WNOHANG);
+					//fprintf(stderr, MSG_START "pid is %d\n",clients[i]->pid);
+					//perror("somethings wrong");
+					//if(wpresult == -1) print_client(clients[i], "error while waitpid()!");
+					//else if(wpresult == 0) 
+					waitpid(clients[i]->pid, NULL, WNOHANG);
+					if(!proc_exists(clients[i]->pid))
 					{
 						//Client exited!
 						print_client(clients[i], "closing client from main process.");
@@ -214,10 +226,10 @@ int main(int argc, char* argv[])
 						close(clients[i]->socket);
 						delete clients[i];
 						clients.erase(clients.begin()+i);
-						print_client(clients[i], "okay.");
+						print_client(clients[i], "done closing client from main process.");
 					}
 				}
-				else clients[i]->error=0;
+				else  { if(clients[i]->error) print_client(clients[i], "pipe okay again."); clients[i]->error=0; }
 			}
 		}
 		//TODO: at the end, server closes pipefd[1] for client
@@ -229,7 +241,7 @@ int main(int argc, char* argv[])
 
 void print_client(client_t* client, const char* what)
 {
-	fprintf(stderr,MSG_START " (client %s:%d) %s\n", inet_ntoa(client->addr.sin_addr), client->addr.sin_port, what);
+	fprintf(stderr,MSG_START "(client %s:%d) %s\n", inet_ntoa(client->addr.sin_addr), client->addr.sin_port, what);
 }
 
 void client_cleanup()
@@ -245,7 +257,7 @@ void client()
 		read(this_client->pipefd[0],buf,bufsizeall);
 		if(send(this_client->socket,buf,bufsizeall,0)==-1)
 		{
-			print_client(this_client, "closing.");
+			print_client(this_client, "client process is exiting.");
 			exit(0);
 		}
 	}	
