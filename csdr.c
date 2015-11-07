@@ -48,6 +48,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ima_adpcm.h"
 #include <sched.h>
 #include <math.h>
+#include <strings.h>
+#include "fastddc.h"
 
 char usage[]=
 "csdr - a simple commandline tool for Software Defined Radio receiver DSP.\n\n"
@@ -1269,7 +1271,6 @@ int main(int argc, char *argv[])
 		float high_cut;
 		float transition_bw;
 		window_t window = WINDOW_DEFAULT;
-		char window_string[256]; //TODO: nice buffer overflow opportunity 
 		
 		int fd;
 		if(fd=init_fifo(argc,argv))
@@ -1644,6 +1645,105 @@ int main(int argc, char *argv[])
 			fwrite (output_buffer, sizeof(short)*2, the_bufsize, stdout);
 			TRY_YIELD;
 		}		
+	}
+
+	if( !strcmp(argv[1],"fastddc_fwd_cc") ) //<decimation> [transition_bw [window]]
+	{	
+		int decimation;
+		if(argc<=2) return badsyntax("need required parameter (decimation)");
+		sscanf(argv[2],"%d",&decimation);
+		
+		float transition_bw = 0.05;
+		if(argc>=3) sscanf(argv[3],"%g",&transition_bw);
+
+		window_t window = WINDOW_DEFAULT;
+		if(argc>=4)	window=firdes_get_window_from_string(argv[5]);
+		else fprintf(stderr,"fastddc_fwd_cc: window = %s\n",firdes_get_string_from_window(window));
+
+		fastddc_t ddc; 
+		if(fastddc_init(&ddc, transition_bw, decimation, 0)) { badsyntax("error in fastddc_init()"); return 1; }
+		fastddc_print(&ddc);
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(ddc.fft_size);
+
+		//make FFT plan
+		complexf* input = 	 (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
+		complexf* windowed = (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
+		complexf* output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
+
+		for(int i=0;i<ddc.fft_size;i++) iof(input,i)=qof(input,i)=0; //null the input buffer
+
+		int benchmark = 1; 
+		if(benchmark) fprintf(stderr,"fastddc_fwd_cc: benchmarking FFT...");
+		FFT_PLAN_T* plan=make_fft_c2c(ddc.fft_size, windowed, output, 1, benchmark);
+		if(benchmark) fprintf(stderr," done\n");
+
+		for(;;)
+		{
+			FEOF_CHECK;
+			//overlapped FFT
+			for(int i=0;i<ddc.overlap_length;i++) input[i]=input[i+ddc.input_size];
+			fread(input+ddc.overlap_length, sizeof(complexf), ddc.input_size, stdin);
+			apply_window_c(input,windowed,ddc.fft_size,window);
+			fft_execute(plan);
+			fwrite(output, sizeof(complexf), ddc.fft_size, stdout);
+			TRY_YIELD;
+		}
+	}
+
+	if( !strcmp(argv[1],"fastddc_apply_cc") ) //<decimation> <shift_rate> [transition_bw [window]]
+	{	
+		int decimation;
+		if(argc<=2) return badsyntax("need required parameter (decimation)");
+		sscanf(argv[2],"%d",&decimation);
+
+		float shift_rate;
+		if(argc>=3) sscanf(argv[3],"%g",&shift_rate);		
+
+		float transition_bw = 0.05;
+		if(argc>=4) sscanf(argv[4],"%g",&transition_bw);
+
+		window_t window = WINDOW_DEFAULT;
+		if(argc>=5)	window=firdes_get_window_from_string(argv[5]);
+		else fprintf(stderr,"fastddc_apply_cc: window = %s\n",firdes_get_string_from_window(window));
+
+		fastddc_t ddc; 
+		if(fastddc_init(&ddc, transition_bw, decimation, shift_rate)) { badsyntax("error in fastddc_init()"); return 1; }
+		fastddc_print(&ddc);
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(ddc.output_size);
+
+		//prepare making the filter and doing FFT on it
+		complexf* taps=(complexf*)calloc(sizeof(complexf),ddc.fft_size); //initialize to zero
+		complexf* taps_fft=(complexf*)malloc(sizeof(complexf)*ddc.fft_size);
+		FFT_PLAN_T* plan_taps = make_fft_c2c(ddc.fft_size, taps, taps_fft, 1, 0); //forward, don't benchmark (we need this only once)
+
+		//make the filter
+		float filter_half_bw = 0.5/decimation;
+		firdes_bandpass_c(taps, ddc.taps_real_length, shift_rate-filter_half_bw, shift_rate+filter_half_bw, window);
+		fft_execute(plan_taps);
+
+		//make FFT plan
+		complexf* input = 	 (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
+		complexf* output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.output_size);
+
+		int benchmark = 1; 
+		if(benchmark) fprintf(stderr,"fastddc_apply_cc: benchmarking FFT...");
+		FFT_PLAN_T* plan_inverse = make_fft_c2c(ddc.fft_size, input, output, 0, 1); //inverse, do benchmark
+		if(benchmark) fprintf(stderr," done\n");
+
+		decimating_shift_addition_status_t shift_stat;
+		bzero(&shift_stat, sizeof(shift_stat));
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(input, sizeof(complexf), ddc.fft_size, stdin);
+			shift_stat = fastddc_apply_cc(input, output, &ddc, plan_inverse, taps_fft, shift_stat);
+			fwrite(output, sizeof(complexf), ddc.output_size, stdout);
+			TRY_YIELD;
+		}
 	}
 
 	if(!strcmp(argv[1],"none"))
