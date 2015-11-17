@@ -1649,15 +1649,16 @@ int main(int argc, char *argv[])
 
 	if( !strcmp(argv[1],"fastddc_fwd_cc") ) //<decimation> [transition_bw [window]]
 	{	
+		
 		int decimation;
 		if(argc<=2) return badsyntax("need required parameter (decimation)");
 		sscanf(argv[2],"%d",&decimation);
 		
 		float transition_bw = 0.05;
-		if(argc>=3) sscanf(argv[3],"%g",&transition_bw);
+		if(argc>3) sscanf(argv[3],"%g",&transition_bw);
 
 		window_t window = WINDOW_DEFAULT;
-		if(argc>=4)	window=firdes_get_window_from_string(argv[5]);
+		if(argc>4)	window=firdes_get_window_from_string(argv[5]);
 		else fprintf(stderr,"fastddc_fwd_cc: window = %s\n",firdes_get_string_from_window(window));
 
 		fastddc_t ddc; 
@@ -1683,7 +1684,7 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			//overlapped FFT
-			for(int i=0;i<ddc.overlap_length;i++) input[i]=input[i+ddc.input_size];
+			for(int i=0;i<ddc.overlap_length;i++) input[i]=input[i+ddc.overlap_length];
 			fread(input+ddc.overlap_length, sizeof(complexf), ddc.input_size, stdin);
 			apply_window_c(input,windowed,ddc.fft_size,window);
 			fft_execute(plan);
@@ -1699,13 +1700,13 @@ int main(int argc, char *argv[])
 		sscanf(argv[2],"%d",&decimation);
 
 		float shift_rate;
-		if(argc>=3) sscanf(argv[3],"%g",&shift_rate);		
+		if(argc>3) sscanf(argv[3],"%g",&shift_rate);		
 
 		float transition_bw = 0.05;
-		if(argc>=4) sscanf(argv[4],"%g",&transition_bw);
+		if(argc>4) sscanf(argv[4],"%g",&transition_bw);
 
 		window_t window = WINDOW_DEFAULT;
-		if(argc>=5)	window=firdes_get_window_from_string(argv[5]);
+		if(argc>5)	window=firdes_get_window_from_string(argv[5]);
 		else fprintf(stderr,"fastddc_apply_cc: window = %s\n",firdes_get_string_from_window(window));
 
 		fastddc_t ddc; 
@@ -1726,13 +1727,15 @@ int main(int argc, char *argv[])
 		fft_execute(plan_taps);
 
 		//make FFT plan
+		complexf* inv_input = 	 (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_inv_size);
+		complexf* inv_output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_inv_size);
+		fprintf(stderr,"fastddc_apply_cc: benchmarking FFT...");
+		FFT_PLAN_T* plan_inverse = make_fft_c2c(ddc.fft_inv_size, inv_input, inv_output, 0, 1); //inverse, do benchmark
+		fprintf(stderr," done\n");
+		
+		//alloc. buffers
 		complexf* input = 	 (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
 		complexf* output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.output_size);
-
-		int benchmark = 1; 
-		if(benchmark) fprintf(stderr,"fastddc_apply_cc: benchmarking FFT...");
-		FFT_PLAN_T* plan_inverse = make_fft_c2c(ddc.fft_size, input, output, 0, 1); //inverse, do benchmark
-		if(benchmark) fprintf(stderr," done\n");
 
 		decimating_shift_addition_status_t shift_stat;
 		bzero(&shift_stat, sizeof(shift_stat));

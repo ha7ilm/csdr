@@ -45,7 +45,7 @@ FFTW_PACKAGE = fftw-3.3.3
 
 .PHONY: clean-vect clean
 all: csdr ddcd
-libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c *.h
+libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastddc.c *.h
 	@echo NOTE: you may have to manually edit Makefile to optimize for your CPU \(especially if you compile on ARM, please edit PARAMS_NEON\).
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
@@ -63,7 +63,7 @@ clean-vect:
 	rm -f dumpvect*.vect
 clean: clean-vect
 	rm -f libcsdr.so csdr ddcd
-install: 
+install: all 
 	install -m 0755 libcsdr.so /usr/lib
 	install -m 0755 csdr /usr/bin
 	install -m 0755 csdr-fm /usr/bin
