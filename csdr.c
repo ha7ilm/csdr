@@ -697,7 +697,7 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			FREAD_R;
-			for(int i=0; i<the_bufsize;i++) fprintf(stderr, "%g ",input_buffer[i]);
+			for(int i=0; i<the_bufsize;i++) printf("%g ",input_buffer[i]);
 			TRY_YIELD;
 		}
 		
@@ -1658,7 +1658,7 @@ int main(int argc, char *argv[])
 		if(argc>3) sscanf(argv[3],"%g",&transition_bw);
 
 		window_t window = WINDOW_DEFAULT;
-		if(argc>4)	window=firdes_get_window_from_string(argv[5]);
+		if(argc>4)	window=firdes_get_window_from_string(argv[4]);
 		else fprintf(stderr,"fastddc_fwd_cc: window = %s\n",firdes_get_string_from_window(window));
 
 		fastddc_t ddc; 
@@ -1693,7 +1693,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if( !strcmp(argv[1],"fastddc_apply_cc") ) //<decimation> <shift_rate> [transition_bw [window]]
+	if( !strcmp(argv[1],"fastddc_inv_cc") ) //<decimation> <shift_rate> [transition_bw [window]]
 	{	
 		int decimation;
 		if(argc<=2) return badsyntax("need required parameter (decimation)");
@@ -1743,9 +1743,36 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			fread(input, sizeof(complexf), ddc.fft_size, stdin);
-			shift_stat = fastddc_apply_cc(input, output, &ddc, plan_inverse, taps_fft, shift_stat);
+			shift_stat = fastddc_inv_cc(input, output, &ddc, plan_inverse, taps_fft, shift_stat);
 			fwrite(output, sizeof(complexf), ddc.output_size, stdout);
 			TRY_YIELD;
+		}
+	}
+
+	if( !strcmp(argv[1], "_fft2octave") ) 
+	{
+		int fft_size;
+		if(argc<=2) return badsyntax("need required parameter (fft_size)");
+		sscanf(argv[2],"%d",&fft_size);
+
+		complexf* fft_input=(complexf*)malloc(sizeof(complexf)*fft_size);
+		initialize_buffers();
+		if(!sendbufsize(fft_size)) return -2;
+
+		printf("setenv(\"GNUTERM\",\"X11 noraise\");y=zeros(1,%d);semilogy(y,\"ydatasource\",\"y\");\n",fft_size);
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(fft_input, sizeof(complexf), fft_size, stdin);
+			printf("fftdata=[");
+			//we have to swap the two parts of the array to get a valid spectrum
+			for(int i=fft_size/2;i<fft_size;i++) printf("(%g)+(%g)*i ",iof(fft_input,i),qof(fft_input,i));
+			for(int i=0;i<fft_size/2;i++) printf("(%g)+(%g)*i ",iof(fft_input,i),qof(fft_input,i)); 
+			printf(
+				"];\n"
+				"y=abs(fftdata);\n"
+				"refreshdata;\n"
+			);
 		}
 	}
 

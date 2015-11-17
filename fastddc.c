@@ -85,7 +85,22 @@ void fastddc_print(fastddc_t* ddc)
 		ddc->output_size, ddc->scrape );
 }
 
-decimating_shift_addition_status_t fastddc_apply_cc(complexf* input, complexf* output, fastddc_t* ddc, FFT_PLAN_T* plan_inverse, complexf* taps_fft, decimating_shift_addition_status_t shift_stat)
+void fft_swap_sides(complexf* io, int fft_size)
+{
+	int middle=fft_size/2;
+	complexf temp;
+	for(int i=0;i<middle;i++)
+	{
+		iof(&temp,0)=iof(io,i);
+		qof(&temp,0)=qof(io,i);
+		iof(io,i)=iof(io,i+middle);
+		qof(io,i)=qof(io,i+middle);
+		iof(io,i+middle)=iof(&temp,0);
+		qof(io,i+middle)=qof(&temp,0);
+	}
+}
+
+decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* output, fastddc_t* ddc, FFT_PLAN_T* plan_inverse, complexf* taps_fft, decimating_shift_addition_status_t shift_stat)
 {
 	//implements DDC by using the overlap & scrape method
 	//TODO: +/-1s on overlap_size et al
@@ -102,7 +117,7 @@ decimating_shift_addition_status_t fastddc_apply_cc(complexf* input, complexf* o
 	}
 
 	//Alias & shift & filter at once
-	// * no, we won't break this algorithm to parts that are easier to understand: now we go for speed
+	fft_swap_sides(input, ddc->fft_size); //this is not very optimal, but now we stick with this slow solution until we got the algorithm working
 	for(int i=0;i<ddc->fft_size;i++)
 	{
 		int output_index = (ddc->startbin+i)%plan_inverse->size;
@@ -111,9 +126,10 @@ decimating_shift_addition_status_t fastddc_apply_cc(complexf* input, complexf* o
 	}
 
 	fft_execute(plan_inverse);
+	fft_swap_sides(inv_output,plan_inverse->size);
 
 	//Normalize data
-	for(int i=0;i<plan_inverse->size;i++) //@apply_ddc_fft_cc: normalize by size
+	for(int i=0;i<plan_inverse->size;i++) //@fastddc_inv_cc: normalize by size
 	{
 		iof(inv_output,i)/=plan_inverse->size;
 		qof(inv_output,i)/=plan_inverse->size;
