@@ -1714,7 +1714,7 @@ int main(int argc, char *argv[])
 		fastddc_print(&ddc);
 
 		if(!initialize_buffers()) return -2;
-		sendbufsize(ddc.output_size);
+		sendbufsize(ddc.post_input_size/ddc.post_decimation); //TODO not exactly correct
 
 		//prepare making the filter and doing FFT on it
 		complexf* taps=(complexf*)calloc(sizeof(complexf),ddc.fft_size); //initialize to zero
@@ -1735,7 +1735,7 @@ int main(int argc, char *argv[])
 		
 		//alloc. buffers
 		complexf* input = 	 (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
-		complexf* output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.output_size);
+		complexf* output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.post_input_size);
 
 		decimating_shift_addition_status_t shift_stat;
 		bzero(&shift_stat, sizeof(shift_stat));
@@ -1744,7 +1744,7 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			fread(input, sizeof(complexf), ddc.fft_size, stdin);
 			shift_stat = fastddc_inv_cc(input, output, &ddc, plan_inverse, taps_fft, shift_stat);
-			fwrite(output, sizeof(complexf), ddc.output_size, stdout);
+			fwrite(output, sizeof(complexf), shift_stat.output_size, stdout);
 			TRY_YIELD;
 		}
 	}

@@ -12,7 +12,7 @@ typedef struct fastddc_s
 	int fft_size;
 	int fft_inv_size;
 	int input_size;
-	int output_size;
+	int post_input_size;
 	float pre_shift;
 	int startbin; //for pre_shift
 	int v; //step for pre_shift
