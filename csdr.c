@@ -1684,9 +1684,10 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			//overlapped FFT
-			for(int i=0;i<ddc.overlap_length;i++) input[i]=input[i+ddc.overlap_length];
+			for(int i=0;i<ddc.overlap_length;i++) input[i]=input[i+ddc.input_size];
 			fread(input+ddc.overlap_length, sizeof(complexf), ddc.input_size, stdin);
 			apply_window_c(input,windowed,ddc.fft_size,window);
+			//memcpy(windowed, input, ddc.fft_size*sizeof(complexf)); //we can switch off windows
 			fft_execute(plan);
 			fwrite(output, sizeof(complexf), ddc.fft_size, stdout);
 			TRY_YIELD;

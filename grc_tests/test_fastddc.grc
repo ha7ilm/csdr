@@ -70,6 +70,33 @@
     </param>
   </block>
   <block>
+    <key>variable</key>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(128, 179)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>decimation</value>
+    </param>
+    <param>
+      <key>value</key>
+      <value>4</value>
+    </param>
+  </block>
+  <block>
     <key>variable_slider</key>
     <param>
       <key>comment</key>
@@ -238,7 +265,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(424, 59)</value>
+      <value>(424, 235)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -281,7 +308,7 @@
     </param>
     <param>
       <key>commandline</key>
-      <value>csdr fastddc_fwd_cc 10 | csdr fastddc_inv_cc 10 0.1</value>
+      <value>csdr fastddc_fwd_cc 4 | csdr fastddc_inv_cc 4 0.1</value>
     </param>
     <param>
       <key>comment</key>
@@ -297,7 +324,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(584, 59)</value>
+      <value>(616, 235)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -403,7 +430,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(936, 155)</value>
+      <value>(952, 155)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -439,7 +466,7 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>samp_rate</value>
+      <value>samp_rate/decimation</value>
     </param>
     <param>
       <key>title</key>
@@ -494,7 +521,7 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>True</value>
+      <value>1</value>
     </param>
     <param>
       <key>fft_size</key>
@@ -506,7 +533,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(936, 371)</value>
+      <value>(616, 379)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -617,7 +644,7 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>samp_rate</value>
+      <value>samp_rate/decimation</value>
     </param>
     <param>
       <key>t_scale</key>
