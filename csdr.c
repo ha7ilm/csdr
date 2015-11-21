@@ -452,6 +452,7 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			if(!FREAD_C) break;
+			starting_phase=shift_math_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, rate, starting_phase);
 			FWRITE_C;
 			TRY_YIELD;
 		}
@@ -1295,7 +1296,7 @@ int main(int argc, char *argv[])
 		if (fft_size-taps_length<200) fft_size<<=1; 
 		int input_size = fft_size - taps_length + 1;
 		int overlap_length = taps_length - 1;
-		fprintf(stderr,"bandpass_fir_fft_cc: (fft_size = %d) = (taps_length = %d) + (input_size = %d) - 1\n(overlap_length = %d) = taps_length - 1\n", fft_size, taps_length, input_size, overlap_length);
+		fprintf(stderr,"bandpass_fir_fft_cc: (fft_size = %d) = (taps_length = %d) + (input_size = %d) - 1\n(overlap_length = %d) = taps_length - 1\n", fft_size, taps_length, input_size, overlap_length );
 		if (fft_size<=2) return badsyntax("FFT size error.");
 
 		if(!sendbufsize(getbufsize())) return -2;
@@ -1663,7 +1664,7 @@ int main(int argc, char *argv[])
 
 		fastddc_t ddc; 
 		if(fastddc_init(&ddc, transition_bw, decimation, 0)) { badsyntax("error in fastddc_init()"); return 1; }
-		fastddc_print(&ddc);
+		fastddc_print(&ddc,"fastddc_fwd_cc");
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(ddc.fft_size);
@@ -1686,8 +1687,8 @@ int main(int argc, char *argv[])
 			//overlapped FFT
 			for(int i=0;i<ddc.overlap_length;i++) input[i]=input[i+ddc.input_size];
 			fread(input+ddc.overlap_length, sizeof(complexf), ddc.input_size, stdin);
-			apply_window_c(input,windowed,ddc.fft_size,window);
-			//memcpy(windowed, input, ddc.fft_size*sizeof(complexf)); //we can switch off windows
+			//apply_window_c(input,windowed,ddc.fft_size,window);
+			memcpy(windowed, input, ddc.fft_size*sizeof(complexf)); //we can switch off windows; TODO: it is likely that we shouldn't apply a window to both the FFT and the filter.
 			fft_execute(plan);
 			fwrite(output, sizeof(complexf), ddc.fft_size, stdout);
 			TRY_YIELD;
@@ -1712,7 +1713,7 @@ int main(int argc, char *argv[])
 
 		fastddc_t ddc; 
 		if(fastddc_init(&ddc, transition_bw, decimation, shift_rate)) { badsyntax("error in fastddc_init()"); return 1; }
-		fastddc_print(&ddc);
+		fastddc_print(&ddc,"fastddc_inv_cc");
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(ddc.post_input_size/ddc.post_decimation); //TODO not exactly correct

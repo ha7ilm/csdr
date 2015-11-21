@@ -55,34 +55,37 @@ int fastddc_init(fastddc_t* ddc, float transition_bw, int decimation, float shif
 	//Shift operation in the frequency domain: we can shift by a multiple of v.
 	ddc->v = ddc->fft_size/ddc->overlap_length; //+-1 ? (or maybe ceil() this?) //TODO: why?
 	int middlebin=ddc->fft_size / 2;
-	ddc->startbin = middlebin + middlebin * shift_rate * 2;			 
+	ddc->startbin = middlebin + middlebin * shift_rate * 2;	
+	//fprintf(stderr, "ddc->startbin=%g\n",(float)ddc->startbin);
 	ddc->startbin = ddc->v * round( ddc->startbin / (float)ddc->v );
+	//fprintf(stderr, "ddc->startbin=%g\n",(float)ddc->startbin);
 	ddc->offsetbin = ddc->startbin - middlebin;
 	ddc->post_shift = shift_rate-((float)ddc->offsetbin/ddc->fft_size);
 	ddc->pre_shift = ddc->offsetbin/(float)ddc->fft_size;
+	ddc->dsadata = decimating_shift_addition_init(ddc->post_shift, ddc->post_decimation);
 
-	//Overlap is scraped, not added
-	ddc->scrape=ddc->overlap_length/ddc->pre_decimation;
-	ddc->post_input_size=ddc->fft_inv_size-ddc->scrape;
+	//Overlap is scrapd, not added
+	ddc->scrap=ddc->overlap_length/ddc->pre_decimation; //TODO this is problematic sometimes! overlap_length = 401 :: scrap = 200
+	ddc->post_input_size=ddc->fft_inv_size-ddc->scrap;
 
 	return ddc->fft_size<=2; //returns true on error
 }
 
 
-void fastddc_print(fastddc_t* ddc)
+void fastddc_print(fastddc_t* ddc, char* source)
 {
 	fprintf(stderr,
-		"fastddc_print_sizes(): (fft_size = %d) = (taps_length = %d) + (input_size = %d) - 1\n"
+		"%s: fastddc_print_sizes(): (fft_size = %d) = (taps_length = %d) + (input_size = %d) - 1\n"
 		"  overlap     ::  (overlap_length = %d) = taps_length - 1, taps_real_length = %d\n"
 		"  decimation  ::  decimation = (pre_decimation = %d) * (post_decimation = %d), fft_inv_size = %d\n"
 		"  shift       ::  startbin = %d, offsetbin = %d, v = %d, pre_shift = %g, post_shift = %g\n"
-		"  o&s         ::  post_input_size = %d, scrape = %d\n"
+		"  o&s         ::  post_input_size = %d, scrap = %d\n"
 		, 
-		ddc->fft_size, ddc->taps_length, ddc->input_size, 
+		source, ddc->fft_size, ddc->taps_length, ddc->input_size, 
 		ddc->overlap_length, ddc->taps_real_length,
 		ddc->pre_decimation, ddc->post_decimation, ddc->fft_inv_size,
 		ddc->startbin, ddc->offsetbin, ddc->v, ddc->pre_shift, ddc->post_shift, 
-		ddc->post_input_size, ddc->scrape );
+		ddc->post_input_size, ddc->scrap );
 }
 
 void fft_swap_sides(complexf* io, int fft_size)
@@ -102,7 +105,7 @@ void fft_swap_sides(complexf* io, int fft_size)
 
 decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* output, fastddc_t* ddc, FFT_PLAN_T* plan_inverse, complexf* taps_fft, decimating_shift_addition_status_t shift_stat)
 {
-	//implements DDC by using the overlap & scrape method
+	//implements DDC by using the overlap & scrap method
 	//TODO: +/-1s on overlap_size et al
 	//input shoud have ddc->fft_size number of elements
 
@@ -135,11 +138,9 @@ decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* out
 		qof(inv_output,i)/=plan_inverse->size;
 	}
 	
-	//Overlap is scraped, not added
+	//Overlap is scrapped, not added
 	//Shift correction
-	shift_addition_data_t dsadata=decimating_shift_addition_init(ddc->post_shift, ddc->post_decimation); //this could be optimized (passed as parameter), but we would not win too much at all 
-	shift_stat=decimating_shift_addition_cc(inv_output+ddc->scrape, output, ddc->post_input_size, dsadata, ddc->post_decimation, shift_stat);
-	
-	//memcpy(inv_output+ddc->scrape,  
+	shift_stat=decimating_shift_addition_cc(inv_output+ddc->scrap, output, ddc->post_input_size, ddc->dsadata, ddc->post_decimation, shift_stat);
+	//memcpy(inv_output+ddc->scrap, output
 	return shift_stat;
 }
