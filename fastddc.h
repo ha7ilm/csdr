@@ -26,3 +26,4 @@ typedef struct fastddc_s
 int fastddc_init(fastddc_t* ddc, float transition_bw, int decimation, float shift_rate);
 decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* output, fastddc_t* ddc, FFT_PLAN_T* plan_inverse, complexf* taps_fft, decimating_shift_addition_status_t shift_stat);
 void fastddc_print(fastddc_t* ddc, char* source);
+void fft_swap_sides(complexf* io, int fft_size);

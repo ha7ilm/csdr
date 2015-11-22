@@ -133,10 +133,10 @@ decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* out
 		// b = qof(input,i)
 		// c = iof(taps_fft,i)
 		// d = qof(taps_fft,i)
-		//iof(inv_input,output_index) += iof(input,i) * iof(taps_fft,i) - qof(input,i) * qof(taps_fft,i);
-		//qof(inv_input,output_index) += iof(input,i) * qof(taps_fft,i) + qof(input,i) * iof(taps_fft,i);
-		iof(inv_input,output_index) += iof(input,i); //no filter
-		qof(inv_input,output_index) += qof(input,i);		
+		iof(inv_input,output_index) += iof(input,i) * iof(taps_fft,i) - qof(input,i) * qof(taps_fft,i);
+		qof(inv_input,output_index) += iof(input,i) * qof(taps_fft,i) + qof(input,i) * iof(taps_fft,i);
+		//iof(inv_input,output_index) += iof(input,i); //no filter
+		//qof(inv_input,output_index) += qof(input,i);		
 	}
 
 	//Normalize inv fft bins (now our output level is not higher than the input... but we may optimize this into the later loop when we normalize by size)

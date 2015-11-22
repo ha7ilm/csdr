@@ -1725,9 +1725,10 @@ int main(int argc, char *argv[])
 
 		//make the filter
 		float filter_half_bw = 0.5/decimation;
-		fprintf(stderr, "fastddc_inv_cc: preparing a bandpass filter of [%g, %g] cutoff rates. Real transition bandwidth is: %g\n", shift_rate-filter_half_bw, shift_rate+filter_half_bw, 4.0/ddc.taps_length);
-		firdes_bandpass_c(taps, ddc.taps_length, shift_rate-filter_half_bw, shift_rate+filter_half_bw, window);
+		fprintf(stderr, "fastddc_inv_cc: preparing a bandpass filter of [%g, %g] cutoff rates. Real transition bandwidth is: %g\n", (-shift_rate)-filter_half_bw, (-shift_rate)+filter_half_bw, 4.0/ddc.taps_length);
+		firdes_bandpass_c(taps, ddc.taps_length, (-shift_rate)-filter_half_bw, (-shift_rate)+filter_half_bw, window);
 		fft_execute(plan_taps);
+		fft_swap_sides(taps_fft,ddc.fft_size);
 
 		//make FFT plan
 		complexf* inv_input = 	 (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_inv_size);
@@ -1748,7 +1749,7 @@ int main(int argc, char *argv[])
 			fread(input, sizeof(complexf), ddc.fft_size, stdin);
 			shift_stat = fastddc_inv_cc(input, output, &ddc, plan_inverse, taps_fft, shift_stat);
 			fwrite(output, sizeof(complexf), shift_stat.output_size, stdout);
-			fprintf(stderr, "ss os = %d\n", shift_stat.output_size);
+			//fprintf(stderr, "ss os = %d\n", shift_stat.output_size);
 			TRY_YIELD;
 		}
 	}
