@@ -44,16 +44,16 @@ int fastddc_init(fastddc_t* ddc, float transition_bw, int decimation, float shif
 		ddc->post_decimation/=2;
 		ddc->pre_decimation*=2;
 	}
-	ddc->taps_real_length = firdes_filter_len(transition_bw); //the number of non-zero taps
-	ddc->taps_length = ceil(ddc->taps_real_length/(float)ddc->pre_decimation) * ddc->pre_decimation; //the number of taps must be a multiple of the decimation factor
+	ddc->taps_min_length = firdes_filter_len(transition_bw); //his is the minimal number of taps to achieve the given transition_bw; we are likely to have more taps than this number.
+	ddc->taps_length = next_pow2(ceil(ddc->taps_min_length/(float)ddc->pre_decimation) * ddc->pre_decimation) + 1; //the number of taps must be a multiple of the decimation factor
 	ddc->fft_size = next_pow2(ddc->taps_length * 4); //it is a good rule of thumb for performance (based on the article), but we should do benchmarks
-	while (ddc->fft_size<ddc->pre_decimation) ddc->fft_size*=2; //fft_size should be a multiple of pre_decimation
+	while (ddc->fft_size<ddc->pre_decimation) ddc->fft_size*=2; //fft_size should be a multiple of pre_decimation.
 	ddc->overlap_length = ddc->taps_length - 1;
 	ddc->input_size = ddc->fft_size - ddc->overlap_length;
 	ddc->fft_inv_size = ddc->fft_size / ddc->pre_decimation;
 
 	//Shift operation in the frequency domain: we can shift by a multiple of v.
-	ddc->v = ddc->fft_size/ddc->overlap_length; //+-1 ? (or maybe ceil() this?) //TODO: why?
+	ddc->v = ddc->fft_size/ddc->overlap_length; //overlap factor | +-1 ? (or maybe ceil() this?)
 	int middlebin=ddc->fft_size / 2;
 	ddc->startbin = middlebin + middlebin * shift_rate * 2;	
 	//fprintf(stderr, "ddc->startbin=%g\n",(float)ddc->startbin);
@@ -64,7 +64,7 @@ int fastddc_init(fastddc_t* ddc, float transition_bw, int decimation, float shif
 	ddc->pre_shift = ddc->offsetbin/(float)ddc->fft_size;
 	ddc->dsadata = decimating_shift_addition_init(ddc->post_shift, ddc->post_decimation);
 
-	//Overlap is scrapd, not added
+	//Overlap is scrapped, not added
 	ddc->scrap=ddc->overlap_length/ddc->pre_decimation; //TODO this is problematic sometimes! overlap_length = 401 :: scrap = 200
 	ddc->post_input_size=ddc->fft_inv_size-ddc->scrap;
 
@@ -76,13 +76,13 @@ void fastddc_print(fastddc_t* ddc, char* source)
 {
 	fprintf(stderr,
 		"%s: fastddc_print_sizes(): (fft_size = %d) = (taps_length = %d) + (input_size = %d) - 1\n"
-		"  overlap     ::  (overlap_length = %d) = taps_length - 1, taps_real_length = %d\n"
+		"  overlap     ::  (overlap_length = %d) = taps_length - 1, taps_min_length = %d\n"
 		"  decimation  ::  decimation = (pre_decimation = %d) * (post_decimation = %d), fft_inv_size = %d\n"
 		"  shift       ::  startbin = %d, offsetbin = %d, v = %d, pre_shift = %g, post_shift = %g\n"
 		"  o&s         ::  post_input_size = %d, scrap = %d\n"
 		, 
 		source, ddc->fft_size, ddc->taps_length, ddc->input_size, 
-		ddc->overlap_length, ddc->taps_real_length,
+		ddc->overlap_length, ddc->taps_min_length,
 		ddc->pre_decimation, ddc->post_decimation, ddc->fft_inv_size,
 		ddc->startbin, ddc->offsetbin, ddc->v, ddc->pre_shift, ddc->post_shift, 
 		ddc->post_input_size, ddc->scrap );
@@ -120,16 +120,35 @@ decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* out
 	}
 
 	//Alias & shift & filter at once
-	fft_swap_sides(input, ddc->fft_size); //this is not very optimal, but now we stick with this slow solution until we got the algorithm working
+	fft_swap_sides(input, ddc->fft_size); //TODO this is not very optimal, but now we stick with this slow solution until we got the algorithm working
+	//fprintf(stderr, " === fastddc_inv_cc() ===\n");
 	for(int i=0;i<ddc->fft_size;i++)
 	{
-		int output_index = (ddc->startbin+i)%plan_inverse->size;
-		int tap_index = (ddc->fft_size+i-ddc->offsetbin)%ddc->fft_size;
-		cmultadd(inv_input+output_index, input+i, taps_fft+tap_index); //cmultadd(output, input1, input2):   complex output += complex input1 * complex input 2
+		int output_index = (ddc->fft_size+i-ddc->offsetbin)%plan_inverse->size;
+		int tap_index = i;
+		//fprintf(stderr, "output_index = %d , tap_index = %d, input index = %d\n", output_index, tap_index, i);
+		//cmultadd(inv_input+output_index, input+i, taps_fft+tap_index); //cmultadd(output, input1, input2):   complex output += complex input1 * complex input 2
+		// (a+b*i)*(c+d*i) = (ac-bd)+(ad+bc)*i
+		// a = iof(input,i)
+		// b = qof(input,i)
+		// c = iof(taps_fft,i)
+		// d = qof(taps_fft,i)
+		//iof(inv_input,output_index) += iof(input,i) * iof(taps_fft,i) - qof(input,i) * qof(taps_fft,i);
+		//qof(inv_input,output_index) += iof(input,i) * qof(taps_fft,i) + qof(input,i) * iof(taps_fft,i);
+		iof(inv_input,output_index) += iof(input,i); //no filter
+		qof(inv_input,output_index) += qof(input,i);		
 	}
 
+	//Normalize inv fft bins (now our output level is not higher than the input... but we may optimize this into the later loop when we normalize by size)
+	for(int i=0;i<plan_inverse->size;i++)
+	{
+		iof(inv_input,i)/=ddc->pre_decimation;
+		qof(inv_input,i)/=ddc->pre_decimation;
+	}
+
+	fft_swap_sides(inv_input,plan_inverse->size);
 	fft_execute(plan_inverse);
-	fft_swap_sides(inv_output,plan_inverse->size);
+	
 
 	//Normalize data
 	for(int i=0;i<plan_inverse->size;i++) //@fastddc_inv_cc: normalize by size
@@ -140,7 +159,8 @@ decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* out
 	
 	//Overlap is scrapped, not added
 	//Shift correction
-	shift_stat=decimating_shift_addition_cc(inv_output+ddc->scrap, output, ddc->post_input_size, ddc->dsadata, ddc->post_decimation, shift_stat);
-	//memcpy(inv_output+ddc->scrap, output
+	//shift_stat=decimating_shift_addition_cc(inv_output+ddc->scrap, output, ddc->post_input_size, ddc->dsadata, ddc->post_decimation, shift_stat);
+	shift_stat.output_size = ddc->post_input_size; //bypass shift correction
+	memcpy(output, inv_output+ddc->scrap, sizeof(complexf)*ddc->post_input_size);
 	return shift_stat;
 }

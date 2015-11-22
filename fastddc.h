@@ -7,7 +7,7 @@ typedef struct fastddc_s
 	int pre_decimation;
 	int post_decimation;
 	int taps_length; 
-	int taps_real_length;
+	int taps_min_length;
 	int overlap_length; //it is taps_length - 1
 	int fft_size;
 	int fft_inv_size;
