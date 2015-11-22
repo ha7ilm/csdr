@@ -55,6 +55,8 @@ char usage[]=
 "list of functions:\n\n"
 "    convert_u8_f\n"
 "    convert_f_u8\n"
+"    convert_s8_f\n"
+"    convert_f_s8\n"
 "    convert_f_i16\n"
 "    convert_i16_f\n"
 "    realpart_cf\n"
@@ -204,6 +206,7 @@ int main(int argc, char *argv[])
 {	
 	static float input_buffer[BIG_BUFSIZE*2];
 	static unsigned char buffer_u8[BIG_BUFSIZE*2];
+	static signed char buffer_s8[BIG_BUFSIZE*2];
 	static float output_buffer[BIG_BUFSIZE*2];
 	static short buffer_i16[BIG_BUFSIZE*2];
 	static float temp_f[BIG_BUFSIZE*4];
@@ -228,6 +231,28 @@ int main(int argc, char *argv[])
 			FREAD_R;
 			convert_f_u8(input_buffer, buffer_u8, BUFSIZE);
 			fwrite(buffer_u8, sizeof(unsigned char), BUFSIZE, stdout);
+			TRY_YIELD;
+		}
+	}
+	if(!strcmp(argv[1],"convert_s8_f"))
+	{
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(buffer_s8, sizeof(signed char), BUFSIZE, stdin);
+			convert_s8_f(buffer_s8, output_buffer, BUFSIZE);
+			FWRITE_R;
+			TRY_YIELD;
+		}
+	}
+	if(!strcmp(argv[1],"convert_f_s8")) //not tested
+	{
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_R;
+			convert_f_s8(input_buffer, buffer_s8, BUFSIZE);
+			fwrite(buffer_s8, sizeof(signed char), BUFSIZE, stdout);
 			TRY_YIELD;
 		}
 	}

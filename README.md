@@ -122,6 +122,8 @@ The following commands are available:
 
 - `csdr convert_u8_f` 
 - `csdr convert_f_u8` 
+- `csdr convert_s8_f`
+- `csdr convert_f_s8`
 - `csdr convert_i16_f` 
 - `csdr convert_f_i16`
 
