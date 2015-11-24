@@ -55,12 +55,12 @@ int fastddc_init(fastddc_t* ddc, float transition_bw, int decimation, float shif
 	//Shift operation in the frequency domain: we can shift by a multiple of v.
 	ddc->v = ddc->fft_size/ddc->overlap_length; //overlap factor | +-1 ? (or maybe ceil() this?)
 	int middlebin=ddc->fft_size / 2;
-	ddc->startbin = middlebin + middlebin * shift_rate * 2;	
+	ddc->startbin = middlebin + middlebin * (-shift_rate) * 2;	
 	//fprintf(stderr, "ddc->startbin=%g\n",(float)ddc->startbin);
 	ddc->startbin = ddc->v * round( ddc->startbin / (float)ddc->v );
 	//fprintf(stderr, "ddc->startbin=%g\n",(float)ddc->startbin);
 	ddc->offsetbin = ddc->startbin - middlebin;
-	ddc->post_shift = shift_rate-((float)ddc->offsetbin/ddc->fft_size);
+	ddc->post_shift = (ddc->pre_decimation)*(shift_rate+((float)ddc->offsetbin/ddc->fft_size));
 	ddc->pre_shift = ddc->offsetbin/(float)ddc->fft_size;
 	ddc->dsadata = decimating_shift_addition_init(ddc->post_shift, ddc->post_decimation);
 
@@ -122,9 +122,10 @@ decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* out
 	//Alias & shift & filter at once
 	fft_swap_sides(input, ddc->fft_size); //TODO this is not very optimal, but now we stick with this slow solution until we got the algorithm working
 	//fprintf(stderr, " === fastddc_inv_cc() ===\n");
+	//The problem is, we have to say that the output_index should be the _center_ of the spectrum when i is at startbin! (startbin is at the _center_ of the input to downconvert, not at its first bin!)
 	for(int i=0;i<ddc->fft_size;i++)
 	{
-		int output_index = (ddc->fft_size+i-ddc->offsetbin)%plan_inverse->size;
+		int output_index = (ddc->fft_size+i-ddc->offsetbin+(ddc->fft_inv_size/2))%plan_inverse->size;
 		int tap_index = i;
 		//fprintf(stderr, "output_index = %d , tap_index = %d, input index = %d\n", output_index, tap_index, i);
 		//cmultadd(inv_input+output_index, input+i, taps_fft+tap_index); //cmultadd(output, input1, input2):   complex output += complex input1 * complex input 2
@@ -148,7 +149,6 @@ decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* out
 
 	fft_swap_sides(inv_input,plan_inverse->size);
 	fft_execute(plan_inverse);
-	
 
 	//Normalize data
 	for(int i=0;i<plan_inverse->size;i++) //@fastddc_inv_cc: normalize by size
@@ -159,8 +159,8 @@ decimating_shift_addition_status_t fastddc_inv_cc(complexf* input, complexf* out
 	
 	//Overlap is scrapped, not added
 	//Shift correction
-	//shift_stat=decimating_shift_addition_cc(inv_output+ddc->scrap, output, ddc->post_input_size, ddc->dsadata, ddc->post_decimation, shift_stat);
-	shift_stat.output_size = ddc->post_input_size; //bypass shift correction
-	memcpy(output, inv_output+ddc->scrap, sizeof(complexf)*ddc->post_input_size);
+	shift_stat=decimating_shift_addition_cc(inv_output+ddc->scrap, output, ddc->post_input_size, ddc->dsadata, ddc->post_decimation, shift_stat);
+	//shift_stat.output_size = ddc->post_input_size; //bypass shift correction
+	//memcpy(output, inv_output+ddc->scrap, sizeof(complexf)*ddc->post_input_size);
 	return shift_stat;
 }

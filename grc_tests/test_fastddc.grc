@@ -179,7 +179,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>250000</value>
+      <value>400000</value>
     </param>
   </block>
   <block>
@@ -234,6 +234,57 @@
     </param>
     <param>
       <key>seed</key>
+      <value>0</value>
+    </param>
+  </block>
+  <block>
+    <key>analog_pll_freqdet_cf</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(112, 875)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>analog_pll_freqdet_cf_0</value>
+    </param>
+    <param>
+      <key>w</key>
+      <value>(3.141592654/200)/2</value>
+    </param>
+    <param>
+      <key>max_freq</key>
+      <value>3.141592654</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>min_freq</key>
+      <value>-3.141592654</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
       <value>0</value>
     </param>
   </block>
@@ -301,6 +352,57 @@
     </param>
   </block>
   <block>
+    <key>blocks_multiply_const_vxx</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>const</key>
+      <value>(samp_rate/decimation)*(1/(2*3.141592654))</value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(136, 763)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>blocks_multiply_const_vxx_0</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>float</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>vlen</key>
+      <value>1</value>
+    </param>
+  </block>
+  <block>
     <key>blocks_throttle</key>
     <param>
       <key>alias</key>
@@ -363,7 +465,7 @@
     </param>
     <param>
       <key>commandline</key>
-      <value>csdr fastddc_fwd_cc 4 | csdr fastddc_inv_cc 4 -0.1</value>
+      <value>csdr fastddc_fwd_cc %d | csdr fastddc_inv_cc %d 0.4"%(decimation,decimation)+"</value>
     </param>
     <param>
       <key>comment</key>
@@ -652,6 +754,105 @@
     </param>
   </block>
   <block>
+    <key>wxgui_numbersink2</key>
+    <param>
+      <key>avg_alpha</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>average</key>
+      <value>False</value>
+    </param>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>decimal_places</key>
+      <value>10</value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>factor</key>
+      <value>1.0</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(400, 691)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>grid_pos</key>
+      <value></value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>wxgui_numbersink2_0</value>
+    </param>
+    <param>
+      <key>max_value</key>
+      <value>(samp_rate/decimation)/2</value>
+    </param>
+    <param>
+      <key>min_value</key>
+      <value>(-samp_rate/decimation)/2</value>
+    </param>
+    <param>
+      <key>notebook</key>
+      <value></value>
+    </param>
+    <param>
+      <key>number_rate</key>
+      <value>15</value>
+    </param>
+    <param>
+      <key>peak_hold</key>
+      <value>False</value>
+    </param>
+    <param>
+      <key>ref_level</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>samp_rate</key>
+      <value>samp_rate</value>
+    </param>
+    <param>
+      <key>show_gauge</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>title</key>
+      <value>PLL locked at</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>float</value>
+    </param>
+    <param>
+      <key>units</key>
+      <value>Hz</value>
+    </param>
+    <param>
+      <key>win_size</key>
+      <value></value>
+    </param>
+  </block>
+  <block>
     <key>wxgui_scopesink2</key>
     <param>
       <key>ac_couple</key>
@@ -745,8 +946,20 @@
     <sink_key>0</sink_key>
   </connection>
   <connection>
+    <source_block_id>analog_pll_freqdet_cf_0</source_block_id>
+    <sink_block_id>blocks_multiply_const_vxx_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
     <source_block_id>analog_sig_source_x_0</source_block_id>
     <sink_block_id>blocks_throttle_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>blocks_multiply_const_vxx_0</source_block_id>
+    <sink_block_id>wxgui_numbersink2_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -759,6 +972,12 @@
   <connection>
     <source_block_id>blocks_throttle_0</source_block_id>
     <sink_block_id>wxgui_fftsink2_0_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>ha5kfu_execproc_xx_1</source_block_id>
+    <sink_block_id>analog_pll_freqdet_cf_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
