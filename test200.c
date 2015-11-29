@@ -78,7 +78,7 @@ int main()
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 	for(int i=0;i<T_N;i++) starting_phase = shift_addfast_cc(buf_c, outbuf_c, T_BUFSIZE, &data_addfast, starting_phase);
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
-	fprintf(stderr,"shift_addition_cc done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
+	fprintf(stderr,"shift_addfast_cc done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
 
 
 }

@@ -63,6 +63,8 @@ typedef struct complexf_s { float i; float q; } complexf;
 //they dropped M_PI in C99, so we define it:
 #define PI ((float)3.14159265358979323846)
 
+#define TIME_TAKEN(start,end) ((end.tv_sec-start.tv_sec)+(end.tv_nsec-start.tv_nsec)/1e9)
+
 //window
 typedef enum window_s 
 {
@@ -160,7 +162,7 @@ typedef struct shift_addfast_data_s
 {
 	float dsin[4];
 	float dcos[4];
-
+	float phase_increment;
 } shift_addfast_data_t;
 shift_addfast_data_t shift_addfast_init(float rate);
 float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase);

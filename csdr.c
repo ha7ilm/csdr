@@ -1274,8 +1274,6 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-#define TIME_TAKEN(start,end) ((end.tv_sec-start.tv_sec)+(end.tv_nsec-start.tv_nsec)/1e9)
-
 	if(!strcmp(argv[1],"fft_benchmark"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (fft_size, fft_cycles)"); 

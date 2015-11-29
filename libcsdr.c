@@ -268,30 +268,108 @@ float shift_table_cc(complexf* input, complexf* output, int input_size, float ra
 shift_addfast_data_t shift_addfast_init(float rate)
 {
 	shift_addfast_data_t output;
-	float phase_increment=2*rate*PI;
+	output.phase_increment=2*rate*PI;
 	for(int i=0;i<4;i++)
 	{
-		output.dsin[i]=sin(phase_increment*(i+1));
-		output.dcos[i]=cos(phase_increment*(i+1));
+		output.dsin[i]=sin(output.phase_increment*(i+1));
+		output.dcos[i]=cos(output.phase_increment*(i+1));
 	}
 	return output;
 }
 
+#ifdef NEON_OPTS
+#pragma message "Manual NEON optimizations are ON: we have a faster shift_addfast_cc now."
+
 float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase)
 {
 	//input_size should be multiple of 4
+	float phase=starting_phase;
+	float cos_start[4], sin_start[4];
+	float cos_vals[4], sin_vals[4];
+	for(int i=0;i<4;i++) 
+	{
+		cos_start[i] = cos(starting_phase);
+		sin_start[i] = sin(starting_phase);
+	}
+
+	float* pdcos = d->dcos;
+	float* pdsin = d->dsin;
+	register float* pinput = (float*)input;
+	register float* pinput_end = ((float*)input)+input_size;
+	register float* poutput = (float*)output;
+
+	#define RDCOS "q0" //dcos, dsin
+	#define RDSIN "q1"
+	#define RCOSST "q2" //cos_start, sin_start
+	#define RSINST "q3"
+	#define RCOSV "q4" //cos_vals, sin_vals
+	#define RSINV "q5"
+	#define ROUTI "q6" //output_i, output_q
+	#define ROUTQ "q7" 
+	#define RINPI "q8" //input_i, input_q
+	#define RINPQ "q9"
+	#define R3(x,y,z) x ", " y ", " z "\n\t"
+
+	asm volatile( //(the range is q0-015)
+		"		vld1.32	{" RDCOS "}, [%[pdcos]]\n\t"
+		"		vld1.32	{" RDSIN "}, [%[pdsin]]\n\t"
+		"		vld1.32	{" RCOSST "}, [%[cos_start]]\n\t"
+		"		vld1.32	{" RSINST "}, [%[sin_start]]\n\t"
+		"for_addfast: vld2.32 {" RINPI "-" RINPQ "}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in rinpi and the Q samples in rinpq), also increment the memory address in pinput (hence the "!" mark) 
+
+		//C version:
+		//cos_vals[j] = cos_start * d->dcos[j] - sin_start * d->dsin[j];
+		//sin_vals[j] = sin_start * d->dcos[j] + cos_start * d->dsin[j];
+
+		"		vmul.f32 " R3(RCOSV, RCOSST, RDCOS)  //cos_vals[i] = cos_start * d->dcos[i]
+		"		vmls.f32 " R3(RCOSV, RSINST, RDSIN)  //cos_vals[i] -= sin_start * d->dsin[i]
+		"		vmul.f32 " R3 (RSINV, RSINST, RDCOS) //sin_vals[i] = sin_start * d->dcos[i]
+		"		vmla.f32 " R3(RCOSV, RSINST, RDSIN)  //sin_vals[i] += cos_start * d->dsin[i]
+
+		//C version:
+		//iof(output,4*i+j)=cos_vals[j]*iof(input,4*i+j)-sin_vals[j]*qof(input,4*i+j);
+		//qof(output,4*i+j)=sin_vals[j]*iof(input,4*i+j)+cos_vals[j]*qof(input,4*i+j);	
+		"		vmul.f32 " R3(ROUTI, RCOSV, RINPI) //output = cos_vals * input
+		"		vmls.f32 " R3(ROUTI, RSINV, RINPQ) //output -= sin_vals * input
+		"		vmul.f32 " R3(ROUTQ, RSINV, RINPI) //sin_vals[i] = sin_start * d->dcos[i]
+		"		vmla.f32 " R3(ROUTQ, RCOSV, RINPQ) //sin_vals[i] += cos_start * d->dsin[i]
+
+		"		vst2.32 {" ROUTI "-" ROUTQ "}, [%[poutput]]!\n\t" //store the outputs in memory
+
+		"		vdup.32 " RCOSST ", d5[1]\n\t" // cos_start[0-3] = cos_vals[3]
+		"		vdup.32 " RSINST ", d7[1]\n\t" // sin_start[0-3] = sin_vals[3]
+
+		"		cmp %[pinput], %[pinput_end]\n\t" //if(pinput == pinput_end)
+		"		bcc for_fdccasm\n\t"			  //	then goto for_fdcasm
+	:
+		[pinput]"+r"(pinput), [poutput]"+r"(poutput) //output operand list -> C variables that we will change from ASM
+	:
+		[pinput_end]"r"(pinput_end), [pdcos]"r"(pdcos), [pdsin]"r"(pdsin), [sin_start]"r"(sin_start), [cos_start]"r"(cos_start) //input operand list
+	: 
+		"memory", "q0", "q1", "q2", "q4", "q5", "q6", "q7", "q8", "q9", "cc" //clobber list
+	);
+
+	return phase+input_size*d->phase_increment;
+}
+
+#else
+
+float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase)
+{
+	//input_size should be multiple of 4
+	//fprintf(stderr, "shift_addfast_cc: input_size = %d\n", input_size);
 	float phase=starting_phase;
 	float cos_start=cos(starting_phase);
 	float sin_start=sin(starting_phase);
 	float cos_vals[4], sin_vals[4];
 	for(int i=0;i<input_size/4; i++) //@shift_addfast_cc
 	{
-		for(int j=0;j<4;j++)
+		for(int j=0;j<4;j++) //@shift_addfast_cc
 		{
-			cos_vals[i] = cos_start * d->dcos[i] - sin_start * d->dsin[i];
-			sin_vals[i] = sin_start * d->dcos[i] + cos_start * d->dsin[i];
+			cos_vals[j] = cos_start * d->dcos[j] - sin_start * d->dsin[j];
+			sin_vals[j] = sin_start * d->dcos[j] + cos_start * d->dsin[j];
 		}
-		for(int j=0;j<4;j++)
+		for(int j=0;j<4;j++) //@shift_addfast_cc
 		{
 			iof(output,4*i+j)=cos_vals[j]*iof(input,4*i+j)-sin_vals[j]*qof(input,4*i+j);
 			qof(output,4*i+j)=sin_vals[j]*iof(input,4*i+j)+cos_vals[j]*qof(input,4*i+j);
@@ -299,11 +377,13 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 		cos_start = cos_vals[3];
 		sin_start = sin_vals[3];
 	}
-	return phase;
+	return phase+input_size*d->phase_increment;
 }
 
+#endif
+
 #ifdef NEON_OPTS
-#pragma message "We have a faster fir_decimate_cc now."
+#pragma message "Manual NEON optimizations are ON: we have a faster fir_decimate_cc now."
 
 //max help: http://community.arm.com/groups/android-community/blog/2015/03/27/arm-neon-programming-quick-reference
 
