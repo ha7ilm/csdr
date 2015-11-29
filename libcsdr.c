@@ -264,6 +264,44 @@ float shift_table_cc(complexf* input, complexf* output, int input_size, float ra
 }
 
 
+shift_unroll_data_t shift_unroll_init(float rate, int size)
+{
+	shift_unroll_data_t output;
+	output.phase_increment=2*rate*PI;
+	output.size = size;
+	output.dsin=(float*)malloc(sizeof(float)*size);
+	output.dcos=(float*)malloc(sizeof(float)*size);
+	float myphase = 0;
+	for(int i=0;i<size;i++)
+	{
+		myphase += output.phase_increment;
+		while(myphase>PI) myphase-=2*PI;
+		while(myphase<-PI) myphase+=2*PI;		
+		output.dsin[i]=sin(myphase);
+		output.dcos[i]=cos(myphase);
+	}
+	return output;	
+}
+
+float shift_unroll_cc(complexf *input, complexf* output, int input_size, shift_unroll_data_t* d, float starting_phase)
+{
+	//input_size should be multiple of 4
+	//fprintf(stderr, "shift_addfast_cc: input_size = %d\n", input_size);
+	float cos_start=cos(starting_phase);
+	float sin_start=sin(starting_phase);
+	register float cos_val, sin_val;
+	for(int i=0;i<input_size; i++) //@shift_unroll_cc
+	{
+		cos_val = cos_start * d->dcos[i] - sin_start * d->dsin[i];
+		sin_val  = sin_start * d->dcos[i] + cos_start * d->dsin[i];
+		iof(output,i)=cos_val*iof(input,i)-sin_val*qof(input,i);
+		qof(output,i)=sin_val*iof(input,i)+cos_val*qof(input,i);
+	}
+	starting_phase+=input_size*d->phase_increment;
+	while(starting_phase>PI) starting_phase-=2*PI;
+	while(starting_phase<-PI) starting_phase+=2*PI;
+	return starting_phase;
+}
 
 shift_addfast_data_t shift_addfast_init(float rate)
 {
@@ -283,7 +321,6 @@ shift_addfast_data_t shift_addfast_init(float rate)
 float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase)
 {
 	//input_size should be multiple of 4
-	float phase=starting_phase;
 	float cos_start[4], sin_start[4];
 	float cos_vals[4], sin_vals[4];
 	for(int i=0;i<4;i++) 
@@ -316,7 +353,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 		"		vld1.32	{" RDSIN "}, [%[pdsin]]\n\t"
 		"		vld1.32	{" RCOSST "}, [%[cos_start]]\n\t"
 		"		vld1.32	{" RSINST "}, [%[sin_start]]\n\t"
-		"for_addfast: vld2.32 {" RINPI "-" RINPQ "}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in rinpi and the Q samples in rinpq), also increment the memory address in pinput (hence the "!" mark) 
+		"for_addfast: vld2.32 {" RINPI "-" RINPQ "}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in RINPI and the Q samples in RINPQ), also increment the memory address in pinput (hence the "!" mark) 
 
 		//C version:
 		//cos_vals[j] = cos_start * d->dcos[j] - sin_start * d->dsin[j];
@@ -330,18 +367,18 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 		//C version:
 		//iof(output,4*i+j)=cos_vals[j]*iof(input,4*i+j)-sin_vals[j]*qof(input,4*i+j);
 		//qof(output,4*i+j)=sin_vals[j]*iof(input,4*i+j)+cos_vals[j]*qof(input,4*i+j);	
-		"		vmul.f32 " R3(ROUTI, RCOSV, RINPI) //output = cos_vals * input
-		"		vmls.f32 " R3(ROUTI, RSINV, RINPQ) //output -= sin_vals * input
-		"		vmul.f32 " R3(ROUTQ, RSINV, RINPI) //sin_vals[i] = sin_start * d->dcos[i]
-		"		vmla.f32 " R3(ROUTQ, RCOSV, RINPQ) //sin_vals[i] += cos_start * d->dsin[i]
+		"		vmul.f32 " R3(ROUTI, RCOSV, RINPI) //output_i =  cos_vals * input_i
+		"		vmls.f32 " R3(ROUTI, RSINV, RINPQ) //output_i -= sin_vals * input_q
+		"		vmul.f32 " R3(ROUTQ, RSINV, RINPI) //output_q =  sin_vals * input_i
+		"		vmla.f32 " R3(ROUTQ, RCOSV, RINPQ) //output_i += cos_vals * input_q
 
-		"		vst2.32 {" ROUTI "-" ROUTQ "}, [%[poutput]]\n\t" //store the outputs in memory
-		"		add %[poutput],%[poutput],#32\n\t"
-		"		vdup.32 " RCOSST ", d5[1]\n\t" // cos_start[0-3] = cos_vals[3]
-		"		vdup.32 " RSINST ", d7[1]\n\t" // sin_start[0-3] = sin_vals[3]
+		"		vst2.32 {" ROUTI "-" ROUTQ "}, [%[poutput]]!\n\t" //store the outputs in memory
+		//"		add %[poutput],%[poutput],#32\n\t"
+		"		vdup.32 " RCOSST ", d9[1]\n\t" // cos_start[0-3] = cos_vals[3]
+		"		vdup.32 " RSINST ", d11[1]\n\t" // sin_start[0-3] = sin_vals[3]
 
-		"		cmp %[pinput], %[pinput_end]\n\t" //if(pinput == pinput_end)
-		"		bcc for_addfast\n\t"			  //	then goto for_fdcasm
+		"		cmp %[pinput], %[pinput_end]\n\t" //if(pinput != pinput_end)
+		"		bcc for_addfast\n\t"			  //	then goto for_addfast
 	:
 		[pinput]"+r"(pinput), [poutput]"+r"(poutput) //output operand list -> C variables that we will change from ASM
 	:
@@ -349,7 +386,10 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 	: 
 		"memory", "q0", "q1", "q2", "q4", "q5", "q6", "q7", "q8", "q9", "cc" //clobber list
 	);
-	return phase+input_size*d->phase_increment;
+	starting_phase+=input_size*d->phase_increment;
+	while(starting_phase>PI) starting_phase-=2*PI;
+	while(starting_phase<-PI) starting_phase+=2*PI;
+	return starting_phase;
 }
 
 #else
@@ -358,7 +398,6 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 {
 	//input_size should be multiple of 4
 	//fprintf(stderr, "shift_addfast_cc: input_size = %d\n", input_size);
-	float phase=starting_phase;
 	float cos_start=cos(starting_phase);
 	float sin_start=sin(starting_phase);
 	float cos_vals[4], sin_vals[4];
@@ -377,7 +416,10 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 		cos_start = cos_vals[3];
 		sin_start = sin_vals[3];
 	}
-	return phase+input_size*d->phase_increment;
+	starting_phase+=input_size*d->phase_increment;
+	while(starting_phase>PI) starting_phase-=2*PI;
+	while(starting_phase<-PI) starting_phase+=2*PI;
+	return starting_phase;
 }
 
 #endif
@@ -422,7 +464,7 @@ q4, q5: accumulator for I branch and Q branch (will be the output)
 			"		vld1.32	{q2}, [%[ptaps]]!\n\t" 
 			"		vmla.f32 q4, q0, q2\n\t" //quad_acc_i += quad_input_i * quad_taps_1 //http://stackoverflow.com/questions/3240440/how-to-use-the-multiply-and-accumulate-intrinsics-in-arm-cortex-a8 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489e/CIHEJBIE.html
 			"		vmla.f32 q5, q1, q2\n\t" //quad_acc_q += quad_input_q * quad_taps_1
-			"		cmp %[ptaps], %[ptaps_end]\n\t" //if(ptaps == ptaps_end)
+			"		cmp %[ptaps], %[ptaps_end]\n\t" //if(ptaps != ptaps_end)
 			"		bcc for_fdccasm\n\t"			//	then goto for_fdcasm
 			"		vst1.32 {q4}, [%[quad_acci]]\n\t" //if the loop is finished, store the two accumulators in memory
 			"		vst1.32 {q5}, [%[quad_accq]]\n\t"

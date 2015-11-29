@@ -535,6 +535,56 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
+
+	if(!strcmp(argv[1],"shift_unroll_cc"))
+	{
+		bigbufs=1;
+
+		float starting_phase=0;
+		float rate;
+
+		int fd;
+		if(fd=init_fifo(argc,argv))
+		{
+			while(!read_fifo_ctl(fd,"%g\n",&rate)) usleep(10000);
+		}
+		else
+		{
+			if(argc<=2) return badsyntax("need required parameter (rate)"); 
+			sscanf(argv[2],"%g",&rate);
+		}
+
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			shift_unroll_data_t data=shift_unroll_init(rate, 1024);
+			fprintf(stderr,"shift_unroll_cc: reinitialized to %g\n",rate);
+			int remain, current_size;
+			float* ibufptr;
+			float* obufptr;
+			for(;;)
+			{
+				FEOF_CHECK;
+				if(!FREAD_C) break;
+				remain=the_bufsize;
+				ibufptr=input_buffer;
+				obufptr=output_buffer;
+				while(remain)
+				{
+					current_size=(remain>1024)?1024:remain;
+					starting_phase=shift_unroll_cc((complexf*)ibufptr, (complexf*)obufptr, current_size, &data, starting_phase);
+					ibufptr+=current_size*2;
+					obufptr+=current_size*2;
+					remain-=current_size;
+				}
+				FWRITE_C;
+				if(read_fifo_ctl(fd,"%g\n",&rate)) break;
+				TRY_YIELD;
+			}
+		}
+		return 0;
+	}
+
 #ifdef LIBCSDR_GPL
 	if(!strcmp(argv[1],"decimating_shift_addition_cc"))
 	{

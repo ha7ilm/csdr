@@ -62,9 +62,18 @@ int main()
 
 	fprintf(stderr,"Starting tests of processing %d samples...\n", T_BUFSIZE*T_N);
 
+	//shift_math_cc
+	float starting_phase = 0;
+
+	clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+	for(int i=0;i<T_N;i++) starting_phase = shift_math_cc(buf_c, outbuf_c, T_BUFSIZE, 0.1, starting_phase);
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+	fprintf(stderr,"shift_math_cc done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
+
+
 	//shift_addition_cc	
 	shift_addition_data_t data_addition = shift_addition_init(0.1);
-	float starting_phase = 0;
+	starting_phase = 0;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 	for(int i=0;i<T_N;i++) starting_phase = shift_addition_cc(buf_c, outbuf_c, T_BUFSIZE, data_addition, starting_phase);
@@ -79,6 +88,15 @@ int main()
 	for(int i=0;i<T_N;i++) starting_phase = shift_addfast_cc(buf_c, outbuf_c, T_BUFSIZE, &data_addfast, starting_phase);
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
 	fprintf(stderr,"shift_addfast_cc done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
+
+	//shift_unroll_cc
+	shift_unroll_data_t data_unroll = shift_unroll_init(0.1, T_BUFSIZE);
+	starting_phase = 0;
+
+	clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+	for(int i=0;i<T_N;i++) starting_phase = shift_unroll_cc(buf_c, outbuf_c, T_BUFSIZE, &data_unroll, starting_phase);
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+	fprintf(stderr,"shift_unroll_cc done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
 
 
 }

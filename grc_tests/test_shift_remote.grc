@@ -355,7 +355,7 @@
     </param>
     <param>
       <key>commandline</key>
-      <value>ncat -vv raspberrypi.local 5321</value>
+      <value>ncat -v raspberrypi.local 5321</value>
     </param>
     <param>
       <key>comment</key>

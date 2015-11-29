@@ -165,8 +165,18 @@ typedef struct shift_addfast_data_s
 	float phase_increment;
 } shift_addfast_data_t;
 shift_addfast_data_t shift_addfast_init(float rate);
+shift_addfast_data_t shift_addfast_init(float rate);
 float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase);
 
+typedef struct shift_unroll_data_s
+{
+	float* dsin;
+	float* dcos;
+	float phase_increment;
+	int size;
+} shift_unroll_data_t;
+float shift_unroll_cc(complexf *input, complexf* output, int input_size, shift_unroll_data_t* d, float starting_phase);
+shift_unroll_data_t shift_unroll_init(float rate, int size);
 
 int log2n(int x);
 int next_pow2(int x);
