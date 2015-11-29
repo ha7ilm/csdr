@@ -310,7 +310,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 	#define RINPQ "q9"
 	#define R3(x,y,z) x ", " y ", " z "\n\t"
 
-	asm volatile( //(the range is q0-015)
+	asm volatile( //(the range of q is q0-q15)
 		"		vld1.32	{" RDCOS "}, [%[pdcos]]\n\t"
 		"		vld1.32	{" RDSIN "}, [%[pdsin]]\n\t"
 		"		vld1.32	{" RCOSST "}, [%[cos_start]]\n\t"
@@ -323,7 +323,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 
 		"		vmul.f32 " R3(RCOSV, RCOSST, RDCOS)  //cos_vals[i] = cos_start * d->dcos[i]
 		"		vmls.f32 " R3(RCOSV, RSINST, RDSIN)  //cos_vals[i] -= sin_start * d->dsin[i]
-		"		vmul.f32 " R3 (RSINV, RSINST, RDCOS) //sin_vals[i] = sin_start * d->dcos[i]
+		"		vmul.f32 " R3(RSINV, RSINST, RDCOS)  //sin_vals[i] = sin_start * d->dcos[i]
 		"		vmla.f32 " R3(RCOSV, RSINST, RDSIN)  //sin_vals[i] += cos_start * d->dsin[i]
 
 		//C version:
@@ -340,7 +340,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 		"		vdup.32 " RSINST ", d7[1]\n\t" // sin_start[0-3] = sin_vals[3]
 
 		"		cmp %[pinput], %[pinput_end]\n\t" //if(pinput == pinput_end)
-		"		bcc for_fdccasm\n\t"			  //	then goto for_fdcasm
+		"		bcc for_addfast\n\t"			  //	then goto for_fdcasm
 	:
 		[pinput]"+r"(pinput), [poutput]"+r"(poutput) //output operand list -> C variables that we will change from ASM
 	:
