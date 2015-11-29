@@ -404,4 +404,3 @@ However, before the implementation of some algoritms, GPL-licensed code from oth
 In order to eliminate any licesing issues, these parts are placed under a different file.
 However, the library is still fully functional with BSD-only code, altough having only less-optimized versions of some algorithms.  
 It should also be noted that if you compile with `-DUSE_FFTW` and `-DLIBCSDR_GPL` (as default), the GPL license would apply on the whole result.
-
