@@ -263,6 +263,45 @@ float shift_table_cc(complexf* input, complexf* output, int input_size, float ra
 	return phase;
 }
 
+
+
+shift_addfast_data_t shift_addfast_init(float rate)
+{
+	shift_addfast_data_t output;
+	float phase_increment=2*rate*PI;
+	for(int i=0;i<4;i++)
+	{
+		output.dsin[i]=sin(phase_increment*(i+1));
+		output.dcos[i]=cos(phase_increment*(i+1));
+	}
+	return output;
+}
+
+float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase)
+{
+	//input_size should be multiple of 4
+	float phase=starting_phase;
+	float cos_start=cos(starting_phase);
+	float sin_start=sin(starting_phase);
+	float cos_vals[4], sin_vals[4];
+	for(int i=0;i<input_size/4; i++) //@shift_addfast_cc
+	{
+		for(int j=0;j<4;j++)
+		{
+			cos_vals[i] = cos_start * d->dcos[i] - sin_start * d->dsin[i];
+			sin_vals[i] = sin_start * d->dcos[i] + cos_start * d->dsin[i];
+		}
+		for(int j=0;j<4;j++)
+		{
+			iof(output,4*i+j)=cos_vals[j]*iof(input,4*i+j)-sin_vals[j]*qof(input,4*i+j);
+			qof(output,4*i+j)=sin_vals[j]*iof(input,4*i+j)+cos_vals[j]*qof(input,4*i+j);
+		}
+		cos_start = cos_vals[3];
+		sin_start = sin_vals[3];
+	}
+	return phase;
+}
+
 #ifdef NEON_OPTS
 #pragma message "We have a faster fir_decimate_cc now."
 

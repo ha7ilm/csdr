@@ -156,6 +156,15 @@ void shift_table_deinit(shift_table_data_t table_data);
 shift_table_data_t shift_table_init(int table_size);
 float shift_table_cc(complexf* input, complexf* output, int input_size, float rate, shift_table_data_t table_data, float starting_phase);
 
+typedef struct shift_addfast_data_s
+{
+	float dsin[4];
+	float dcos[4];
+
+} shift_addfast_data_t;
+shift_addfast_data_t shift_addfast_init(float rate);
+float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase);
+
 
 int log2n(int x);
 int next_pow2(int x);

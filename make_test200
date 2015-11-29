@@ -1,0 +1,2 @@
+#!/bin/bash
+gcc test200.c --std=gnu99 -o test200 -DUSE_FFTW -DLIBCSDR_GPL -lcsdr
