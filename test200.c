@@ -70,6 +70,15 @@ int main()
 	clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
 	fprintf(stderr,"shift_math_cc done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
 
+	//shift_table_cc	
+	shift_table_data_t shift_table_data=shift_table_init(65536);
+	starting_phase = 0;
+
+	clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+	for(int i=0;i<T_N;i++) starting_phase = starting_phase=shift_table_cc(buf_c, outbuf_c, T_BUFSIZE, 0.1, shift_table_data, starting_phase);;
+	clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+	fprintf(stderr,"shift_table_cc (table size = %d) done in %g seconds.\n",65536,TIME_TAKEN(start_time,end_time));
+
 
 	//shift_addition_cc	
 	shift_addition_data_t data_addition = shift_addition_init(0.1);

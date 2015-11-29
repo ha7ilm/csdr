@@ -394,6 +394,44 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 
 #else
 
+
+#if 1
+
+#define SADF_L1(j) cos_vals_ ## j = cos_start * dcos_ ## j - sin_start * dsin_ ## j; \
+	sin_vals_ ## j = sin_start * dcos_ ## j + cos_start * dsin_ ## j;
+#define SADF_L2(j) iof(output,4*i+j)=(cos_vals_ ## j)*iof(input,4*i+j)-(sin_vals_ ## j)*qof(input,4*i+j); \
+	qof(output,4*i+j)=(sin_vals_ ## j)*iof(input,4*i+j)+(cos_vals_ ## j)*qof(input,4*i+j);
+
+float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase)
+{
+	//input_size should be multiple of 4
+	//fprintf(stderr, "shift_addfast_cc: input_size = %d\n", input_size);
+	float cos_start=cos(starting_phase);
+	float sin_start=sin(starting_phase);
+	float register cos_vals_0, cos_vals_1, cos_vals_2, cos_vals_3,
+		sin_vals_0, sin_vals_1, sin_vals_2, sin_vals_3, 
+		dsin_0 = d->dsin[0], dsin_1 = d->dsin[1], dsin_2 = d->dsin[2], dsin_3 = d->dsin[3],
+		dcos_0 = d->dcos[0], dcos_1 = d->dcos[1], dcos_2 = d->dcos[2], dcos_3 = d->dcos[3];
+
+	for(int i=0;i<input_size/4; i++) //@shift_addfast_cc
+	{
+		SADF_L1(0)
+		SADF_L1(1)
+		SADF_L1(2)
+		SADF_L1(3)
+		SADF_L2(0)
+		SADF_L2(1)
+		SADF_L2(2)
+		SADF_L2(3)
+		cos_start = cos_vals_3;
+		sin_start = sin_vals_3;
+	}
+	starting_phase+=input_size*d->phase_increment;
+	while(starting_phase>PI) starting_phase-=2*PI;
+	while(starting_phase<-PI) starting_phase+=2*PI;
+	return starting_phase;
+}
+#else
 float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase)
 {
 	//input_size should be multiple of 4
@@ -421,6 +459,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 	while(starting_phase<-PI) starting_phase+=2*PI;
 	return starting_phase;
 }
+#endif
 
 #endif
 
