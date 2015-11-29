@@ -295,9 +295,10 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 	float* pdcos = d->dcos;
 	float* pdsin = d->dsin;
 	register float* pinput = (float*)input;
-	register float* pinput_end = ((float*)input)+input_size;
+	register float* pinput_end = (float*)(input+input_size);
 	register float* poutput = (float*)output;
 
+	//Register map:
 	#define RDCOS "q0" //dcos, dsin
 	#define RDSIN "q1"
 	#define RCOSST "q2" //cos_start, sin_start
@@ -324,7 +325,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 		"		vmul.f32 " R3(RCOSV, RCOSST, RDCOS)  //cos_vals[i] = cos_start * d->dcos[i]
 		"		vmls.f32 " R3(RCOSV, RSINST, RDSIN)  //cos_vals[i] -= sin_start * d->dsin[i]
 		"		vmul.f32 " R3(RSINV, RSINST, RDCOS)  //sin_vals[i] = sin_start * d->dcos[i]
-		"		vmla.f32 " R3(RCOSV, RSINST, RDSIN)  //sin_vals[i] += cos_start * d->dsin[i]
+		"		vmla.f32 " R3(RSINV, RCOSST, RDSIN)  //sin_vals[i] += cos_start * d->dsin[i]
 
 		//C version:
 		//iof(output,4*i+j)=cos_vals[j]*iof(input,4*i+j)-sin_vals[j]*qof(input,4*i+j);
@@ -334,8 +335,8 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 		"		vmul.f32 " R3(ROUTQ, RSINV, RINPI) //sin_vals[i] = sin_start * d->dcos[i]
 		"		vmla.f32 " R3(ROUTQ, RCOSV, RINPQ) //sin_vals[i] += cos_start * d->dsin[i]
 
-		"		vst2.32 {" ROUTI "-" ROUTQ "}, [%[poutput]]!\n\t" //store the outputs in memory
-
+		"		vst2.32 {" ROUTI "-" ROUTQ "}, [%[poutput]]\n\t" //store the outputs in memory
+		"		add %[poutput],%[poutput],#32\n\t"
 		"		vdup.32 " RCOSST ", d5[1]\n\t" // cos_start[0-3] = cos_vals[3]
 		"		vdup.32 " RSINST ", d7[1]\n\t" // sin_start[0-3] = sin_vals[3]
 
@@ -348,7 +349,6 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 	: 
 		"memory", "q0", "q1", "q2", "q4", "q5", "q6", "q7", "q8", "q9", "cc" //clobber list
 	);
-
 	return phase+input_size*d->phase_increment;
 }
 
