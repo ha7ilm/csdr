@@ -45,9 +45,12 @@ int in_client = 0;
 char ddc_method_str[100] = "td";
 ddc_method_t ddc_method;
 pid_t main_dsp_proc;
-pid_t pgrp;
+
 int input_fd = STDIN_FILENO; //can be stdin, or the stdout of main_subprocess
 pid_t main_subprocess_pid = 0;
+pid_t main_subprocess_pgrp = 0;
+pid_t client_subprocess_pid = 0;
+pid_t client_subprocess_pgrp = 0;
 
 char* buf;
 
@@ -69,14 +72,21 @@ int proc_exists(pid_t pid)
 void sig_handler(int signo)
 {	
 	int tmpstat;
+	if(signo==SIGPIPE) 
+	{
+		fprintf(stderr,MSG_START "SIGPIPE received.\n");
+		return;
+	}	
 	if(signo==SIGCHLD)
 		if(  main_subprocess_pid  && signo==SIGCHLD && (waitpid(main_subprocess_pid, &tmpstat, WNOHANG), 1) && !proc_exists(main_subprocess_pid)  )
 		{
 			fprintf(stderr,MSG_START "main_subprocess_pid exited! Exiting...\n");
 		}
 	else return;
-	if(pgrp!=1 && pgrp!=0) //I just want to make sure that we cannot kill init or sched
-		killpg(pgrp, signo);
+	//if(pgrp!=1 && pgrp!=0) //I just want to make sure that we cannot kill init or sched
+	//	killpg(pgrp, signo);
+	if( !in_client && main_subprocess_pid ) killpg2(main_subprocess_pgrp);
+	if( in_client && client_subprocess_pid ) killpg2(client_subprocess_pgrp);
 	fprintf(stderr, MSG_START "signal %d caught in %s, exiting ddcd...\n", signo, (in_client)?"client":"main");
 	fflush(stderr);
 	exit(0);
@@ -161,7 +171,7 @@ int main(int argc, char* argv[])
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGHUP, &sa, NULL);
 	sigaction(SIGCHLD, &sa, NULL);
-	//sigaction(SIGPIPE, &sa, NULL);
+	sigaction(SIGPIPE, &sa, NULL);
 	prctl(PR_SET_PDEATHSIG, SIGHUP); //get a signal when parent exits
 
 	struct sockaddr_in addr_host;
@@ -214,8 +224,9 @@ int main(int argc, char* argv[])
 	}
 
 	//We'll see if it is a good idea:
-	setpgrp();
-	pgrp = getpgrp();
+	//setpgrp();
+	//pgrp = getpgrp();
+	//It is not, because we can't catch Ctrl+C (SIGINT), as it is sent to a process group...
 
 	//Start DSP subprocess from the main process if required
 	char main_subprocess_cmd_buf[500];
@@ -236,7 +247,7 @@ int main(int argc, char* argv[])
 		case M_FASTDDC:
 			sprintf(main_subprocess_cmd_buf, subprocess_args_fastddc_1, decimation, transition_bw);
 			fprintf(stderr, MSG_START "starting main_subprocess_cmd: %s\n", main_subprocess_cmd_buf);
-			if(!(main_subprocess_pid = run_subprocess( main_subprocess_cmd_buf, 0, pipe_s2m )))
+			if(!(main_subprocess_pid = run_subprocess( main_subprocess_cmd_buf, 0, pipe_s2m, &main_subprocess_pgrp )))
 				print_exit(MSG_START "couldn't start main_subprocess_cmd!\n");
 			close(STDIN_FILENO); // redirect stdin to the stdin of the subprocess 
 			break;
@@ -322,7 +333,7 @@ int main(int argc, char* argv[])
 						close(clients[i]->socket);
 						delete clients[i];
 						clients.erase(clients.begin()+i);
-						print_client(clients[i], "done closing client from main process.");
+						fprintf(stderr, MSG_START "done closing client from main process.");
 					}
 				}
 				else  { if(clients[i]->error) print_client(clients[i], "pipe okay again."); clients[i]->error=0; }
@@ -334,9 +345,14 @@ int main(int argc, char* argv[])
 	return 0; 
 }
 
-pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out)
+pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out, pid_t* pgrp)
 {
 	pid_t pid = fork();
+	if(*pgrp>=0) 
+	{
+		setpgrp();
+		*pgrp = getpgrp();
+	}
 	//fprintf(stderr, "run_subprocess :: fork-ed %d\n", pid);
 	if(pid < 0) return 0; //fork failed
 	if(pid == 0)
@@ -376,7 +392,6 @@ void client()
 	print_client(this_client, "client process forked.");
 	
 	char client_subprocess_cmd_buf[500];
-	pid_t client_subprocess_pid = 0;
 	int input_fd = this_client->pipefd[0];
 
 	prctl(PR_SET_PDEATHSIG, SIGHUP); //get a signal when parent exits
@@ -395,13 +410,13 @@ void client()
 			sprintf(client_subprocess_cmd_buf, subprocess_args_fastddc_2, decimation, pipe_ctl[0], transition_bw);			
 			break;
 		}
-		if(!(client_subprocess_pid = run_subprocess( client_subprocess_cmd_buf, this_client->pipefd, pipe_stdout ))) 
+
+		if(!(client_subprocess_pid = run_subprocess( client_subprocess_cmd_buf, this_client->pipefd, pipe_stdout, &client_subprocess_pgrp))) 
 			print_exit(MSG_START "couldn't start client_subprocess_cmd!\n");
 		fprintf(stderr, MSG_START "starting client_subprocess_cmd: %s\n", client_subprocess_cmd_buf);
 		input_fd = pipe_stdout[0]; //we don't have to set it nonblocking
 		fprintf(stderr, MSG_START "pipe_stdout[0] = %d\n", pipe_stdout[0]);
-		setpgrp();
-		pgrp = getpgrp();
+		write(pipe_ctl[1], "0.0\n", 4);
 	}
 	for(;;)
 	{
@@ -409,10 +424,15 @@ void client()
 		if(send(this_client->socket,buf,bufsizeall,0)==-1)
 		{
 			print_client(this_client, "client process is exiting.");
-			if(client_subprocess_pid && pgrp!=1 && pgrp!=0) killpg(pgrp, SIGTERM);
+			if(client_subprocess_pid) killpg2(client_subprocess_pgrp);
 			exit(0);
 		}
 	}	
+}
+
+void killpg2(pid_t pgrp)
+{
+	if(pgrp!=1 && pgrp!=0) killpg(pgrp, SIGTERM);
 }
 
 void error_exit(const char* why)

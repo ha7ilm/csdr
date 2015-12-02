@@ -169,6 +169,22 @@ int init_fifo(int argc, char *argv[])
 			fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 			return fd;
 		}
+		else if(!strcmp(argv[2],"--fd"))  
+		{
+			//to use this:
+			//1. Create a pipe(pipedesc) in your process.
+			//2. fork() and execl() your process to run csdr, and give pipedesc[0] as parameter after --fd 
+			//  Note: when forking, the child process will get a copy of the file descriptor table! That's why this 
+			//  works at all, as file descriptor indexes are normally not transferable between processes, except for a *NIX socket way which is quite complicated... 
+			//3. From your parent process, write into pipedesc[1].
+			//This is implemented in ddcd, check there to see how to do it!
+			int fd;
+			if(sscanf(argv[3], "%d",&fd)<=0) return 0;
+			fprintf(stderr,"csdr: fd control mode on, fd=%d\n", fd);
+			int flags = fcntl(fd, F_GETFL, 0);
+			fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+			return fd;
+		}
 	}
 	return 0;
 }
