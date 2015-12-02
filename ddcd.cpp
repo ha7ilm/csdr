@@ -386,6 +386,46 @@ void client_cleanup()
 	close(this_client->pipefd[0]);
 }
 
+#define CTL_BUFSIZE 1024
+
+int read_socket_ctl(int fd, char* output, int max_size)
+{
+	//fprintf(stderr, "doing read_socket_ctl %d\n", fd);
+	//if(!fd) return 0;
+	static char buffer[CTL_BUFSIZE];
+	static int buffer_index=0;
+	if(buffer_index==CTL_BUFSIZE) buffer_index=0;
+	int bytes_read=recv(fd,buffer+buffer_index,(CTL_BUFSIZE-buffer_index)*sizeof(char), MSG_DONTWAIT);
+	if(bytes_read<=0) return 0;
+	fprintf(stderr, "recv %d\n", bytes_read);
+	
+	int prev_newline_at=0;
+	int last_newline_at=0;
+	for(int i=0;i<buffer_index+bytes_read;i++) 
+	{
+		if(buffer[i]=='\n') 
+		{
+			prev_newline_at=last_newline_at;
+			last_newline_at=i+1;
+		}
+	}
+	if(last_newline_at)
+	{
+		int oi=0;
+		for(int i=prev_newline_at;buffer[i]!='\n'&&oi<max_size;i++) output[oi++]=buffer[i]; //copy to output buffer
+		output[oi++]='\0';
+		memmove(buffer,buffer+last_newline_at,buffer_index+bytes_read-last_newline_at);
+		buffer_index=bytes_read-last_newline_at;
+		return 1;
+	}
+	else
+	{
+		buffer_index+=bytes_read;
+	 	return 0;
+	}
+}
+
+
 void client()
 {
 	in_client=1;
@@ -418,8 +458,11 @@ void client()
 		fprintf(stderr, MSG_START "pipe_stdout[0] = %d\n", pipe_stdout[0]);
 		write(pipe_ctl[1], "0.0\n", 4);
 	}
+	char recv_cmd[CTL_BUFSIZE];
 	for(;;)
 	{
+		while(read_socket_ctl(this_client->socket, recv_cmd, CTL_BUFSIZE)) 
+			fprintf(stderr, "read_socket_ctl: %s\n", recv_cmd);
 		read(input_fd,buf,bufsizeall);
 		if(send(this_client->socket,buf,bufsizeall,0)==-1)
 		{
