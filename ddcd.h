@@ -32,7 +32,7 @@ void error_exit(const char* why);
 void print_exit(const char* why);
 void print_client(client_t* client, const char* what);
 int proc_exists(pid_t pid);
-void run_subprocess(char* cmd, int* pipe_in, int* pipe_out);
+pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out);
 void maxfd(int* maxfd, int fd);
 
 typedef enum ddc_method_e 
@@ -47,7 +47,7 @@ const char subprocess_cmd_td[] = "csdr "
 #else
 	"shift_unroll_cc"
 #endif
-	" --pipe %d,%d | csdr fir_decimate_cc %d %g" };
+	" --pipe %d,%d | csdr fir_decimate_cc %d %g";
 
 const char subprocess_args_fastddc_1[] = "csdr fastddc_fwd_cc %d %g";
 const char subprocess_args_fastddc_2[] = "csdr fastddc_inv_cc %d --pipe %d,%d %g";

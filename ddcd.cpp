@@ -79,7 +79,7 @@ int main(int argc, char* argv[])
 		   {"address",    required_argument, 0,  'a' },
 		   {"decimation", required_argument, 0,  'd' },
 		   {"bufsize", 	  required_argument, 0,  'b' },
-	       {"method", 	  required_argument, 0,  'm' }
+	       {"method", 	  required_argument, 0,  'm' },
 	       {"transition", required_argument, 0,  't' }
 		};
 		c = getopt_long(argc, argv, "p:a:d:b:", long_options, &option_index);
@@ -201,7 +201,7 @@ int main(int argc, char* argv[])
 		case M_TD:
 			break;
 		case M_FASTDDC:
-			sprintf(main_subprocess_cmd_buf, subprocess_args_fastddc_1, decimation, tansition_bw);
+			sprintf(main_subprocess_cmd_buf, subprocess_args_fastddc_1, decimation, transition_bw);
 			close(STDIN_FILENO); // redirect stdin to the stdin of the subprocess 
 			main_subprocess_pid = run_subprocess( main_subprocess_cmd_buf, 0, pipe_s2m );
 			break;
@@ -303,8 +303,8 @@ int main(int argc, char* argv[])
 pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out)
 {
 	pid_t pid = fork();
-	if(p < 0) return 0; //fork failed
-	if(p==0)
+	if(pid < 0) return 0; //fork failed
+	if(pid == 0)
 	{
 		//We're the subprocess
 		if(fcntl(pipe_in[1], F_SETPIPE_SZ, pipe_max_size) == -1) perror("Failed to F_SETPIPE_SZ in run_subprocess()");
@@ -318,8 +318,8 @@ pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out)
 			close(pipe_out[0]);
 			dup2(pipe_out[1], STDOUT_FILENO);
 		}
-		execl("/bin/bash","bash","-c",cmd, 0);
-		error_exit(MSG_START "run_subprocess failed to execute command") 
+		execl("/bin/bash","bash","-c",cmd, NULL);
+		error_exit(MSG_START "run_subprocess failed to execute command");
 	}
 	else return pid;
 }
