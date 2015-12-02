@@ -15,6 +15,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <sys/prctl.h>
 
 typedef struct client_s
 {
@@ -34,6 +35,7 @@ void print_client(client_t* client, const char* what);
 int proc_exists(pid_t pid);
 pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out);
 void maxfd(int* maxfd, int fd);
+void sig_handler(int signo);
 
 typedef enum ddc_method_e 
 {
@@ -49,5 +51,6 @@ const char subprocess_cmd_td[] = "csdr "
 #endif
 	" --pipe %d,%d | csdr fir_decimate_cc %d %g";
 
-const char subprocess_args_fastddc_1[] = "csdr fastddc_fwd_cc %d %g";
+const char subprocess_args_fastddc_1[] = "csdr through %d %g";
+//const char subprocess_args_fastddc_1[] = "csdr fastddc_fwd_cc %d %g";
 const char subprocess_args_fastddc_2[] = "csdr fastddc_inv_cc %d --pipe %d,%d %g";

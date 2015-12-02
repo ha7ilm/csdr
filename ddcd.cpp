@@ -64,6 +64,15 @@ int proc_exists(pid_t pid)
 	return kill(pid, 0) != -1;
 }
 
+void sig_handler(int signo)
+{	
+	if(pgrp!=1 && pgrp!=0) //I just want to make sure that we cannot kill init or sched
+		killpg(pgrp, signo);
+	fprintf(stderr, MSG_START "signal caught, exiting ddcd...\n");
+	fflush(stderr);
+	exit(0);
+}
+
 client_t* this_client;
 
 int main(int argc, char* argv[])
@@ -130,6 +139,15 @@ int main(int argc, char* argv[])
 		fprintf(stderr, MSG_START "method is M_FASTDDC.\n");
 	}
 	else print_exit(MSG_START "invalid parameter given to --method.\n");
+
+	//set signals
+	struct sigaction sa;
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = sig_handler;
+	sigaction(SIGKILL, &sa, NULL);
+	sigaction(SIGQUIT, &sa, NULL);
+	sigaction(SIGHUP, &sa, NULL);
+	prctl(PR_SET_PDEATHSIG, SIGHUP); //get a signal when parent exits
 
 	struct sockaddr_in addr_host;
     int listen_socket;
@@ -202,6 +220,7 @@ int main(int argc, char* argv[])
 			break;
 		case M_FASTDDC:
 			sprintf(main_subprocess_cmd_buf, subprocess_args_fastddc_1, decimation, transition_bw);
+			fprintf(stderr, MSG_START "starting main_subprocess_cmd: %s\n", main_subprocess_cmd_buf);
 			close(STDIN_FILENO); // redirect stdin to the stdin of the subprocess 
 			main_subprocess_pid = run_subprocess( main_subprocess_cmd_buf, 0, pipe_s2m );
 			break;
