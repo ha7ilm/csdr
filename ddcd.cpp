@@ -37,9 +37,16 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 int host_port = 0;
 char host_address[100] = "127.0.0.1";
 int decimation = 0;
+float transition_bw = 0.05;
 int bufsize = 1024;
 int bufsizeall;
 int pipe_max_size;
+char ddc_method_str[100] = "td";
+ddc_method_t ddc_method;
+pid_t main_dsp_proc;
+pid_t pgrp;
+int input_pipe = STDIN_FILENO; //can be stdin, or the stdout of main_subprocess
+
 char* buf;
 
 int set_nonblocking(int fd)
@@ -71,7 +78,9 @@ int main(int argc, char* argv[])
 		   {"port",       required_argument, 0,  'p' },
 		   {"address",    required_argument, 0,  'a' },
 		   {"decimation", required_argument, 0,  'd' },
-		   {"bufsize", required_argument, 	 0,  'b' }
+		   {"bufsize", 	  required_argument, 0,  'b' },
+	       {"method", 	  required_argument, 0,  'm' }
+	       {"transition", required_argument, 0,  't' }
 		};
 		c = getopt_long(argc, argv, "p:a:d:b:", long_options, &option_index);
 		if(c==-1) break;
@@ -90,17 +99,38 @@ int main(int argc, char* argv[])
 		case 'b':
 			bufsize=atoi(optarg);
 			break;
+		case 'm':
+			host_address[100-1]=0;
+			strncpy(ddc_method_str,optarg,100-1);
+			break;
+		case 't':
+			sscanf(optarg,"%g",&transition_bw);
+			break;
 		case 0:
 		case '?':
 		case ':':
-		default:
-			printf(" 0%o ??\n", c);
+		default:;
 		}
 	}
 	
-	if(!decimation) error_exit(MSG_START "missing required command line argument, --decimation.\n");
-	if(!host_port) error_exit(MSG_START "missing required command line argument, --port.\n");
+	if(!decimation) print_exit(MSG_START "missing required command line argument, --decimation.\n");
+	if(!host_port) print_exit(MSG_START "missing required command line argument, --port.\n");
+	if(decimation<0) print_exit(MSG_START "invalid value for --decimation (should be >0).\n");
+	if(decimation==1) fprintf(stderr, MSG_START "decimation = 1, just copying raw samples.\n");
+	if(transition_bw<0||transition_bw>0.5) print_exit(MSG_START "invalid value for --transition (should be between 0 and 0.5).\n");
 	
+	if(!strcmp(ddc_method_str,"td")) 
+	{
+		ddc_method = M_TD; 
+		fprintf(stderr, MSG_START "method is M_TD (default).\n");
+	}
+	else if (!strcmp(ddc_method_str,"fastddc")) 
+	{
+		ddc_method = M_FASTDDC; 
+		fprintf(stderr, MSG_START "method is M_FASTDDC.\n");
+	}
+	else print_exit(MSG_START "invalid parameter given to --method.\n");
+
 	struct sockaddr_in addr_host;
     int listen_socket;
 	std::vector<client_t*> clients;
@@ -109,7 +139,7 @@ int main(int argc, char* argv[])
 
 	int sockopt = 1;
 	if( setsockopt(listen_socket, SOL_SOCKET, SO_REUSEADDR, (char *)&sockopt, sizeof(sockopt)) == -1 )
-		error_exit(MSG_START "cannot set SO_REUSEADDR.\n");  //the best description on SO_REUSEADDR ever: http://stackoverflow.com/a/14388707/3182453
+		error_exit(MSG_START "cannot set SO_REUSEADDR");  //the best description on SO_REUSEADDR ever: http://stackoverflow.com/a/14388707/3182453
 
     memset(&addr_host,'0',sizeof(addr_host));
     addr_host.sin_family=AF_INET;
@@ -117,13 +147,13 @@ int main(int argc, char* argv[])
 	addr_host.sin_addr.s_addr = INADDR_ANY;
 
     if( (addr_host.sin_addr.s_addr=inet_addr(host_address)) == INADDR_NONE ) 
-		error_exit(MSG_START "invalid host address.\n");
+		error_exit(MSG_START "invalid host address");
 
 	if( bind(listen_socket, (struct sockaddr*) &addr_host, sizeof(addr_host)) < 0 )
-		error_exit(MSG_START "cannot bind() address to the socket.\n");
+		error_exit(MSG_START "cannot bind() address to the socket");
 
 	if( listen(listen_socket, 10) == -1 )
-		error_exit(MSG_START "cannot listen() on socket.\n");
+		error_exit(MSG_START "cannot listen() on socket");
 
 	fprintf(stderr,MSG_START "listening on %s:%d\n", inet_ntoa(addr_host.sin_addr), host_port);
 
@@ -131,17 +161,8 @@ int main(int argc, char* argv[])
 	socklen_t addr_cli_len = sizeof(addr_cli);
 	int new_socket;
 
-	//Set stdin and listen_socket to non-blocking
-	if(set_nonblocking(STDIN_FILENO) || set_nonblocking(listen_socket))
-		error_exit(MSG_START "cannot set_nonblocking().\n");
-
 	bufsizeall = bufsize*sizeof(char);
 	buf = (char*)malloc(bufsizeall);
-
-	FD_ZERO(&select_fds);
-	FD_SET(listen_socket, &select_fds);
-	FD_SET(STDIN_FILENO, &select_fds);
-	int highfd = ((listen_socket>STDIN_FILENO)?listen_socket:STDIN_FILENO)  + 1;
 
 	FILE* tempfile = fopen("/proc/sys/fs/pipe-max-size","r");
 	if(!tempfile)
@@ -159,6 +180,46 @@ int main(int argc, char* argv[])
 		//	perror("failed to fcntl(STDIN_FILENO, F_SETPIPE_SZ, ...)");
 	}
 
+	//We'll see if it is a good idea:
+	setpgrp();
+	pgrp = getpgrp();
+
+	//Start DSP subprocess from the main process if required
+	char main_subprocess_cmd_buf[500];
+	pid_t main_subprocess_pid = 0;
+
+	int pipe_m2s_ctl[2];	//main to subprocess :: control channel
+	int pipe_s2m[2];		//subprocess to main
+
+	if(pipe(pipe_m2s_ctl)) error_exit(MSG_START "couldn't create pipe_m2s_ctl");
+	if(pipe(pipe_s2m)) error_exit(MSG_START "couldn't create pipe_s2m");
+
+	if(decimation!=1)
+	{
+		switch(ddc_method)
+		{
+		case M_TD:
+			break;
+		case M_FASTDDC:
+			sprintf(main_subprocess_cmd_buf, subprocess_args_fastddc_1, decimation, tansition_bw);
+			close(STDIN_FILENO); // redirect stdin to the stdin of the subprocess 
+			main_subprocess_pid = run_subprocess( main_subprocess_cmd_buf, 0, pipe_s2m );
+			break;
+		}
+	}
+
+	int highfd = 0; 
+	FD_ZERO(&select_fds);
+	FD_SET(listen_socket, &select_fds);
+	maxfd(&highfd, listen_socket);
+	if(main_subprocess_pid) input_pipe = pipe_s2m[1]; //else STDIN_FILENO
+	FD_SET(input_pipe, &select_fds);
+	maxfd(&highfd, input_pipe);
+
+	//Set stdin and listen_socket to non-blocking 
+	if(set_nonblocking(input_pipe) || set_nonblocking(listen_socket)) //don't do it before subprocess fork!
+		error_exit(MSG_START "cannot set_nonblocking()");
+
 	for(;;)
 	{
 		//Let's wait until there is any new data to read, or any new connection!
@@ -173,17 +234,17 @@ int main(int argc, char* argv[])
 			this_client->socket = new_socket;
 			if(pipe(this_client->pipefd) == -1)
 			{ 
-				perror(MSG_START "cannot open new pipe() for the client.\n");
+				perror(MSG_START "cannot open new pipe() for the client");
 				continue;
 			}
 			if(fcntl(this_client->pipefd[1], F_SETPIPE_SZ, pipe_max_size) == -1)
-				perror("failed to F_SETPIPE_SZ for the client pipe!");
+				perror("failed to F_SETPIPE_SZ for the client pipe");
 			if(this_client->pid = fork())
 			{
 				//We're the parent
 				set_nonblocking(this_client->pipefd[1]);
 				clients.push_back(this_client);
-				printf("client pid: %d\n", this_client->pid);
+				fprintf(stderr, MSG_START "client pid: %d\n", this_client->pid);
 			}
 			else
 			{
@@ -193,7 +254,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		int retval = read(STDIN_FILENO, buf, bufsizeall);
+		int retval = read(input_pipe, buf, bufsizeall);
 		if(retval==0)
 		{
 			//end of input stream, close clients and exit
@@ -236,7 +297,31 @@ int main(int argc, char* argv[])
 		//
 	}
 
-	return 0;
+	return 0; 
+}
+
+pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out)
+{
+	pid_t pid = fork();
+	if(p < 0) return 0; //fork failed
+	if(p==0)
+	{
+		//We're the subprocess
+		if(fcntl(pipe_in[1], F_SETPIPE_SZ, pipe_max_size) == -1) perror("Failed to F_SETPIPE_SZ in run_subprocess()");
+		if(pipe_in)
+		{
+			close(pipe_in[1]);
+			dup2(pipe_in[0], STDIN_FILENO);
+		}
+		if(pipe_out)
+		{
+			close(pipe_out[0]);
+			dup2(pipe_out[1], STDOUT_FILENO);
+		}
+		execl("/bin/bash","bash","-c",cmd, 0);
+		error_exit(MSG_START "run_subprocess failed to execute command") 
+	}
+	else return pid;
 }
 
 void print_client(client_t* client, const char* what)
@@ -251,7 +336,7 @@ void client_cleanup()
 
 void client()
 {
-	fprintf(stderr, "I'm the client\n");
+	print_client(this_client, "client process forked.");
 	for(;;)
 	{
 		read(this_client->pipefd[0],buf,bufsizeall);
@@ -267,4 +352,15 @@ void error_exit(const char* why)
 {
 	perror(why);
 	exit(1);
+}
+
+void print_exit(const char* why)
+{
+	fprintf(stderr, "%s", why);
+	exit(1);
+}
+
+void maxfd(int* maxfd, int fd)
+{
+	if(fd>*maxfd) *maxfd=fd+1; 
 }
