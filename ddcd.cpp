@@ -46,6 +46,7 @@ ddc_method_t ddc_method;
 pid_t main_dsp_proc;
 pid_t pgrp;
 int input_pipe = STDIN_FILENO; //can be stdin, or the stdout of main_subprocess
+pid_t main_subprocess_pid = 0;
 
 char* buf;
 
@@ -66,6 +67,13 @@ int proc_exists(pid_t pid)
 
 void sig_handler(int signo)
 {	
+	int tmpstat;
+	if(signo==SIGCHLD)
+		if(  main_subprocess_pid  && signo==SIGCHLD && (waitpid(main_subprocess_pid, &tmpstat, WNOHANG), 1) && !proc_exists(main_subprocess_pid)  )
+		{
+			fprintf(stderr,MSG_START "main_subprocess_pid exited! Exiting...\n");
+		}
+	else return;
 	if(pgrp!=1 && pgrp!=0) //I just want to make sure that we cannot kill init or sched
 		killpg(pgrp, signo);
 	fprintf(stderr, MSG_START "signal caught, exiting ddcd...\n");
@@ -91,7 +99,7 @@ int main(int argc, char* argv[])
 	       {"method", 	  required_argument, 0,  'm' },
 	       {"transition", required_argument, 0,  't' }
 		};
-		c = getopt_long(argc, argv, "p:a:d:b:", long_options, &option_index);
+		c = getopt_long(argc, argv, "p:a:d:b:m:t:", long_options, &option_index);
 		if(c==-1) break;
 		switch (c) 
 		{
@@ -109,7 +117,7 @@ int main(int argc, char* argv[])
 			bufsize=atoi(optarg);
 			break;
 		case 'm':
-			host_address[100-1]=0;
+			ddc_method_str[100-1]=0;
 			strncpy(ddc_method_str,optarg,100-1);
 			break;
 		case 't':
@@ -119,6 +127,7 @@ int main(int argc, char* argv[])
 		case '?':
 		case ':':
 		default:;
+			print_exit(MSG_START "error in getopt_long()\n");
 		}
 	}
 	
@@ -128,7 +137,8 @@ int main(int argc, char* argv[])
 	if(decimation==1) fprintf(stderr, MSG_START "decimation = 1, just copying raw samples.\n");
 	if(transition_bw<0||transition_bw>0.5) print_exit(MSG_START "invalid value for --transition (should be between 0 and 0.5).\n");
 	
-	if(!strcmp(ddc_method_str,"td")) 
+	if(decimation==1); //don't do anything then
+	else if(!strcmp(ddc_method_str,"td")) 
 	{
 		ddc_method = M_TD; 
 		fprintf(stderr, MSG_START "method is M_TD (default).\n");
@@ -144,9 +154,13 @@ int main(int argc, char* argv[])
 	struct sigaction sa;
 	memset(&sa, 0, sizeof(sa));
 	sa.sa_handler = sig_handler;
+	sigaction(SIGTERM, &sa, NULL);
 	sigaction(SIGKILL, &sa, NULL);
 	sigaction(SIGQUIT, &sa, NULL);
+	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGHUP, &sa, NULL);
+	sigaction(SIGCHLD, &sa, NULL);
+	//sigaction(SIGPIPE, &sa, NULL);
 	prctl(PR_SET_PDEATHSIG, SIGHUP); //get a signal when parent exits
 
 	struct sockaddr_in addr_host;
@@ -204,7 +218,7 @@ int main(int argc, char* argv[])
 
 	//Start DSP subprocess from the main process if required
 	char main_subprocess_cmd_buf[500];
-	pid_t main_subprocess_pid = 0;
+
 
 	int pipe_m2s_ctl[2];	//main to subprocess :: control channel
 	int pipe_s2m[2];		//subprocess to main
@@ -221,8 +235,9 @@ int main(int argc, char* argv[])
 		case M_FASTDDC:
 			sprintf(main_subprocess_cmd_buf, subprocess_args_fastddc_1, decimation, transition_bw);
 			fprintf(stderr, MSG_START "starting main_subprocess_cmd: %s\n", main_subprocess_cmd_buf);
+			if(!(main_subprocess_pid = run_subprocess( main_subprocess_cmd_buf, 0, pipe_s2m )))
+				print_exit(MSG_START "couldn't start main_subprocess_cmd!\n");
 			close(STDIN_FILENO); // redirect stdin to the stdin of the subprocess 
-			main_subprocess_pid = run_subprocess( main_subprocess_cmd_buf, 0, pipe_s2m );
 			break;
 		}
 	}
@@ -231,7 +246,7 @@ int main(int argc, char* argv[])
 	FD_ZERO(&select_fds);
 	FD_SET(listen_socket, &select_fds);
 	maxfd(&highfd, listen_socket);
-	if(main_subprocess_pid) input_pipe = pipe_s2m[1]; //else STDIN_FILENO
+	if(main_subprocess_pid) input_pipe = pipe_s2m[0]; //else STDIN_FILENO
 	FD_SET(input_pipe, &select_fds);
 	maxfd(&highfd, input_pipe);
 
@@ -313,7 +328,6 @@ int main(int argc, char* argv[])
 			}
 		}
 		//TODO: at the end, server closes pipefd[1] for client
-		//
 	}
 
 	return 0; 
@@ -322,11 +336,13 @@ int main(int argc, char* argv[])
 pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out)
 {
 	pid_t pid = fork();
+	//fprintf(stderr, "run_subprocess :: fork-ed %d\n", pid);
 	if(pid < 0) return 0; //fork failed
 	if(pid == 0)
 	{
 		//We're the subprocess
-		if(fcntl(pipe_in[1], F_SETPIPE_SZ, pipe_max_size) == -1) perror("Failed to F_SETPIPE_SZ in run_subprocess()");
+		//fprintf(stderr, "run_subprocess :: execl\n");
+		//if(fcntl(pipe_in[1], F_SETPIPE_SZ, pipe_max_size) == -1) perror("Failed to F_SETPIPE_SZ in run_subprocess()");
 		if(pipe_in)
 		{
 			close(pipe_in[1]);
@@ -337,7 +353,7 @@ pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out)
 			close(pipe_out[0]);
 			dup2(pipe_out[1], STDOUT_FILENO);
 		}
-		execl("/bin/bash","bash","-c",cmd, NULL);
+		execl("/bin/bash","bash","-c",cmd, (char*)0);
 		error_exit(MSG_START "run_subprocess failed to execute command");
 	}
 	else return pid;
@@ -381,5 +397,5 @@ void print_exit(const char* why)
 
 void maxfd(int* maxfd, int fd)
 {
-	if(fd>*maxfd) *maxfd=fd+1; 
+	if(fd>=*maxfd) *maxfd=fd+1; 
 }
