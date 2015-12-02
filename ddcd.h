@@ -49,8 +49,9 @@ const char subprocess_cmd_td[] = "csdr "
 #else
 	"shift_unroll_cc"
 #endif
-	" --pipe %d,%d | csdr fir_decimate_cc %d %g";
+	" --pipe %d | csdr fir_decimate_cc %d %g";
 
 const char subprocess_args_fastddc_1[] = "csdr through %d %g";
 //const char subprocess_args_fastddc_1[] = "csdr fastddc_fwd_cc %d %g";
-const char subprocess_args_fastddc_2[] = "csdr fastddc_inv_cc %d --pipe %d,%d %g";
+//const char subprocess_args_fastddc_2[] = "csdr fastddc_inv_cc %d --pipe %d %g";
+const char subprocess_args_fastddc_2[] = "csdr convert_u8_f %d %d %g";

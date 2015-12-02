@@ -41,11 +41,12 @@ float transition_bw = 0.05;
 int bufsize = 1024;
 int bufsizeall;
 int pipe_max_size;
+int in_client = 0;
 char ddc_method_str[100] = "td";
 ddc_method_t ddc_method;
 pid_t main_dsp_proc;
 pid_t pgrp;
-int input_pipe = STDIN_FILENO; //can be stdin, or the stdout of main_subprocess
+int input_fd = STDIN_FILENO; //can be stdin, or the stdout of main_subprocess
 pid_t main_subprocess_pid = 0;
 
 char* buf;
@@ -76,7 +77,7 @@ void sig_handler(int signo)
 	else return;
 	if(pgrp!=1 && pgrp!=0) //I just want to make sure that we cannot kill init or sched
 		killpg(pgrp, signo);
-	fprintf(stderr, MSG_START "signal caught, exiting ddcd...\n");
+	fprintf(stderr, MSG_START "signal %d caught in %s, exiting ddcd...\n", signo, (in_client)?"client":"main");
 	fflush(stderr);
 	exit(0);
 }
@@ -246,12 +247,12 @@ int main(int argc, char* argv[])
 	FD_ZERO(&select_fds);
 	FD_SET(listen_socket, &select_fds);
 	maxfd(&highfd, listen_socket);
-	if(main_subprocess_pid) input_pipe = pipe_s2m[0]; //else STDIN_FILENO
-	FD_SET(input_pipe, &select_fds);
-	maxfd(&highfd, input_pipe);
+	if(main_subprocess_pid) input_fd = pipe_s2m[0]; //else STDIN_FILENO
+	FD_SET(input_fd, &select_fds);
+	maxfd(&highfd, input_fd);
 
 	//Set stdin and listen_socket to non-blocking 
-	if(set_nonblocking(input_pipe) || set_nonblocking(listen_socket)) //don't do it before subprocess fork!
+	if(set_nonblocking(input_fd) || set_nonblocking(listen_socket)) //don't do it before subprocess fork!
 		error_exit(MSG_START "cannot set_nonblocking()");
 
 	for(;;)
@@ -288,7 +289,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
-		int retval = read(input_pipe, buf, bufsizeall);
+		int retval = read(input_fd, buf, bufsizeall);
 		if(retval==0)
 		{
 			//end of input stream, close clients and exit
@@ -371,13 +372,44 @@ void client_cleanup()
 
 void client()
 {
+	in_client=1;
 	print_client(this_client, "client process forked.");
+	
+	char client_subprocess_cmd_buf[500];
+	pid_t client_subprocess_pid = 0;
+	int input_fd = this_client->pipefd[0];
+
+	prctl(PR_SET_PDEATHSIG, SIGHUP); //get a signal when parent exits
+	
+	if(decimation!=1)
+	{
+		int pipe_ctl[2], pipe_stdout[2];
+		if(pipe(pipe_ctl)==-1) error_exit(MSG_START "cannot open new pipe() for the client subprocess");
+		if(pipe(pipe_stdout)==-1) error_exit(MSG_START "cannot open new pipe() for the client subprocess");
+		switch(ddc_method)
+		{
+		case M_TD:
+			sprintf(client_subprocess_cmd_buf, subprocess_cmd_td, pipe_ctl[0], decimation, transition_bw);
+			break;
+		case M_FASTDDC:
+			sprintf(client_subprocess_cmd_buf, subprocess_args_fastddc_2, decimation, pipe_ctl[0], transition_bw);			
+			break;
+		}
+		if(!(client_subprocess_pid = run_subprocess( client_subprocess_cmd_buf, this_client->pipefd, pipe_stdout ))) 
+			print_exit(MSG_START "couldn't start client_subprocess_cmd!\n");
+		fprintf(stderr, MSG_START "starting client_subprocess_cmd: %s\n", client_subprocess_cmd_buf);
+		input_fd = pipe_stdout[0]; //we don't have to set it nonblocking
+		fprintf(stderr, MSG_START "pipe_stdout[0] = %d\n", pipe_stdout[0]);
+		setpgrp();
+		pgrp = getpgrp();
+	}
 	for(;;)
 	{
-		read(this_client->pipefd[0],buf,bufsizeall);
+		read(input_fd,buf,bufsizeall);
 		if(send(this_client->socket,buf,bufsizeall,0)==-1)
 		{
 			print_client(this_client, "client process is exiting.");
+			if(client_subprocess_pid && pgrp!=1 && pgrp!=0) killpg(pgrp, SIGTERM);
 			exit(0);
 		}
 	}	
