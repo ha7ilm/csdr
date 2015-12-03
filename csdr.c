@@ -1808,21 +1808,37 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if( !strcmp(argv[1],"fastddc_inv_cc") ) //<decimation> <shift_rate> [transition_bw [window]]
+	if( !strcmp(argv[1],"fastddc_inv_cc") ) //<shift_rate> <decimation> [transition_bw [window]]
 	{	
-		int decimation;
-		if(argc<=2) return badsyntax("need required parameter (decimation)");
-		sscanf(argv[2],"%d",&decimation);
-
 		float shift_rate;
-		if(argc>3) sscanf(argv[3],"%g",&shift_rate);		
+		int plusarg=0;
+
+		int fd;
+		if(fd=init_fifo(argc,argv))
+		{
+			while(!read_fifo_ctl(fd,"%g\n",&shift_rate)) usleep(10000);
+			plusarg=1;
+		}
+		else
+		{
+			if(argc<=2) return badsyntax("need required parameter (rate)"); 
+			sscanf(argv[2],"%g",&shift_rate);
+		}
+
+		int decimation;
+		if(argc<=3+plusarg) return badsyntax("need required parameter (decimation)");
+		sscanf(argv[3+plusarg],"%d",&decimation);
+		//fprintf(stderr, "dec=%d %d\n", decimation);
 
 		float transition_bw = 0.05;
-		if(argc>4) sscanf(argv[4],"%g",&transition_bw);
+		if(argc>4+plusarg) sscanf(argv[4+plusarg],"%g",&transition_bw);
 
 		window_t window = WINDOW_DEFAULT;
-		if(argc>5)	window=firdes_get_window_from_string(argv[5]);
+		if(argc>5+plusarg)	window=firdes_get_window_from_string(argv[5+plusarg]);
 		else fprintf(stderr,"fastddc_apply_cc: window = %s\n",firdes_get_string_from_window(window));
+
+		for(;;)
+		{
 
 		fastddc_t ddc; 
 		if(fastddc_init(&ddc, transition_bw, decimation, shift_rate)) { badsyntax("error in fastddc_init()"); return 1; }
@@ -1864,6 +1880,9 @@ int main(int argc, char *argv[])
 			fwrite(output, sizeof(complexf), shift_stat.output_size, stdout);
 			//fprintf(stderr, "ss os = %d\n", shift_stat.output_size);
 			TRY_YIELD;
+			if(read_fifo_ctl(fd,"%g\n",&shift_rate)) break;
+		}
+
 		}
 	}
 

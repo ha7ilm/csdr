@@ -479,7 +479,7 @@ void client()
 			sprintf(client_subprocess_cmd_buf, subprocess_cmd_td, pipe_ctl[0], decimation, transition_bw);
 			break;
 		case M_FASTDDC:
-			sprintf(client_subprocess_cmd_buf, subprocess_args_fastddc_2, decimation, pipe_ctl[0], transition_bw);			
+			sprintf(client_subprocess_cmd_buf, subprocess_args_fastddc_2, pipe_ctl[0], decimation, transition_bw);			
 			break;
 		}
 

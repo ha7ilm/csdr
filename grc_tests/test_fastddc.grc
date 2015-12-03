@@ -257,7 +257,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(112, 875)</value>
+      <value>(112, 675)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -375,7 +375,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(136, 763)</value>
+      <value>(368, 691)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -465,7 +465,7 @@
     </param>
     <param>
       <key>commandline</key>
-      <value>csdr fastddc_fwd_cc %d | csdr fastddc_inv_cc %d 0.4"%(decimation,decimation)+"</value>
+      <value>csdr fastddc_fwd_cc %d | csdr fastddc_inv_cc 0.4 %d"%(decimation,decimation)+"</value>
     </param>
     <param>
       <key>comment</key>
@@ -690,7 +690,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(616, 379)</value>
+      <value>(616, 291)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -789,7 +789,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(400, 691)</value>
+      <value>(576, 619)</value>
     </param>
     <param>
       <key>_rotation</key>
