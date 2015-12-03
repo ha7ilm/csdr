@@ -16,6 +16,9 @@
 #include <errno.h>
 #include <sys/wait.h>
 #include <sys/prctl.h>
+#include <stdarg.h>
+#include <sys/stat.h>
+#include <semaphore.h>
 
 typedef struct client_s
 {
@@ -37,6 +40,7 @@ pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out, pid_t* pgrp);
 void maxfd(int* maxfd, int fd);
 void sig_handler(int signo);
 void killpg2(pid_t pgrp);
+int ctl_get_arg(char* input, const char* cmd, const char* format, ...);
 
 typedef enum ddc_method_e 
 {

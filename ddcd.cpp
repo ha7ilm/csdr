@@ -333,7 +333,7 @@ int main(int argc, char* argv[])
 						close(clients[i]->socket);
 						delete clients[i];
 						clients.erase(clients.begin()+i);
-						fprintf(stderr, MSG_START "done closing client from main process.");
+						fprintf(stderr, MSG_START "done closing client from main process.\n");
 					}
 				}
 				else  { if(clients[i]->error) print_client(clients[i], "pipe okay again."); clients[i]->error=0; }
@@ -347,16 +347,24 @@ int main(int argc, char* argv[])
 
 pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out, pid_t* pgrp)
 {
+	/*char sem_name[101];
+	snprintf(sem_name,100,"ddcd_sem_%d",getpid());
+	sem_t mysem;
+	if(sem_init(&mysem, 1, 1)==-1) error_exit("failed to sem_init() in run_subprocess()");
+	fprintf(stderr, "sem_waiting\n");
+	if(sem_wait(&mysem)==-1) error_exit("the first sem_wait() failed in run_subprocess()");
+	fprintf(stderr, "sem_waited\n");
+	*/
+	int syncpipe[2];
+	if(pipe(syncpipe)==-1) error_exit("failed to create pipe()");
 	pid_t pid = fork();
-	if(*pgrp>=0) 
-	{
-		setpgrp();
-		*pgrp = getpgrp();
-	}
-	//fprintf(stderr, "run_subprocess :: fork-ed %d\n", pid);
+
 	if(pid < 0) return 0; //fork failed
 	if(pid == 0)
 	{
+		setpgrp();
+		write(syncpipe[1], " ", 1);
+		//if(sem_post(&mysem)==-1) error_exit("failed to sem_post() in run_subprocess()");
 		//We're the subprocess
 		//fprintf(stderr, "run_subprocess :: execl\n");
 		//if(fcntl(pipe_in[1], F_SETPIPE_SZ, pipe_max_size) == -1) perror("Failed to F_SETPIPE_SZ in run_subprocess()");
@@ -373,17 +381,20 @@ pid_t run_subprocess(char* cmd, int* pipe_in, int* pipe_out, pid_t* pgrp)
 		execl("/bin/bash","bash","-c",cmd, (char*)0);
 		error_exit(MSG_START "run_subprocess failed to execute command");
 	}
-	else return pid;
+	else
+	{ 
+		//if(sem_wait(&mysem)==-1) error_exit("the second sem_wait() failed in run_subprocess()");
+		int synctemp;
+		read(syncpipe[0], &synctemp, 1);
+		*pgrp = getpgid(pid);
+		fprintf(stderr, MSG_START "run_subprocess pgid returned = %d\n", *pgrp);
+		return pid;
+	}
 }
 
 void print_client(client_t* client, const char* what)
 {
 	fprintf(stderr,MSG_START "(client %s:%d) %s\n", inet_ntoa(client->addr.sin_addr), client->addr.sin_port, what);
-}
-
-void client_cleanup()
-{
-	close(this_client->pipefd[0]);
 }
 
 #define CTL_BUFSIZE 1024
@@ -397,7 +408,7 @@ int read_socket_ctl(int fd, char* output, int max_size)
 	if(buffer_index==CTL_BUFSIZE) buffer_index=0;
 	int bytes_read=recv(fd,buffer+buffer_index,(CTL_BUFSIZE-buffer_index)*sizeof(char), MSG_DONTWAIT);
 	if(bytes_read<=0) return 0;
-	fprintf(stderr, "recv %d\n", bytes_read);
+	//fprintf(stderr, "recv %d\n", bytes_read);
 	
 	int prev_newline_at=0;
 	int last_newline_at=0;
@@ -425,6 +436,26 @@ int read_socket_ctl(int fd, char* output, int max_size)
 	}
 }
 
+int ctl_get_arg(char* input, const char* cmd, const char* format, ...)
+{
+	int retval=0;
+	int cmdlen=strlen(cmd);
+	if(input[cmdlen]=='=')
+	{
+		//fprintf(stderr, "cga found=\n");
+		if(input[cmdlen]=0, !strcmp(input,cmd))
+		{
+			//fprintf(stderr, "cga foundokay\n");
+			va_list vl;
+			va_start(vl,format);
+			retval=vsscanf(input+cmdlen+1,format,vl);
+			va_end(vl);
+		}
+		input[cmdlen]='=';
+	}
+	//fprintf(stderr, "cga retval %d\n", retval);
+	return retval;
+}
 
 void client()
 {
@@ -433,12 +464,13 @@ void client()
 	
 	char client_subprocess_cmd_buf[500];
 	int input_fd = this_client->pipefd[0];
+	int pipe_ctl[2], pipe_stdout[2];
 
 	prctl(PR_SET_PDEATHSIG, SIGHUP); //get a signal when parent exits
 	
 	if(decimation!=1)
 	{
-		int pipe_ctl[2], pipe_stdout[2];
+		
 		if(pipe(pipe_ctl)==-1) error_exit(MSG_START "cannot open new pipe() for the client subprocess");
 		if(pipe(pipe_stdout)==-1) error_exit(MSG_START "cannot open new pipe() for the client subprocess");
 		switch(ddc_method)
@@ -459,14 +491,45 @@ void client()
 		write(pipe_ctl[1], "0.0\n", 4);
 	}
 	char recv_cmd[CTL_BUFSIZE];
+	char temps[CTL_BUFSIZE*2];
+	int tempi;
+	float tempf;
+
 	for(;;)
 	{
 		while(read_socket_ctl(this_client->socket, recv_cmd, CTL_BUFSIZE)) 
-			fprintf(stderr, "read_socket_ctl: %s\n", recv_cmd);
-		read(input_fd,buf,bufsizeall);
-		if(send(this_client->socket,buf,bufsizeall,0)==-1)
 		{
-			print_client(this_client, "client process is exiting.");
+			sprintf(temps, "read_socket_ctl: %s", recv_cmd);
+			print_client(this_client, temps);
+			if(ctl_get_arg(recv_cmd, "bypass", "%d", &tempi))
+			{
+				if(tempi==1 && client_subprocess_pid)
+				{
+					//print_client(this_client, "suspending client_subprocess_pgrp...\n");
+					//fprintf(stderr, "client_subprocess_pgrp = %d\n", client_subprocess_pgrp);
+					//killpg(client_subprocess_pgrp, SIGTSTP);
+					//while(proc_exists(client_subprocess_pid)) usleep(10000);
+					//print_client(this_client, "done killing client_subprocess_pid.\n");
+					input_fd=this_client->pipefd[0]; //by doing this, we don't read from pipe_stdout[0] anymore, so that csdr stops doing anything, and also doesn't read anymore from the input: we get the whole I/Q stream!
+				}
+				if(tempi==0 && client_subprocess_pid)
+				{
+					input_fd=pipe_stdout[0];
+				}
+				
+			}
+			if(ctl_get_arg(recv_cmd, "shift", "%g", &tempf))
+			{			
+				tempi=sprintf(temps, "%g\n", tempf);
+				write(pipe_ctl[1], temps, tempi);
+				fsync(pipe_ctl[1]);
+			}
+		}
+		int nread = read(input_fd,buf,bufsizeall);
+		if(nread<=0) continue;
+		if(send(this_client->socket,buf,nread,0)==-1)
+		{
+			print_client(this_client, "client process is exiting.\n");
 			if(client_subprocess_pid) killpg2(client_subprocess_pgrp);
 			exit(0);
 		}
@@ -475,6 +538,7 @@ void client()
 
 void killpg2(pid_t pgrp)
 {
+	//fprintf(stderr, MSG_START "killpg2: %d\n", pgrp);
 	if(pgrp!=1 && pgrp!=0) killpg(pgrp, SIGTERM);
 }
 
