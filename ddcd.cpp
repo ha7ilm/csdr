@@ -488,15 +488,36 @@ void client()
 		fprintf(stderr, MSG_START "starting client_subprocess_cmd: %s\n", client_subprocess_cmd_buf);
 		input_fd = pipe_stdout[0]; //we don't have to set it nonblocking
 		fprintf(stderr, MSG_START "pipe_stdout[0] = %d\n", pipe_stdout[0]);
-		write(pipe_ctl[1], "0.0\n", 4);
+		write(pipe_ctl[1], "0.1\n", 4);
 	}
 	char recv_cmd[CTL_BUFSIZE];
 	char temps[CTL_BUFSIZE*2];
 	int tempi;
 	float tempf;
 
+
+
+	fd_set client_fds;
+	int highfd = 0; 
+	FD_ZERO(&client_fds);
+	FD_SET(this_client->socket, &client_fds);
+	maxfd(&highfd, this_client->socket);
+	FD_SET(this_client->pipefd[0], &client_fds);
+	maxfd(&highfd, this_client->pipefd[0]);
+	set_nonblocking(this_client->socket);
+	//set_nonblocking(this_client->pipefd[0]);
+	if(client_subprocess_pid)
+	{
+		FD_SET(pipe_stdout[0], &client_fds);
+		maxfd(&highfd, pipe_stdout[0]);
+		set_nonblocking(pipe_stdout[0]);
+	}
+
 	for(;;)
 	{
+		//Let's wait until there is anything on the fds...
+		select(highfd, &client_fds, NULL, NULL, NULL);
+
 		while(read_socket_ctl(this_client->socket, recv_cmd, CTL_BUFSIZE)) 
 		{
 			sprintf(temps, "read_socket_ctl: %s", recv_cmd);
@@ -527,12 +548,13 @@ void client()
 		}
 		int nread = read(input_fd,buf,bufsizeall);
 		if(nread<=0) continue;
-		if(send(this_client->socket,buf,nread,0)==-1)
+		for(;;) if(send(this_client->socket,buf,nread,0)==-1)
 		{
+			if(errno==11) continue;
 			print_client(this_client, "client process is exiting.\n");
 			if(client_subprocess_pid) killpg2(client_subprocess_pgrp);
 			exit(0);
-		}
+		} else break;
 	}	
 }
 
