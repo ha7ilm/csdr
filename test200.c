@@ -41,6 +41,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #define T_BUFSIZE (1024*1024/4)
 #define T_N (200)
+#define T_TAPS (1023)
+#define T_DECFACT (200)
 
 int main()
 {
@@ -58,9 +60,20 @@ int main()
 		qof(buf_c,i)=buf_u8[2*i+1]/128.0;
 	}
 
+
+	float* taps_f = (float*)malloc(sizeof(float)*T_TAPS);
+	firdes_lowpass_f(taps_f, T_TAPS, 1.0f/T_DECFACT, WINDOW_DEFAULT);
+
 	struct timespec start_time, end_time;	
 
 	fprintf(stderr,"Starting tests of processing %d samples...\n", T_BUFSIZE*T_N);
+
+	//fir_decimate_cc
+        clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+        for(int i=0;i<T_N;i++) fir_decimate_cc(buf_c, outbuf_c, T_BUFSIZE, 10, taps_f, T_TAPS);
+        clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+        fprintf(stderr,"fir_decimate_cc done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
+
 
 	//shift_math_cc
 	float starting_phase = 0;
