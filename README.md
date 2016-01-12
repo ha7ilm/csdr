@@ -189,7 +189,7 @@ Internally, a sine and cosine wave is generated to perform this function, and th
 
 	shift_addition_cc <rate>
 
-Operation is the same as with `shift_math_cc`.
+Operation is the same as for `shift_math_cc`.
 
 Internally, this function uses trigonometric addition formulas to generate sine and cosine, which is a bit faster. (About 4 times on the machine I have tested it on.)
 
@@ -202,6 +202,20 @@ This function was used to test the accuracy of the method above.
 Operation is the same as with `shift_math_cc`.
 Internally, this function uses a look-up table (LUT) to recall the values of the sine function (for the first quadrant).
 The higher the table size is, the smaller the phase error is.
+
+	shift_addfast_cc <rate>
+
+Operation is the same as for `shift_math_cc`.
+
+Internally, this function uses a NEON-accelerated algorithm on capable systems, so it is advised to use this one on ARM boards.
+
+	shift_unroll_cc <rate>
+
+Operation is the same as for `shift_math_cc`.
+
+This uses a modified algoritm that first stores a vector of sine and cosine values for given phase differences.
+
+The loop in this function unrolls quite well if compiled on a PC. It was the fastest one on an i7 CPU during the tests.
 
 	decimating_shift_addition_cc <rate> [decimation]
 
@@ -346,6 +360,12 @@ The actual number of padding samples can be determined by running `cat csdr.c | 
 	fft_exchange_sides_ff <fft_size>
 
 It exchanges the first and second part of the FFT vector, to prepare it for the waterfall/spectrum display. It should operate on the data output from `logpower_cf`.
+
+	setbuf <buffer_size>
+
+If the environment variable `CSDR_DYNAMIC_BUFSIZE_ON` is set to 1, then you can use this command to set the input buffer size for the next `csdr` process in the chain.
+
+
 
 #### Control via pipes
 
