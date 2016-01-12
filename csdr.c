@@ -966,7 +966,7 @@ int main(int argc, char *argv[])
 
 		//Do the output
 		if(octave) printf("taps=[");
-		for(int i=0;i<length;i++) printf("%f ",taps[i]);
+		for(int i=0;i<length;i++) printf("%g ",taps[i]);
 		if(octave) printf("];plot(taps);figure(2);freqz(taps);\n");
 		
 		
