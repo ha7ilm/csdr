@@ -426,7 +426,7 @@ E.g. you can send `-0.05 0.02\n`
 * Every process sends out its output buffer size to the next process. Then it startss processing data.
 * The DSP chain should start with a `csdr setbuf <buffer_size>` process, which only copies data from the input to the output, but also sends out the given buffer size information to the next process.
 * The 8 bytes of information included in the beginning of the stream is:
-  * a preamble of the bytes 'C','S','D','R' (4 bytes),
+  * a preamble of the bytes 'c','s','d','r' (4 bytes),
   * the buffer size stored as `int` (4 bytes).
 * This size always counts as samples, as we expect that the user takes care of connecting the functions with right data types to each other.
 
