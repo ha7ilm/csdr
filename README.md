@@ -411,16 +411,16 @@ E.g. you can send `-0.05 0.02\n`
 
 #### Buffer sizes
 
-`csdr` has three modes of determining the buffer sizes, which can be chosen by the appropriate environment variables:
-* default: 16k or 1k buffer is chosen based on function,
-* dynamic buffer size determination: input buffer size is recommended by the previous process, output buffer size is determined by the process,
-* fixed buffer sizes.
+*csdr* has three modes of determining the buffer sizes, which can be chosen by the appropriate environment variables:
+* *default:* 16k or 1k buffer is chosen based on function,
+* *dynamic buffer size determination:* input buffer size is recommended by the previous process, output buffer size is determined by the process,
+* *fixed buffer sizes*.
 
-`csdr` uses two buffer sizes by **default**. 
-* For operations handling the full-bandwidth I/Q data from the receiver, a buffer size of 16384 samples is used.
+*csdr* can choose from two different buffer sizes by **default**. 
+* For operations handling the full-bandwidth I/Q data from the receiver, a buffer size of 16384 samples is used (see `env_csdr_fixed_big_bufsize` in the code).
 * For operations handling only a selected channel, a buffer size of 1024 samples is used (see `env_csdr_fixed_bufsize` in the code).
 
-`csdr` now has an experimental feature called **dynamic buffer size determination**, which is switched on by issuing `export CSDR_DYNAMIC_BUFSIZE_ON=1` in the shell before running `csdr`. If it is enabled:
+*csdr* now has an experimental feature called **dynamic buffer size determination**, which is switched on by issuing `export CSDR_DYNAMIC_BUFSIZE_ON=1` in the shell before running `csdr`. If it is enabled:
 * All `csdr` processes in a DSP chain acquire their recommended input buffer size from the previous `csdr` process. This information is in the first 8 bytes of the input stream. 
 * Each process can decide whether to use this or choose another input buffer size (if that's more practical).
 * Every process sends out its output buffer size to the next process. Then it startss processing data.
@@ -430,8 +430,8 @@ E.g. you can send `-0.05 0.02\n`
   * the buffer size stored as `int` (4 bytes).
 * This size always counts as samples, as we expect that the user takes care of connecting the functions with right data types to each other.
 
-> I added this feature while researching how to decrease the latency of a DSP chain consisting of several multirate algorithms.
-> For example, a `csdr fir_decimate_cc 10` would use an input buffer of 10240, and an output buffer of 1024. The next process in the chain, `csdr bandpass_fir_fft_cc` would automatically adjust to it, using a buffer of 1024 for both input and output.
+> I added this feature while researching how to decrease the latency of a DSP chain consisting of several multirate algorithms.<br />
+> For example, a `csdr fir_decimate_cc 10` would use an input buffer of 10240, and an output buffer of 1024. The next process in the chain, `csdr bandpass_fir_fft_cc` would automatically adjust to it, using a buffer of 1024 for both input and output.<br />
 > In contrast to original expectations, using dynamic buffer sizes didn't decrease the latency much.
 
 If dynamic buffer size determination is disabled, you can still set a **fixed buffer size** with `export CSDR_FIXED_BUFSIZE=<buffer_size>`.
