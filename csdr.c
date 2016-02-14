@@ -350,23 +350,25 @@ int main(int argc, char *argv[])
 	}
 	if(!strcmp(argv[1],"convert_s8_f"))
 	{
+		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
 		{
 			FEOF_CHECK;
-			fread(buffer_s8, sizeof(signed char), BUFSIZE, stdin);
-			convert_s8_f(buffer_s8, output_buffer, BUFSIZE);
+			fread((signed char*)buffer_u8, sizeof(signed char), the_bufsize, stdin);
+			convert_s8_f((signed char*)buffer_u8, output_buffer, the_bufsize);
 			FWRITE_R;
 			TRY_YIELD;
 		}
 	}
 	if(!strcmp(argv[1],"convert_f_s8")) //not tested
 	{
+		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
 		{
 			FEOF_CHECK;
 			FREAD_R;
-			convert_f_s8(input_buffer, buffer_s8, BUFSIZE);
-			fwrite(buffer_s8, sizeof(signed char), BUFSIZE, stdout);
+			convert_f_s8(input_buffer, (signed char*)buffer_u8, the_bufsize);
+			fwrite((signed char*)buffer_u8, sizeof(signed char), the_bufsize, stdout);
 			TRY_YIELD;
 		}
 	}
