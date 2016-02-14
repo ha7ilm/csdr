@@ -263,6 +263,71 @@ float shift_table_cc(complexf* input, complexf* output, int input_size, float ra
 	return phase;
 }
 
+#ifdef NEON_OPTS
+#pragma message "We have a faster fir_decimate_cc now."
+
+//max help: http://community.arm.com/groups/android-community/blog/2015/03/27/arm-neon-programming-quick-reference
+
+int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decimation, float *taps, int taps_length)
+{
+	//Theory: http://www.dspguru.com/dsp/faqs/multirate/decimation
+	//It uses real taps. It returns the number of output samples actually written.
+	//It needs overlapping input based on its returned value:
+	//number of processed input samples = returned value * decimation factor
+	//The output buffer should be at least input_length / 3.
+	// i: input index | ti: tap index | oi: output index
+	int oi=0;
+	for(int i=0; i<input_size; i+=decimation) //@fir_decimate_cc: outer loop
+	{
+		if(i+taps_length>input_size) break;
+		register float acci=0; 
+		register float accq=0;		
+
+		register int ti=0;
+		register float* pinput=(float*)&(input[i+ti]);
+		register float* ptaps=taps;
+		register float* ptaps_end=taps+taps_length;
+		float quad_acciq [8];
+
+	
+/*
+q0, q1:	input signal I sample and Q sample
+q2:		taps 
+q4, q5: accumulator for I branch and Q branch (will be the output)
+*/
+
+		asm volatile(
+			"		vmov.f32 q4, #0.0\n\t" //another way to null the accumulators
+			"		vmov.f32 q5, #0.0\n\t"
+			"for_fdccasm: vld2.32	{q0-q1}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in q0 and the Q samples in q1), also increment the memory address in pinput (hence the "!" mark) //http://community.arm.com/groups/processors/blog/2010/03/17/coding-for-neon--part-1-load-and-stores
+			"		vld1.32	{q2}, [%[ptaps]]!\n\t" 
+			"		vmla.f32 q4, q0, q2\n\t" //quad_acc_i += quad_input_i * quad_taps_1 //http://stackoverflow.com/questions/3240440/how-to-use-the-multiply-and-accumulate-intrinsics-in-arm-cortex-a8 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489e/CIHEJBIE.html
+			"		vmla.f32 q5, q1, q2\n\t" //quad_acc_q += quad_input_q * quad_taps_1
+			"		cmp %[ptaps], %[ptaps_end]\n\t" //if(ptaps == ptaps_end)
+			"		bcc for_fdccasm\n\t"			//	then goto for_fdcasm
+			"		vst1.32 {q4}, [%[quad_acci]]\n\t" //if the loop is finished, store the two accumulators in memory
+			"		vst1.32 {q5}, [%[quad_accq]]\n\t"
+		:
+			[pinput]"+r"(pinput), [ptaps]"+r"(ptaps) //output operand list
+		:
+			[ptaps_end]"r"(ptaps_end), [quad_acci]"r"(quad_acciq), [quad_accq]"r"(quad_acciq+4) //input operand list
+		: 
+			"memory", "q0", "q1", "q2", "q4", "q5", "cc" //clobber list
+		);
+		//original for loops for reference:
+		//for(int ti=0; ti<taps_length; ti++) acci += (iof(input,i+ti)) * taps[ti]; //@fir_decimate_cc: i loop		
+		//for(int ti=0; ti<taps_length; ti++) accq += (qof(input,i+ti)) * taps[ti]; //@fir_decimate_cc: q loop
+		
+		//for(int n=0;n<8;n++) fprintf(stderr, "\n>> [%d] %g \n", n, quad_acciq[n]);
+		iof(output,oi)=quad_acciq[0]+quad_acciq[1]+quad_acciq[2]+quad_acciq[3]; //we're still not ready, as we have to add up the contents of a quad accumulator register to get a single accumulated value
+		qof(output,oi)=quad_acciq[4]+quad_acciq[5]+quad_acciq[6]+quad_acciq[7];
+		oi++;
+	}
+	return oi;
+}
+
+#else
+
 int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decimation, float *taps, int taps_length)
 {
 	//Theory: http://www.dspguru.com/dsp/faqs/multirate/decimation
@@ -285,6 +350,34 @@ int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decim
 	}
 	return oi;
 }
+
+#endif
+
+/*
+int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decimation, float *taps, int taps_length)
+{
+	//Theory: http://www.dspguru.com/dsp/faqs/multirate/decimation
+	//It uses real taps. It returns the number of output samples actually written.
+	//It needs overlapping input based on its returned value:
+	//number of processed input samples = returned value * decimation factor
+	//The output buffer should be at least input_length / 3.
+	// i: input index | ti: tap index | oi: output index
+	int oi=0;
+	for(int i=0; i<input_size; i+=decimation) //@fir_decimate_cc: outer loop
+	{
+		if(i+taps_length>input_size) break;
+		float acci=0;
+		int taps_halflength = taps_length/2;
+		for(int ti=0; ti<taps_halflength; ti++) acci += (iof(input,i+ti)+iof(input,i+taps_length-ti)) * taps[ti]; //@fir_decimate_cc: i loop
+		float accq=0;
+		for(int ti=0; ti<taps_halflength; ti++) accq += (qof(input,i+ti)+qof(input,i+taps_length-ti)) * taps[ti]; //@fir_decimate_cc: q loop
+		iof(output,oi)=acci+iof(input,i+taps_halflength)*taps[taps_halflength];
+		qof(output,oi)=accq+qof(input,i+taps_halflength)*taps[taps_halflength];
+		oi++;
+	}
+	return oi;
+}
+*/
 
 rational_resampler_ff_t rational_resampler_ff(float *input, float *output, int input_size, int interpolation, int decimation, float *taps, int taps_length, int last_taps_delay)
 {
@@ -524,7 +617,8 @@ float fastdcblock_ff(float* input, float* output, int input_size, float last_dc_
 	return avg;
 }
 
-#define FASTAGC_MAX_GAIN (65e3)
+//#define FASTAGC_MAX_GAIN (65e3)
+#define FASTAGC_MAX_GAIN 50
 
 void fastagc_ff(fastagc_ff_t* input, float* output)
 {
@@ -553,6 +647,7 @@ void fastagc_ff(fastagc_ff_t* input, float* output)
 	//we change the gain linearly on the apply_block from the last_gain to target_gain.
 	float target_gain=input->reference/target_peak;
 	if(target_gain>FASTAGC_MAX_GAIN) target_gain=FASTAGC_MAX_GAIN;
+	//fprintf(stderr, "target_gain: %g\n",target_gain);
 
 	for(int i=0;i<input->input_size;i++) //@fastagc_ff: apply gain
 	{
@@ -571,7 +666,6 @@ void fastagc_ff(fastagc_ff_t* input, float* output)
 	input->last_gain=target_gain;
 	//fprintf(stderr,"target_gain=%g\n", target_gain);
 }
-
 
 /*
   ______ __  __        _                          _       _       _                 
@@ -724,6 +818,51 @@ void gain_ff(float* input, float* output, int input_size, float gain)
 	for(int i=0;i<input_size;i++) output[i]=gain*input[i]; //@gain_ff
 }
 
+/*
+  __  __           _       _       _                 
+ |  \/  |         | |     | |     | |                
+ | \  / | ___   __| |_   _| | __ _| |_ ___  _ __ ___ 
+ | |\/| |/ _ \ / _` | | | | |/ _` | __/ _ \| '__/ __|
+ | |  | | (_) | (_| | |_| | | (_| | || (_) | |  \__ \
+ |_|  |_|\___/ \__,_|\__,_|_|\__,_|\__\___/|_|  |___/
+                                                                                                        
+*/
+
+void add_dcoffset_cc(complexf* input, complexf* output, int input_size)
+{
+	for(int i=0;i<input_size;i++) iof(output,i)=0.5+iof(input,i)/2; 
+	for(int i=0;i<input_size;i++) qof(output,i)=qof(input,i)/2; 
+}
+
+float fmmod_fc(float* input, complexf* output, int input_size, float last_phase)
+{
+	float phase=last_phase;
+	for(int i=0;i<input_size;i++)
+	{
+		phase+=input[i]*PI;
+		while(phase>PI) phase-=2*PI;
+		while(phase<=-PI) phase+=2*PI;
+		iof(output,i)=cos(phase);
+		qof(output,i)=sin(phase);
+	}
+	return phase;
+}
+
+void fixed_amplitude_cc(complexf* input, complexf* output, int input_size, float new_amplitude)
+{
+	for(int i=0;i<input_size;i++)
+	{
+		//float phase=atan2(iof(input,i),qof(input,i));
+		//iof(output,i)=cos(phase)*amp;
+		//qof(output,i)=sin(phase)*amp;		
+
+		//A faster solution:
+		float amplitude_now = sqrt(iof(input,i)*iof(input,i)+qof(input,i)*qof(input,i));
+		float gain = (amplitude_now > 0) ? new_amplitude / amplitude_now : 0;
+		iof(output,i)=iof(input,i)*gain;
+		qof(output,i)=qof(input,i)*gain;
+	}	
+}
 
 /*
   ______        _     ______               _             _______                   __                     
