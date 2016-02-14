@@ -58,8 +58,8 @@ char usage[]=
 "    convert_f_u8\n"
 "    convert_s8_f\n"
 "    convert_f_s8\n"
-"    convert_f_i16\n"
-"    convert_i16_f\n"
+"    convert_f_s16\n"
+"    convert_s16_f\n"
 "    realpart_cf\n"
 "    clipdetect_ff\n"
 "    limit_ff [max_amplitude]\n"
@@ -372,7 +372,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"convert_f_i16"))
+	if((!strcmp(argv[1],"convert_f_i16")) || (!strcmp(argv[1],"convert_f_s16")))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -384,7 +384,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"convert_i16_f")) //not tested
+	if((!strcmp(argv[1],"convert_i16_f")) || (!strcmp(argv[1],"convert_s16_f"))) //not tested
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -1426,7 +1426,7 @@ int main(int argc, char *argv[])
 		}
 	}*/
 
-
+	
 	if(!strcmp(argv[1],"flowcontrol"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (data_rate, reads_per_seconds)"); 

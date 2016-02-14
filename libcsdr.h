@@ -170,6 +170,8 @@ void convert_u8_f(unsigned char* input, float* output, int input_size);
 void convert_f_u8(float* input, unsigned char* output, int input_size);
 void convert_s8_f(signed char* input, float* output, int input_size);
 void convert_f_s8(float* input, signed char* output, int input_size);
+void convert_f_s16(float* input, short* output, int input_size);
+void convert_s16_f(short* input, float* output, int input_size);
 void convert_f_i16(float* input, short* output, int input_size);
 void convert_i16_f(short* input, float* output, int input_size);
 

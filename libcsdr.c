@@ -949,9 +949,9 @@ void convert_s8_f(signed char* input, float* output, int input_size)
 	for(int i=0;i<input_size;i++) output[i]=((float)input[i])/SCHAR_MAX; //@convert_s8_f
 }
 
-void convert_i16_f(short* input, float* output, int input_size)
+void convert_s16_f(short* input, float* output, int input_size)
 {
-	for(int i=0;i<input_size;i++) output[i]=(float)input[i]/SHRT_MAX; //@convert_i16_f
+	for(int i=0;i<input_size;i++) output[i]=(float)input[i]/SHRT_MAX; //@convert_s16_f
 }
 
 void convert_f_u8(float* input, unsigned char* output, int input_size)
@@ -966,15 +966,18 @@ void convert_f_s8(float* input, signed char* output, int input_size)
 	for(int i=0;i<input_size;i++) output[i]=input[i]*SCHAR_MAX; //@convert_f_s8
 }
 
-void convert_f_i16(float* input, short* output, int input_size)
+void convert_f_s16(float* input, short* output, int input_size)
 {
 	/*for(int i=0;i<input_size;i++) 
 	{
 		if(input[i]>1.0) input[i]=1.0;
 		if(input[i]<-1.0) input[i]=-1.0;
 	}*/
-	for(int i=0;i<input_size;i++) output[i]=input[i]*SHRT_MAX; //@convert_f_i16
+	for(int i=0;i<input_size;i++) output[i]=input[i]*SHRT_MAX; //@convert_f_s16
 }
+
+void convert_i16_f(short* input, float* output, int input_size) { convert_s16_f(input, output, input_size); }
+void convert_f_i16(float* input, short* output, int input_size) { convert_f_s16(input, output, input_size); }
 
 int trivial_vectorize()
 {
