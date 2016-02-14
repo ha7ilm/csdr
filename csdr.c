@@ -95,9 +95,17 @@ char usage[]=
 "    logpower_cf [add_db]\n"
 "    fft_benchmark <fft_size> <fft_cycles> [--benchmark]\n"
 "    bandpass_fir_fft_cc <low_cut> <high_cut> <transition_bw> [window]\n"
-"    encode_ima_adpcm_i16_u8\n"
-"    decode_ima_adpcm_u8_i16\n"
+"    encode_ima_adpcm_s16_u8\n"
+"    decode_ima_adpcm_u8_s16\n"
 "    compress_fft_adpcm_f_u8 <fft_size>\n"
+"    flowcontrol <data_rate> <reads_per_second>\n"
+"    through\n"
+"    dsb_fc [q_value]\n"
+"    convert_f_samperf <wait_for_this_sample> \n"
+"    fmmod_fc\n"
+"    fixed_amplitude_cc <new_amplitude>\n"
+"    monos2stereo_s16\n"
+"    setbuf <buffer_size>\n"
 "    fft_exchange_sides_ff <fft_size>\n"
 "    \n"
 ;
@@ -288,7 +296,7 @@ int parse_env()
 		envtmp=getenv("CSDR_FIXED_BUFSIZE");		
 		if(envtmp) 
 		{
-			env_csdr_fixed_bufsize = atoi(envtmp);
+			env_csdr_fixed_big_bufsize = env_csdr_fixed_bufsize = atoi(envtmp);
 		}
 	}
 	envtmp=getenv("CSDR_PRINT_BUFSIZES");
@@ -1372,7 +1380,7 @@ int main(int argc, char *argv[])
 #ifdef USE_IMA_ADPCM
 #define IMA_ADPCM_BUFSIZE BUFSIZE
 
-	if(!strcmp(argv[1],"encode_ima_adpcm_i16_u8"))
+	if( (!strcmp(argv[1],"encode_ima_adpcm_i16_u8"))||(!strcmp(argv[1],"encode_ima_adpcm_s16_u8")) )
 	{
 		if(!sendbufsize(initialize_buffers()/2)) return -2;
 		ima_adpcm_state_t d;
@@ -1387,7 +1395,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"decode_ima_adpcm_u8_i16"))
+	if( (!strcmp(argv[1],"decode_ima_adpcm_u8_i16"))||(!strcmp(argv[1],"decode_ima_adpcm_u8_s16")) )
 	{
 		ima_adpcm_state_t d;
 		d.index=d.previousValue=0;
@@ -1655,7 +1663,7 @@ int main(int argc, char *argv[])
 		}		
 	}
 
-	if(!strcmp(argv[1],"mono2stereo_i16"))
+	if((!strcmp(argv[1],"mono2stereo_i16"))||(!strcmp(argv[1],"mono2stereo_s16")))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		float last_phase = 0;

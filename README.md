@@ -109,7 +109,7 @@ Data types are noted as it follows:
 - `f` is `float` (single percision)
 - `c` is `complexf` (two single precision floating point values in a struct) 
 - `u8` is `unsigned char` of 1 byte/8 bits (e. g. the output of `rtl_sdr` is of `u8`)
-- `i16` is `signed short` of 2 bytes/16 bits (e. g. sound card input is usually `i16`)
+- `s16` is `signed short` of 2 bytes/16 bits (e. g. sound card input is usually `s16`)
 
 Functions usually end as:
 
@@ -124,11 +124,13 @@ The following commands are available:
 - `csdr convert_f_u8` 
 - `csdr convert_s8_f`
 - `csdr convert_f_s8`
-- `csdr convert_i16_f` 
-- `csdr convert_f_i16`
+- `csdr convert_s16_f` 
+- `csdr convert_f_s16`
 
 How to interpret: `csdr convert_<src>_<dst>`
 You can use these commands on complex streams, too, as they are only interleaved values (I,Q,I,Q,I,Q... coming after each other).
+
+> Note: The the functions with `i16` in their names have been renamed, but still work (e.g. `csdr convert_f_i16`).
 
 #### csdr commands
 
@@ -156,6 +158,10 @@ It multiplies all samples by `gain`.
 	clone
 
 It copies the input to the output.
+
+	through
+
+It copies the input to the output, while also displaying the speed of the data going through it.
 
 	none
 
@@ -349,6 +355,38 @@ The actual number of padding samples can be determined by running `cat csdr.c | 
 
 It exchanges the first and second part of the FFT vector, to prepare it for the waterfall/spectrum display. It should operate on the data output from `logpower_cf`.
 
+	dsb_fc [q_value]
+
+It converts a real signal to a double sideband complex signal centered around DC. 
+It does so by generating a complex signal:
+* the real part of which is the input real signal,
+* the imaginary part of which is `q_value` (0 by default).
+With `q_value = 0` it is an AM-DSB/SC modulator. If you want to get an AM-DSB signal, you will have to add a carrier to it.
+
+	add_dcoffset_cc
+
+It adds a DC offset to the complex signal: `i_output = 0.5 + i_input / 2, q_output = q_input / 2`
+
+	convert_f_samplerf <wait_for_this_sample>
+
+It converts a real signal to the `-mRF` input format of [https://github.com/F5OEO/rpitx](rpitx), so it allows you to generate frequency modulation. The input signal will be the modulating signal. The `<wait_for_this_sample>` parameter is the value for `rpitx` indicating the time to wait between samples. For a sampling rate of 48 ksps, this is 20833.
+
+	fmmod_fc
+
+It generates a complex FM modulated output from a real input signal.
+
+	fixed_amplitude_cc <new_amplitude>
+
+It changes the amplitude of every complex input sample to a fixed value. It does not change the phase information of the samples.
+
+	mono2stereo_s16
+
+It doubles every input sample.
+
+	setbuf <buffer_size>
+
+See the [buffer sizes](#buffer_sizes) section.
+
 #### Control via pipes
 
 Some parameters can be changed while the `csdr` process is running. To achieve this, some `csdr` functions have special parameters. You have to supply a fifo previously created by the `mkfifo` command. Processing will only start after the first control command has been received by `csdr` over the FIFO.
@@ -370,6 +408,56 @@ By writing to the given FIFO file with the syntax below, you can control the shi
 	<low_cut> <high_cut>\n
 	
 E.g. you can send `-0.05 0.02\n`
+
+#### Buffer sizes
+
+`csdr` has three modes of determining the buffer sizes, which can be chosen by the appropriate environment variables:
+* default: 16k or 1k buffer is chosen based on function,
+* dynamic buffer size determination: input buffer size is recommended by the previous process, output buffer size is determined by the process,
+* fixed buffer sizes.
+
+`csdr` uses two buffer sizes by **default**. 
+* For operations handling the full-bandwidth I/Q data from the receiver, a buffer size of 16384 samples is used.
+* For operations handling only a selected channel, a buffer size of 1024 samples is used (see `env_csdr_fixed_bufsize` in the code).
+
+`csdr` now has an experimental feature called **dynamic buffer size determination**, which is switched on by issuing `export CSDR_DYNAMIC_BUFSIZE_ON=1` in the shell before running `csdr`. If it is enabled:
+* All `csdr` processes in a DSP chain acquire their recommended input buffer size from the previous `csdr` process. This information is in the first 8 bytes of the input stream. 
+* Each process can decide whether to use this or choose another input buffer size (if that's more practical).
+* Every process sends out its output buffer size to the next process. Then it startss processing data.
+* The DSP chain should start with a `csdr setbuf <buffer_size>` process, which only copies data from the input to the output, but also sends out the given buffer size information to the next process.
+* The 8 information included in the beginning of the stream is:
+  * a preamble of the bytes 'C','S','D','R' (4 bytes),
+  * the buffer size stored as `int` (4 bytes).
+* This size always counts as samples, as we expect that the user takes care of connecting the functions with right data types to each other.
+
+> I added this feature while researching how to decrease the latency of a DSP chain consisting of several multirate algorithms.
+> For example, a `csdr fir_decimate_cc 10` would use an input buffer of 10240, and an output buffer of 1024. The next process in the chain, `csdr bandpass_fir_fft_cc` would automatically adjust to it, using a buffer of 1024 for both input and output.
+> In contrast to original expectations, using dynamic buffer sizes didn't decrease the latency much.
+
+If dynamic buffer size determination is disabled, you can still set a **fixed buffer size** with `export CSDR_FIXED_BUFSIZE=<buffer_size>`.
+
+For debug purposes, buffer sizes of all processes can be printed using `export CSDR_PRINT_BUFSIZES=1`.
+
+If you add your own functions to `csdr`, you have to initialize the buffers before doing the processing. Buffer size will be stored in the global variable `the_bufsize`.
+
+Example of initialization if the process generates N output samples for N input samples:
+
+    if(!sendbufsize(initialize_buffers())) return -2;
+
+Example of initalization if the process generates N/D output samples for N input samples:
+
+    if(!initialize_buffers()) return -2;
+    sendbufsize(the_bufsize/D);
+
+Example of initialization if the process allocates memory for itself, and it doesn't want to use the global buffers:
+
+    getbufsize(); //dummy		
+    sendbufsize(my_own_bufsize);
+
+Example of initialization if the process always works with a fixed output size, regardless of the input:
+
+    if(!initialize_buffers()) return -2;
+    sendbufsize(fft_size);
 
 #### Testbench
 
