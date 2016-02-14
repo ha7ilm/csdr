@@ -1402,7 +1402,7 @@ int main(int argc, char *argv[])
 		}
 	}
 #endif
-	/*
+	
 	if(!strcmp(argv[1],"flowcontrol"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (data_rate, reads_per_seconds)"); 
@@ -1424,9 +1424,9 @@ int main(int argc, char *argv[])
 			usleep(flowcontrol_sleep);
 			TRY_YIELD;
 		}
-	}*/
+	}
 
-	
+#if 0
 	if(!strcmp(argv[1],"flowcontrol"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (data_rate, reads_per_seconds)"); 
@@ -1525,6 +1525,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
+#endif
 
 	if(!strcmp(argv[1],"through"))
 	{
