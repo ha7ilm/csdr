@@ -741,7 +741,7 @@ complexf fmdemod_quadri_cf(complexf* input, float* output, int input_size, float
 	}
 	for (int i=0; i<input_size; i++) //@fmdemod_quadri_cf: output division
 	{
-		output[i]=fmdemod_quadri_K*output[i]/temp[i];
+		output[i]=(temp[i])?fmdemod_quadri_K*output[i]/temp[i]:0;
 	}
 
 	return input[input_size-1];

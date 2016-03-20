@@ -47,7 +47,7 @@ float shift_addition_cc(complexf *input, complexf* output, int input_size, shift
 	}
 	starting_phase+=d.rate*PI*input_size;
 	while(starting_phase>PI) starting_phase-=2*PI; //@shift_addition_cc: normalize starting_phase
-	while(starting_phase<-PI) starting_phase+=2*PI; 
+	while(starting_phase<-PI) starting_phase+=2*PI;
 	return starting_phase;
 }
 
@@ -82,12 +82,12 @@ void shift_addition_cc_test(shift_addition_data_t d)
 		sinphi=sinphi_last*d.cosdelta+cosphi_last*d.sindelta;
 		phi+=d.rate*PI;
 		while(phi>2*PI) phi-=2*PI; //@shift_addition_cc: normalize phase
-		if(i%SACCTEST_STEP==0) 
+		if(i%SACCTEST_STEP==0)
 		{
 			avg_counter=avg_size;
 			avg=0;
 		}
-		if(avg_counter) 
+		if(avg_counter)
 		{
 			avg+=fabs(cosphi-cos(phi));
 			if(!--avg_counter) printf("%g ", avg/avg_size);
@@ -128,7 +128,7 @@ decimating_shift_addition_status_t decimating_shift_addition_cc(complexf *input,
 	s.starting_phase+=d.rate*PI*k;
 	s.output_size=k;
 	while(s.starting_phase>PI) s.starting_phase-=2*PI; //@shift_addition_cc: normalize starting_phase
-	while(s.starting_phase<-PI) s.starting_phase+=2*PI; 
+	while(s.starting_phase<-PI) s.starting_phase+=2*PI;
 	return s;
 }
 
@@ -142,10 +142,10 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 			hang_time = (hang_time_ms / 1000) * sample_rate
 				hang_time is given in samples, and should be about 4ms.
 				hang_time can be switched off by setting it to zero (not recommended).
-			
+
 			max_gain = pow(2, adc_bits)
-				max_gain should be no more than the dynamic range of your A/D converter. 
-			gain_filter_alpha = 1 / ((fs/(2*PI*fc))+1) 
+				max_gain should be no more than the dynamic range of your A/D converter.
+			gain_filter_alpha = 1 / ((fs/(2*PI*fc))+1)
 
 			>>> 1 / ((48000./(2*3.141592654*100))+1)
 			0.012920836043344543
@@ -153,7 +153,7 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 			0.0013072857061786625
 
 
-		Literature: 
+		Literature:
 			ww.qsl.net/va3iul/Files/Automatic_Gain_Control.pdf
 			page 7 of http://www.arrl.org/files/file/Technology/tis/info/pdf/021112qex027.pdf
 
@@ -170,10 +170,10 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 	output[0]=last_gain*input[0]; //we skip this one sample, because it is easier this way
 	for(int i=1;i<input_size;i++) //@agc_ff
 	{
-		//The error is the difference between the required gain at the actual sample, and the previous gain value. 
+		//The error is the difference between the required gain at the actual sample, and the previous gain value.
 		//We actually use an envelope detector.
 		input_abs=fabs(input[i]);
-		error=reference/input_abs-gain; 
+		error=reference/input_abs-gain;
 
 		if(input[i]!=0) //We skip samples containing 0, as the gain would be infinity for those to keep up with the reference.
 		{
@@ -184,12 +184,12 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 			//However, attack_rate should be higher than the decay_rate as we want to avoid clipping signals.
 			//that had a sudden increase in their amplitude.
 			//It's also important to note that this algorithm has an exponential gain ramp.
-			
+
 			if(error<0) //INCREASE IN SIGNAL LEVEL
 			{
-				if(last_peak<input_abs) 
+				if(last_peak<input_abs)
 				{
-					
+
 					attack_wait_counter=attack_wait_time;
 					last_peak=input_abs;
 				}
@@ -201,11 +201,11 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 				}
 				else
 				{
-					//If the signal level increases, we decrease the gain quite fast.			
-					dgain=error*attack_rate; 
+					//If the signal level increases, we decrease the gain quite fast.
+					dgain=error*attack_rate;
 					//Before starting to increase the gain next time, we will be waiting until hang_time for sure.
 					hang_counter=hang_time;
-					
+
 				}
 			}
 			else //DECREASE IN SIGNAL LEVEL
@@ -216,13 +216,12 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 					dgain=0; //..until then, AGC is inactive and gain doesn't change.
 				}
 				else dgain=error*decay_rate; //If the signal level decreases, we increase the gain quite slowly.
-			} 
+			}
 			gain=gain+dgain;
 			//fprintf(stderr,"g=%f dg=%f\n",gain,dgain);
-
-			if(gain>max_gain) gain=max_gain; //We also have to limit our gain, it can't be infinity.
-			if(gain<0) gain=0;
 		}
+		if(gain>max_gain) gain=max_gain; //We also have to limit our gain, it can't be infinity.
+		if(gain<0) gain=0;
 		//output[i]=gain*input[i]; //Here we do the actual scaling of the samples.
 		//Here we do the actual scaling of the samples, but we run an IIR filter on the gain values:
 		output[i]=(gain=gain+last_gain-gain_filter_alpha*last_gain)*input[i]; //dc-pass-filter: freqz([1 -1],[1 -0.99]) y[i]=x[i]+y[i-1]-alpha*x[i-1]
@@ -230,8 +229,7 @@ float agc_ff(float* input, float* output, int input_size, float reference, float
 
 		last_gain=gain;
 	}
-	return gain; //this will be the last_gain next time 
+	return gain; //this will be the last_gain next time
 }
 
 #endif
-
