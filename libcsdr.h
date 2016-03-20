@@ -1,5 +1,5 @@
 /*
-This software is part of libcsdr, a set of simple DSP routines for 
+This software is part of libcsdr, a set of simple DSP routines for
 Software Defined Radio.
 
 Copyright (c) 2014, Andras Retzler <randras@sdr.hu>
@@ -32,14 +32,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MIN_M(x,y) (((x)>(y))?(y):(x))
 
 /*
-   _____                      _                                                 
-  / ____|                    | |                                                
- | |     ___  _ __ ___  _ __ | | _____  __ 
- | |    / _ \| '_ ` _ \| '_ \| |/ _ \ \/ / 
- | |___| (_) | | | | | | |_) | |  __/>  <  
-  \_____\___/|_| |_| |_| .__/|_|\___/_/\_\ 
-                       | |                  
-                       |_|                  
+   _____                      _
+  / ____|                    | |
+ | |     ___  _ __ ___  _ __ | | _____  __
+ | |    / _ \| '_ ` _ \| '_ \| |/ _ \ \/ /
+ | |___| (_) | | | | | | |_) | |  __/>  <
+  \_____\___/|_| |_| |_| .__/|_|\___/_/\_\
+                       | |
+                       |_|
 */
 
 typedef struct complexf_s { float i; float q; } complexf;
@@ -64,7 +64,7 @@ typedef struct complexf_s { float i; float q; } complexf;
 #define PI ((float)3.14159265358979323846)
 
 //window
-typedef enum window_s 
+typedef enum window_s
 {
 	WINDOW_BOXCAR, WINDOW_BLACKMAN, WINDOW_HAMMING
 } window_t;
@@ -113,7 +113,7 @@ float fastdcblock_ff(float* input, float* output, int input_size, float last_dc_
 
 typedef struct fastagc_ff_s
 {
-	float* buffer_1; 
+	float* buffer_1;
 	float* buffer_2;
 	float* buffer_input; //it is the actual input buffer to fill
 	float peak_1;
@@ -150,7 +150,7 @@ fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, i
 typedef struct shift_table_data_s
 {
 	float* table;
-	int table_size;	
+	int table_size;
 } shift_table_data_t;
 void shift_table_deinit(shift_table_data_t table_data);
 shift_table_data_t shift_table_init(int table_size);
@@ -161,6 +161,8 @@ int log2n(int x);
 int next_pow2(int x);
 void apply_fir_fft_cc(FFT_PLAN_T* plan, FFT_PLAN_T* plan_inverse, complexf* taps_fft, complexf* last_overlap, int overlap_size);
 void gain_ff(float* input, float* output, int input_size, float gain);
+float get_power_f(float* input, int input_size, int decimation);
+float get_power_c(complexf* input, int input_size, int decimation);
 
 void add_dcoffset_cc(complexf* input, complexf* output, int input_size);
 float fmmod_fc(float* input, complexf* output, int input_size, float last_phase);

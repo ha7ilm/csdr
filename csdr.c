@@ -1,5 +1,5 @@
 /*
-This software is part of libcsdr, a set of simple DSP routines for 
+This software is part of libcsdr, a set of simple DSP routines for
 Software Defined Radio.
 
 Copyright (c) 2014, Andras Retzler <randras@sdr.hu>
@@ -35,14 +35,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
-#include <sys/time.h> 
+#include <sys/time.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <time.h>
-#include <stdarg.h> 
+#include <stdarg.h>
 #include "libcsdr.h"
 #include "libcsdr_gpl.h"
 #include "ima_adpcm.h"
@@ -71,7 +71,9 @@ char usage[]=
 "    floatdump_f\n"
 "    flowcontrol <data_rate> <reads_per_second> [prebuffer_sec] [thrust]\n"
 "    shift_math_cc <rate>\n"
+"    shift_math_cc --fifo <fifo_path>\n"
 "    shift_addition_cc <rate>\n"
+"    shift_addition_cc --fifo <fifo_path>\n"
 "    shift_addition_cc_test\n"
 "    shift_table_cc <rate> [table_size]\n"
 "    decimating_shift_addition_cc <rate> [decimation]\n"
@@ -95,6 +97,7 @@ char usage[]=
 "    logpower_cf [add_db]\n"
 "    fft_benchmark <fft_size> <fft_cycles> [--benchmark]\n"
 "    bandpass_fir_fft_cc <low_cut> <high_cut> <transition_bw> [window]\n"
+"    bandpass_fir_fft_cc --fifo <fifo_path> <transition_bw> [window]\n"
 "    encode_ima_adpcm_s16_u8\n"
 "    decode_ima_adpcm_u8_s16\n"
 "    compress_fft_adpcm_f_u8 <fft_size>\n"
@@ -107,6 +110,7 @@ char usage[]=
 "    monos2stereo_s16\n"
 "    setbuf <buffer_size>\n"
 "    fft_exchange_sides_ff <fft_size>\n"
+"    squelch_and_smeter_cc --fifo <squelch_fifo> --outfifo <smeter_fifo> <use_every_nth> <report_every_nth>\n"
 "    \n"
 ;
 
@@ -192,12 +196,12 @@ int read_fifo_ctl(int fd, char* format, ...)
 	static int buffer_index=0;
 	int bytes_read=read(fd,buffer+buffer_index,(RFCTL_BUFSIZE-buffer_index)*sizeof(char));
 	if(bytes_read<=0) return 0;
-	
+
 	int prev_newline_at=0;
 	int last_newline_at=0;
-	for(int i=0;i<buffer_index+bytes_read;i++) 
+	for(int i=0;i<buffer_index+bytes_read;i++)
 	{
-		if(buffer[i]=='\n') 
+		if(buffer[i]=='\n')
 		{
 			prev_newline_at=last_newline_at;
 			last_newline_at=i+1;
@@ -238,8 +242,8 @@ int getbufsize()
 }
 
 
-float* input_buffer; 
-unsigned char* buffer_u8; 
+float* input_buffer;
+unsigned char* buffer_u8;
 float *output_buffer;
 short *buffer_i16;
 float *temp_f;
@@ -284,7 +288,7 @@ int sendbufsize(int size)
 int parse_env()
 {
 	char* envtmp;
-	envtmp=getenv("CSDR_DYNAMIC_BUFSIZE_ON");	
+	envtmp=getenv("CSDR_DYNAMIC_BUFSIZE_ON");
 	//fprintf(stderr, "envtmp: %s\n",envtmp);
 	if(envtmp)
 	{
@@ -293,21 +297,21 @@ int parse_env()
 	}
 	else
 	{
-		envtmp=getenv("CSDR_FIXED_BUFSIZE");		
-		if(envtmp) 
+		envtmp=getenv("CSDR_FIXED_BUFSIZE");
+		if(envtmp)
 		{
 			env_csdr_fixed_big_bufsize = env_csdr_fixed_bufsize = atoi(envtmp);
 		}
 	}
 	envtmp=getenv("CSDR_PRINT_BUFSIZES");
-	if(envtmp) 
+	if(envtmp)
 	{
 		env_csdr_print_bufsizes = atoi(envtmp);
 	}
 }
 
 int main(int argc, char *argv[])
-{	
+{
 	parse_env();
 	argv_global=argv;
 	if(argc<=1) return badsyntax(0);
@@ -319,9 +323,9 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"setbuf"))
 	{
-		if(argc<=2) return badsyntax("need required parameter (buffer size)"); 
+		if(argc<=2) return badsyntax("need required parameter (buffer size)");
 		sscanf(argv[2],"%d",&the_bufsize);
-		if(the_bufsize<=0) return badsyntax("buffer size <= 0 is invalid"); 
+		if(the_bufsize<=0) return badsyntax("buffer size <= 0 is invalid");
 		sendbufsize(the_bufsize);
 		clone_(the_bufsize); //After sending the buffer size out, just copy stdin to stdout
 	}
@@ -430,9 +434,9 @@ int main(int argc, char *argv[])
 	}
 	if(!strcmp(argv[1],"gain_ff"))
 	{
-		if(argc<=2) return badsyntax("need required parameter (gain)"); 
+		if(argc<=2) return badsyntax("need required parameter (gain)");
 		float gain;
-		sscanf(argv[2],"%g",&gain);	
+		sscanf(argv[2],"%g",&gain);
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
 		{
@@ -459,23 +463,23 @@ int main(int argc, char *argv[])
 	}
 	if(!strcmp(argv[1],"yes_f"))
 	{
-		if(argc<=2) return badsyntax("need required parameter (to_repeat)"); 
+		if(argc<=2) return badsyntax("need required parameter (to_repeat)");
 		float to_repeat;
 		sscanf(argv[2],"%g",&to_repeat);
 		int buf_times = 0;
 		if(argc>=4) sscanf(argv[3],"%d",&buf_times);
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(int i=0;i<the_bufsize;i++) output_buffer[i]=to_repeat;
-		for(int i=0;(!buf_times)||i<buf_times;i++) 
-		{ 
-			fwrite(output_buffer, sizeof(float), the_bufsize, stdout); 
-			TRY_YIELD; 
+		for(int i=0;(!buf_times)||i<buf_times;i++)
+		{
+			fwrite(output_buffer, sizeof(float), the_bufsize, stdout);
+			TRY_YIELD;
 		}
 		return 0;
 	}
 	if(!strcmp(argv[1],"shift_math_cc"))
 	{
-		if(argc<=2) return badsyntax("need required parameter (rate)"); 
+		if(argc<=2) return badsyntax("need required parameter (rate)");
 		float starting_phase=0;
 		float rate;
 		sscanf(argv[2],"%g",&rate);
@@ -489,7 +493,7 @@ int main(int argc, char *argv[])
 		}
 		return 0;
 	}
-	//speed tests: 
+	//speed tests:
 	//csdr yes_f 1 1000000 | time csdr shift_math_cc 0.2 >/dev/null
 	//csdr yes_f 1 1000000 | time csdr shift_addition_cc 0.2 >/dev/null
 	//csdr yes_f 1 1000000 | time csdr shift_table_cc 0.2 >/dev/null
@@ -497,7 +501,7 @@ int main(int argc, char *argv[])
 	if(!strcmp(argv[1],"shift_table_cc"))
 	{
 		bigbufs=1;
-		if(argc<=2) return badsyntax("need required parameter (rate)"); 
+		if(argc<=2) return badsyntax("need required parameter (rate)");
 		float starting_phase=0;
 		float rate;
 		int table_size=65536;
@@ -521,7 +525,7 @@ int main(int argc, char *argv[])
 	if(!strcmp(argv[1],"decimating_shift_addition_cc"))
 	{
 		bigbufs=1;
-		if(argc<=2) return badsyntax("need required parameter (rate)"); 
+		if(argc<=2) return badsyntax("need required parameter (rate)");
 		float starting_phase=0;
 		float rate;
 		int decimation=1;
@@ -558,7 +562,7 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			if(argc<=2) return badsyntax("need required parameter (rate)"); 
+			if(argc<=2) return badsyntax("need required parameter (rate)");
 			sscanf(argv[2],"%g",&rate);
 		}
 
@@ -595,7 +599,7 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"shift_addition_cc_test"))
 	{
-		if(argc<=2) return badsyntax("need required parameter (rate)"); 
+		if(argc<=2) return badsyntax("need required parameter (rate)");
 		float rate;
 		sscanf(argv[2],"%g",&rate);
 		//if(initialize_buffers()) return -2; //most likely we don't need this here
@@ -607,7 +611,7 @@ int main(int argc, char *argv[])
 	if(!strcmp(argv[1],"dcblock_ff"))
 	{
 		static dcblock_preserve_t dcp; //will be 0 as .bss is set to 0
-		if(!sendbufsize(initialize_buffers())) return -2;	
+		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
 		{
 			FEOF_CHECK;
@@ -682,7 +686,7 @@ int main(int argc, char *argv[])
 	}
 	if(!strcmp(argv[1],"deemphasis_wfm_ff"))
 	{
-		if(argc<=3) return badsyntax("need required parameters (sample rate, tau)"); 
+		if(argc<=3) return badsyntax("need required parameters (sample rate, tau)");
 		if(!sendbufsize(initialize_buffers())) return -2;
 		int sample_rate;
 		sscanf(argv[2],"%d",&sample_rate);
@@ -707,19 +711,19 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			FREAD_R;
-			int nan_detect=0;			
-			for(int i=0; i<the_bufsize;i++) 
+			int nan_detect=0;
+			for(int i=0; i<the_bufsize;i++)
 			{
-				if(is_nan(input_buffer[i])) 
-				{ 
-					nan_detect=1; 
-					break; 
+				if(is_nan(input_buffer[i]))
+				{
+					nan_detect=1;
+					break;
 				}
 			}
 			if(nan_detect) fprintf(stderr, "detect_nan_f: NaN detected!\n");
 			fwrite(input_buffer, sizeof(float), the_bufsize, stdout);
 			TRY_YIELD;
-		}	
+		}
 	}
 
 	if(!strcmp(argv[1],"floatdump_f"))
@@ -732,23 +736,23 @@ int main(int argc, char *argv[])
 			for(int i=0; i<the_bufsize;i++) fprintf(stderr, "%g ",input_buffer[i]);
 			TRY_YIELD;
 		}
-		
+
 	}
 	if(!strcmp(argv[1],"deemphasis_nfm_ff"))
 	{
-		if(argc<=2) return badsyntax("need required parameter (sample rate)"); 
+		if(argc<=2) return badsyntax("need required parameter (sample rate)");
 		int sample_rate;
 		sscanf(argv[2],"%d",&sample_rate);
 
 		if(!sendbufsize(initialize_buffers())) return -2; //maybe we should take a /2 of bufsize over here
-		
+
 		int processed=0;
 		for(;;)
 		{
 			FEOF_CHECK;
 			fread(input_buffer+the_bufsize-processed, sizeof(float), processed, stdin);
 			processed=deemphasis_nfm_ff(input_buffer, output_buffer, the_bufsize, sample_rate);
-			if(!processed) return badsyntax("deemphasis_nfm_ff: invalid sample rate (this function works only with specific sample rates).");  
+			if(!processed) return badsyntax("deemphasis_nfm_ff: invalid sample rate (this function works only with specific sample rates).");
 			memmove(input_buffer,input_buffer+processed,(the_bufsize-processed)*sizeof(float)); //memmove lets the source and destination overlap
 			fwrite(output_buffer, sizeof(float), processed, stdout);
 			TRY_YIELD;
@@ -769,7 +773,7 @@ int main(int argc, char *argv[])
 	}
 	if(!strcmp(argv[1],"amdemod_estimator_cf"))
 	{
-		if(!sendbufsize(initialize_buffers())) return -2;	
+		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
 		{
 			FEOF_CHECK;
@@ -783,7 +787,7 @@ int main(int argc, char *argv[])
 	{
 		bigbufs=1;
 
-		if(argc<=2) return badsyntax("need required parameter (decimation factor)"); 
+		if(argc<=2) return badsyntax("need required parameter (decimation factor)");
 
 		int factor;
 		sscanf(argv[2],"%d",&factor);
@@ -811,7 +815,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr,"taps_length = %d\n", taps_length);
 		padded_taps_length = taps_length+(NEON_ALIGNMENT/4)-1 - ((taps_length+(NEON_ALIGNMENT/4)-1)%(NEON_ALIGNMENT/4));
 		fprintf(stderr,"padded_taps_length = %d\n", padded_taps_length);
-		
+
 		taps = (float*) (float*)malloc(padded_taps_length+NEON_ALIGNMENT);
 		fprintf(stderr,"taps = %x\n", taps);
 		taps =  (float*)((((unsigned)taps)+NEON_ALIGNMENT-1) & ~(NEON_ALIGNMENT-1));
@@ -830,13 +834,13 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			output_size=fir_decimate_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, factor, taps, padded_taps_length);
-			//fprintf(stderr, "os %d\n",output_size); 
+			//fprintf(stderr, "os %d\n",output_size);
 			fwrite(output_buffer, sizeof(complexf), output_size, stdout);
 			fflush(stdout);
 			TRY_YIELD;
 			input_skip=factor*output_size;
 			memmove((complexf*)input_buffer,((complexf*)input_buffer)+input_skip,(the_bufsize-input_skip)*sizeof(complexf)); //memmove lets the source and destination overlap
-			fread(((complexf*)input_buffer)+(the_bufsize-input_skip), sizeof(complexf), input_skip, stdin);			
+			fread(((complexf*)input_buffer)+(the_bufsize-input_skip), sizeof(complexf), input_skip, stdin);
 			//fprintf(stderr,"iskip=%d output_size=%d start=%x target=%x skipcount=%x \n",input_skip,output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-input_skip),(BIG_BUFSIZE-input_skip));
 		}
 	}
@@ -857,7 +861,7 @@ int main(int argc, char *argv[])
 	if(!strcmp(argv[1],"firdes_lowpass_f"))
 	{
 		//Process the params
-		if(argc<=3) return badsyntax("need required parameters (cutoff_rate, length)"); 
+		if(argc<=3) return badsyntax("need required parameters (cutoff_rate, length)");
 
 		float cutoff_rate;
 		sscanf(argv[2],"%g",&cutoff_rate);
@@ -884,9 +888,9 @@ int main(int argc, char *argv[])
 		if(octave) printf("taps=[");
 		for(int i=0;i<length;i++) printf("%g ",taps[i]);
 		if(octave) printf("];plot(taps);figure(2);freqz(taps);\n");
-		
-		
-		//Wait forever, so that octave won't close just after popping up the window. 
+
+
+		//Wait forever, so that octave won't close just after popping up the window.
 		//You can close it with ^C.
 		if(octave) { fflush(stdout); getchar(); }
 		return 0;
@@ -894,7 +898,7 @@ int main(int argc, char *argv[])
 	if(!strcmp(argv[1],"firdes_bandpass_c"))
 	{
 		//Process the params
-		if(argc<=4) return badsyntax("need required parameters (low_cut, high_cut, length)"); 
+		if(argc<=4) return badsyntax("need required parameters (low_cut, high_cut, length)");
 
 		float low_cut;
 		sscanf(argv[2],"%g",&low_cut);
@@ -932,8 +936,8 @@ int main(int argc, char *argv[])
 			"subplot(2,1,2);plot(arg(fser));\n"
 			"#figure(2);freqz(taps);\n"
 			"#figur(3);plot3(taps);\n",fft_length-length);
-		
-		//Wait forever, so that octave won't close just after popping up the window. 
+
+		//Wait forever, so that octave won't close just after popping up the window.
 		//You can close it with ^C.
 		if(octave) { fflush(stdout); getchar(); }
 		return 0;
@@ -983,12 +987,12 @@ int main(int argc, char *argv[])
 	if(!strcmp(argv[1],"fastagc_ff"))
 	{
 
-		static fastagc_ff_t input; //is in .bss and gets cleared to zero before main() 
+		static fastagc_ff_t input; //is in .bss and gets cleared to zero before main()
 
 		input.input_size=1024;
 		if(argc>=3) sscanf(argv[2],"%d",&input.input_size);
 
-		getbufsize(); //dummy		
+		getbufsize(); //dummy
 		sendbufsize(input.input_size);
 
 		input.reference=1.0;
@@ -996,7 +1000,7 @@ int main(int argc, char *argv[])
 
 		//input.max_peak_ratio=12.0;
 		//if(argc>=5) sscanf(argv[3],"%g",&input.max_peak_ratio);
-		
+
 		input.buffer_1=(float*)calloc(input.input_size,sizeof(float));
 		input.buffer_2=(float*)calloc(input.input_size,sizeof(float));
 		input.buffer_input=(float*)malloc(sizeof(float)*input.input_size);
@@ -1005,7 +1009,7 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			fread(input.buffer_input, sizeof(float), input.input_size, stdin);
-			fastagc_ff(&input, agc_output_buffer); 
+			fastagc_ff(&input, agc_output_buffer);
 			fwrite(agc_output_buffer, sizeof(float), input.input_size, stdout);
 			TRY_YIELD;
 		}
@@ -1014,11 +1018,11 @@ int main(int argc, char *argv[])
 	int suboptimal;
 	if( (suboptimal=!strcmp(argv[1],"suboptimal_rational_resampler_ff"))||(!strcmp(argv[1],"rational_resampler_ff")) )
 	{
-		
+
 		//last@2014-11-06: ./docompile; ./csdr yes_f 1.0 | ./csdr suboptimal_rational_resampler_ff 5 2
 
 		//Process the params
-		if(argc<=3) return badsyntax("need required parameters (interpolation, decimation)"); 
+		if(argc<=3) return badsyntax("need required parameters (interpolation, decimation)");
 		int interpolation;
 		sscanf(argv[2],"%d",&interpolation);
 		int decimation;
@@ -1050,7 +1054,7 @@ int main(int argc, char *argv[])
 		int taps_length = firdes_filter_len(transition_bw);
 		float* taps = (float*)malloc(sizeof(float)*taps_length);
 		rational_resampler_get_lowpass_f(taps, taps_length, interpolation, decimation, window);
-		
+
 		static rational_resampler_ff_t d; //in .bss => initialized to zero
 
 		for(;;)
@@ -1071,7 +1075,7 @@ int main(int argc, char *argv[])
 	if(!strcmp(argv[1],"fractional_decimator_ff"))
 	{
 		//Process the params
-		if(argc<=2) return badsyntax("need required parameters (rate)"); 
+		if(argc<=2) return badsyntax("need required parameters (rate)");
 		float rate;
 		sscanf(argv[2],"%g",&rate);
 
@@ -1086,7 +1090,7 @@ int main(int argc, char *argv[])
 		else fprintf(stderr,"fractional_decimator_ff: window = %s\n",firdes_get_string_from_window(window));
 
 		if(!initialize_buffers()) return -2;
-		sendbufsize(the_bufsize / rate);		
+		sendbufsize(the_bufsize / rate);
 
 		if(rate==1) clone_(the_bufsize); //copy input to output in this special case (and stick in this function).
 
@@ -1094,7 +1098,7 @@ int main(int argc, char *argv[])
 		int taps_length = firdes_filter_len(transition_bw);
 		fprintf(stderr,"fractional_decimator_ff: taps_length = %d\n",taps_length);
 		float* taps = (float*)malloc(sizeof(float)*taps_length);
-		firdes_lowpass_f(taps, taps_length, 0.59*0.5/(rate-transition_bw), window); //0.6 const to compensate rolloff 
+		firdes_lowpass_f(taps, taps_length, 0.59*0.5/(rate-transition_bw), window); //0.6 const to compensate rolloff
 		//for(int=0;i<taps_length; i++) fprintf(stderr,"%g ",taps[i]);
 
 		static fractional_decimator_ff_t d; //in .bss => initialized to zero
@@ -1112,10 +1116,10 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"fft_cc"))
 	{
-		if(argc<=3) return badsyntax("need required parameters (fft_size, out_of_every_n_samples)"); 
+		if(argc<=3) return badsyntax("need required parameters (fft_size, out_of_every_n_samples)");
 		int fft_size;
 		sscanf(argv[2],"%d",&fft_size);
-		if(log2n(fft_size)==-1) return badsyntax("fft_size should be power of 2"); 
+		if(log2n(fft_size)==-1) return badsyntax("fft_size should be power of 2");
 		int every_n_samples;
 		sscanf(argv[3],"%d",&every_n_samples);
 		int benchmark=0;
@@ -1125,12 +1129,12 @@ int main(int argc, char *argv[])
 		{
 			window=firdes_get_window_from_string(argv[4]);
 		}
-		if(argc>=6) 
+		if(argc>=6)
 		{
 			benchmark|=!strcmp("--benchmark",argv[5]);
 			octave|=!strcmp("--octave",argv[5]);
 		}
-		if(argc>=7) 
+		if(argc>=7)
 		{
 			benchmark|=!strcmp("--benchmark",argv[6]);
 			octave|=!strcmp("--octave",argv[6]);
@@ -1172,7 +1176,7 @@ int main(int argc, char *argv[])
 				printf("fftdata=[");
 				//we have to swap the two parts of the array to get a valid spectrum
 				for(int i=fft_size/2;i<fft_size;i++) printf("(%g)+(%g)*i ",iof(output,i),qof(output,i));
-				for(int i=0;i<fft_size/2;i++) printf("(%g)+(%g)*i ",iof(output,i),qof(output,i)); 
+				for(int i=0;i<fft_size/2;i++) printf("(%g)+(%g)*i ",iof(output,i),qof(output,i));
 				printf(
 					"];\n"
 					"y=abs(fftdata);\n"
@@ -1189,7 +1193,7 @@ int main(int argc, char *argv[])
 		float add_db=0;
 		if(argc>=3) sscanf(argv[2],"%g",&add_db);
 
-		if(!sendbufsize(initialize_buffers())) return -2;		
+		if(!sendbufsize(initialize_buffers())) return -2;
 
 		for(;;)
 		{
@@ -1203,7 +1207,7 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"fft_exchange_sides_ff"))
 	{
-		if(argc<=2) return badsyntax("need required parameters (fft_size)"); 
+		if(argc<=2) return badsyntax("need required parameters (fft_size)");
 		int fft_size;
 		sscanf(argv[2],"%d",&fft_size);
 		if(!getbufsize()) return -2; //dummy
@@ -1226,13 +1230,13 @@ int main(int argc, char *argv[])
 
 #define COMPRESS_FFT_PAD_N 10
 //We will pad the FFT at the beginning, with the first value of the input data, COMPRESS_FFT_PAD_N times.
-//No, this is not advanced DSP, just the ADPCM codec produces some gabarge samples at the beginning, 
-//so we just add data to become garbage and get skipped. 
+//No, this is not advanced DSP, just the ADPCM codec produces some gabarge samples at the beginning,
+//so we just add data to become garbage and get skipped.
 //COMPRESS_FFT_PAD_N should be even.
 
 	if(!strcmp(argv[1],"compress_fft_adpcm_f_u8"))
 	{
-		if(argc<=2) return badsyntax("need required parameters (fft_size)"); 
+		if(argc<=2) return badsyntax("need required parameters (fft_size)");
 		int fft_size;
 		sscanf(argv[2],"%d",&fft_size);
 		int real_data_size=fft_size+COMPRESS_FFT_PAD_N;
@@ -1260,12 +1264,12 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"fft_benchmark"))
 	{
-		if(argc<=3) return badsyntax("need required parameters (fft_size, fft_cycles)"); 
+		if(argc<=3) return badsyntax("need required parameters (fft_size, fft_cycles)");
 		int fft_size;
 		sscanf(argv[2],"%d",&fft_size);
 		int fft_cycles;
 		sscanf(argv[3],"%d",&fft_cycles);
-	
+
 		int benchmark=(argc>=5)&&!strcmp(argv[4],"--benchmark");
 		fprintf(stderr,"fft_benchmark: FFT library used: %s\n",FFT_LIBRARY_USED);
 
@@ -1274,20 +1278,20 @@ int main(int argc, char *argv[])
 
 		//fill input with random data
 		srand(time(NULL));
-		for(int i=0;i<fft_size;i++) 
-		{ 
+		for(int i=0;i<fft_size;i++)
+		{
 			iof(input,i)=rand()/(float)INT_MAX;
 			qof(input,i)=rand()/(float)INT_MAX;
 		}
 
 		//initialize FFT library, and measure time
 		fprintf(stderr,"fft_benchmark: initializing... ");
-		struct timespec start_time, end_time;		
+		struct timespec start_time, end_time;
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 		FFT_PLAN_T* plan=make_fft_c2c(fft_size,input,output,1,benchmark);
 		clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
 		fprintf(stderr,"done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
-		
+
 		//do the actual measurement about the FFT
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
 		for(int i=0;i<fft_cycles;i++) fft_execute(plan);
@@ -1296,15 +1300,15 @@ int main(int argc, char *argv[])
 		fprintf(stderr,"fft_benchmark: %d transforms of %d processed in %g seconds, %g seconds each.\n",fft_cycles,fft_size,time_taken_fft,time_taken_fft/fft_cycles);
 		return 0;
 	}
-	
+
 	if(!strcmp(argv[1],"bandpass_fir_fft_cc")) //this command does not exist as a separate function
 	{
 		float low_cut;
 		float high_cut;
 		float transition_bw;
 		window_t window = WINDOW_DEFAULT;
-		char window_string[256]; //TODO: nice buffer overflow opportunity 
-		
+		char window_string[256]; //TODO: nice buffer overflow opportunity
+
 		int fd;
 		if(fd=init_fifo(argc,argv))
 		{
@@ -1313,7 +1317,7 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			if(argc<=4) return badsyntax("need required parameters (low_cut, high_cut, transition_bw)"); 
+			if(argc<=4) return badsyntax("need required parameters (low_cut, high_cut, transition_bw)");
 			sscanf(argv[2],"%g",&low_cut);
 			sscanf(argv[3],"%g",&high_cut);
 		}
@@ -1325,14 +1329,14 @@ int main(int argc, char *argv[])
 		int taps_length=firdes_filter_len(transition_bw); //the number of non-zero taps
 		int fft_size=next_pow2(taps_length); //we will have to pad the taps with zeros until the next power of 2 for FFT
 		//the number of padding zeros is the number of output samples we will be able to take away after every processing step, and it looks sane to check if it is large enough.
-		if (fft_size-taps_length<200) fft_size<<=1; 
+		if (fft_size-taps_length<200) fft_size<<=1;
 		int input_size = fft_size - taps_length + 1;
 		int overlap_length = taps_length - 1;
 		fprintf(stderr,"bandpass_fir_fft_cc: (fft_size = %d) = (taps_length = %d) + (input_size = %d) - 1\n(overlap_length = %d) = taps_length - 1\n", fft_size, taps_length, input_size, overlap_length);
 		if (fft_size<=2) return badsyntax("FFT size error.");
 
 		if(!sendbufsize(getbufsize())) return -2;
-	
+
 		//prepare making the filter and doing FFT on it
 		complexf* taps=(complexf*)calloc(sizeof(complexf),fft_size); //initialize to zero
 		complexf* taps_fft=(complexf*)malloc(sizeof(complexf)*fft_size);
@@ -1342,16 +1346,16 @@ int main(int argc, char *argv[])
 		complexf* input = fft_malloc(fft_size*sizeof(complexf));
 		complexf* input_fourier = fft_malloc(fft_size*sizeof(complexf));
 		FFT_PLAN_T* plan_forward = make_fft_c2c(fft_size, input, input_fourier, 1, 1); //forward, do benchmark
-	
+
 		complexf* output_fourier = fft_malloc(fft_size*sizeof(complexf));
 		complexf* output_1 = fft_malloc(fft_size*sizeof(complexf));
 		complexf* output_2 = fft_malloc(fft_size*sizeof(complexf));
 		//we create 2x output buffers so that one will preserve the previous overlap:
 		FFT_PLAN_T* plan_inverse_1 = make_fft_c2c(fft_size, output_fourier, output_1, 0, 1); //inverse, do benchmark
-		FFT_PLAN_T* plan_inverse_2 = make_fft_c2c(fft_size, output_fourier, output_2, 0, 1); 		
-		//we initialize this buffer to 0 as it will be taken as the overlap source for the first time:		
-		for(int i=0;i<fft_size;i++) iof(plan_inverse_2->output,i)=qof(plan_inverse_2->output,i)=0; 
-		
+		FFT_PLAN_T* plan_inverse_2 = make_fft_c2c(fft_size, output_fourier, output_2, 0, 1);
+		//we initialize this buffer to 0 as it will be taken as the overlap source for the first time:
+		for(int i=0;i<fft_size;i++) iof(plan_inverse_2->output,i)=qof(plan_inverse_2->output,i)=0;
+
 		for(int i=input_size;i<fft_size;i++) iof(input,i)=qof(input,i)=0; //we pre-pad the input buffer with zeros
 
 		for(;;)
@@ -1410,10 +1414,10 @@ int main(int argc, char *argv[])
 		}
 	}
 #endif
-	
+
 	if(!strcmp(argv[1],"flowcontrol"))
 	{
-		if(argc<=3) return badsyntax("need required parameters (data_rate, reads_per_seconds)"); 
+		if(argc<=3) return badsyntax("need required parameters (data_rate, reads_per_seconds)");
 		int data_rate;
 		sscanf(argv[2],"%d",&data_rate);
 		int reads_per_second;
@@ -1437,8 +1441,8 @@ int main(int argc, char *argv[])
 #if 0
 	if(!strcmp(argv[1],"flowcontrol"))
 	{
-		if(argc<=3) return badsyntax("need required parameters (data_rate, reads_per_seconds)"); 
-		
+		if(argc<=3) return badsyntax("need required parameters (data_rate, reads_per_seconds)");
+
 		int data_rate;
 		sscanf(argv[2],"%d",&data_rate);
 
@@ -1479,7 +1483,7 @@ int main(int argc, char *argv[])
 		int read_return;
 
 		struct timespec start_time, end_time;
-		
+
 		unsigned long long int all_bytes_written=0;
 		int test=0;
 
@@ -1490,7 +1494,7 @@ int main(int argc, char *argv[])
 			fprintf(stderr, "r");
 			read_return=read(STDIN_FILENO, flowcontrol_buffer+flowcontrol_bufindex, sizeof(unsigned char) * (flowcontrol_bufsize-flowcontrol_bufindex) );
 			fprintf(stderr, "t");
-			if(read_return>0) flowcontrol_bufindex+=read_return;						
+			if(read_return>0) flowcontrol_bufindex+=read_return;
 
 
 			if(flowcontrol_is_buffering)
@@ -1537,7 +1541,7 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"through"))
 	{
-		struct timespec start_time, end_time;		
+		struct timespec start_time, end_time;
 		if(!sendbufsize(initialize_buffers())) return -2;
 
 		int time_now_sec=0;
@@ -1545,21 +1549,21 @@ int main(int argc, char *argv[])
 
 		unsigned char* through_buffer;
 		through_buffer = (unsigned char*)malloc(the_bufsize*sizeof(float));
-		
-	
+
+
 		for(;;)
 		{
 			FEOF_CHECK;
 			fread(through_buffer, sizeof(float), the_bufsize, stdin);
 
-			if(!time_now_sec) 
-			{ 
-				time_now_sec=1; 
-				clock_gettime(CLOCK_MONOTONIC_RAW, &start_time); 
-			}
-			else 
+			if(!time_now_sec)
 			{
-				clock_gettime(CLOCK_MONOTONIC_RAW, &end_time); 
+				time_now_sec=1;
+				clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+			}
+			else
+			{
+				clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
 				float timetaken;
 				if(time_now_sec<(timetaken=TIME_TAKEN(start_time,end_time)))
 				{
@@ -1583,20 +1587,20 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			FREAD_R;
-			for(int i=0;i<the_bufsize;i++) 
+			for(int i=0;i<the_bufsize;i++)
 			{
 				iof(output_buffer,i)=input_buffer[i];
 				qof(output_buffer,i)=q_value;
 			}
 			FWRITE_C;
 			TRY_YIELD;
-		}		
+		}
 	}
 
 	if(!strcmp(argv[1],"convert_f_samplerf"))
 	{
-		if(argc<=2) return badsyntax("need required parameter (wait_for_this_sample)"); 
-		
+		if(argc<=2) return badsyntax("need required parameter (wait_for_this_sample)");
+
 		unsigned wait_for_this_sample;
 		sscanf(argv[2],"%u",&wait_for_this_sample);
 
@@ -1606,16 +1610,16 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			FREAD_R;
-			for(int i=0;i<the_bufsize;i++) 
+			for(int i=0;i<the_bufsize;i++)
 			{
 				*((double*)(&samplerf_buf[16*i])) = input_buffer[i];
 				*((unsigned*)(&samplerf_buf[16*i+8])) = wait_for_this_sample;
 				*((unsigned*)(&samplerf_buf[16*i+12])) = 0;
-				
+
 			}
 			fwrite(samplerf_buf, 16, the_bufsize, stdout);
 			TRY_YIELD;
-		}		
+		}
 	}
 
 	if(!strcmp(argv[1],"add_dcoffset_cc"))
@@ -1628,7 +1632,7 @@ int main(int argc, char *argv[])
 			add_dcoffset_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize);
 			FWRITE_C;
 			TRY_YIELD;
-		}		
+		}
 	}
 
 	if(!strcmp(argv[1],"fmmod_fc"))
@@ -1642,13 +1646,13 @@ int main(int argc, char *argv[])
 			last_phase = fmmod_fc(input_buffer, (complexf*)output_buffer, the_bufsize, last_phase);
 			FWRITE_C;
 			TRY_YIELD;
-		}		
+		}
 	}
 
 	if(!strcmp(argv[1],"fixed_amplitude_cc"))
 	{
-		if(argc<=2) return badsyntax("need required parameter (new_amplitude)"); 
-		
+		if(argc<=2) return badsyntax("need required parameter (new_amplitude)");
+
 		float new_amplitude;
 		sscanf(argv[2],"%g",&new_amplitude);
 
@@ -1660,7 +1664,7 @@ int main(int argc, char *argv[])
 			fixed_amplitude_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, new_amplitude);
 			FWRITE_C;
 			TRY_YIELD;
-		}		
+		}
 	}
 
 	if((!strcmp(argv[1],"mono2stereo_i16"))||(!strcmp(argv[1],"mono2stereo_s16")))
@@ -1671,23 +1675,74 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			fread (input_buffer, sizeof(short), the_bufsize, stdin);
-			for(int i=0;i<the_bufsize;i++) 
+			for(int i=0;i<the_bufsize;i++)
 			{
 				*(((short*)output_buffer)+2*i)=*(((short*)input_buffer)+i);
 				*(((short*)output_buffer)+2*i+1)=*(((short*)input_buffer)+i);
 			}
 			fwrite (output_buffer, sizeof(short)*2, the_bufsize, stdout);
 			TRY_YIELD;
-		}		
+		}
+	}
+
+	if(!strcmp(argv[1],"squelch_and_smeter_cc"))
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+		float power;
+		float squelch_level;
+		int decimation;
+		int report_every_nth;
+		int fd;
+		char power_value_buf[101];
+		int power_value_buf_size;
+		int report_cntr=0;
+		complexf* zerobuf = (complexf*)malloc(sizeof(complexf)*the_bufsize);
+		for(int i=0;i<the_bufsize*2;i++) *(((float*)zerobuf)+i)=0;
+		if(fd=init_fifo(argc,argv)) while(!read_fifo_ctl(fd,"%g\n",&squelch_level)) usleep(10000);
+		else return badsyntax("need required parameter (--fifo <fifo>)");
+		fprintf(stderr, "squelch_and_power_cc: initial squelch level is %g\n", squelch_level);
+		if((argc<=5)||((argc>5)&&(strcmp(argv[4],"--outfifo")))) return badsyntax("need required parameter (--outfifo <fifo>)");
+		int fd2 = open(argv[5], O_WRONLY);
+		if(fd2==-1) return badsyntax("error while opening --outfifo");
+		int flags = fcntl(fd2, F_GETFL, 0);
+		fcntl(fd2, F_SETFL, flags | O_NONBLOCK);
+		if(argc<=6) return badsyntax("need required parameter (use_every_nth)");
+		sscanf(argv[6],"%d",&decimation);
+		if(decimation<=0) return badsyntax("use_every_nth <= 0 is invalid");
+		if(argc<=7) return badsyntax("need required parameter (report_every_nth)");
+		sscanf(argv[7],"%d",&report_every_nth);
+		if(report_every_nth<=0) return badsyntax("report_every_nth <= 0 is invalid");
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_C; //read input data
+			power = get_power_c((complexf*)input_buffer, the_bufsize, decimation);
+			if(report_cntr++>report_every_nth)
+			{
+				report_cntr=0;
+				power_value_buf_size=snprintf(power_value_buf,100,"%g\n",power);
+				write(fd2,power_value_buf,power_value_buf_size*sizeof(char));
+		  }
+			if(squelch_level==0||power>=squelch_level)
+			{
+				//fprintf(stderr,"P");
+				fwrite(input_buffer, sizeof(complexf), the_bufsize, stdout);
+			}
+			else
+			{
+				//fprintf(stderr,"S");
+				fwrite(zerobuf, sizeof(complexf), the_bufsize, stdout);
+			}
+			if(read_fifo_ctl(fd,"%g\n",&squelch_level)) fprintf(stderr, "squelch_and_power_cc: new squelch level is %g\n", squelch_level);
+			TRY_YIELD;
+		}
 	}
 
 	if(!strcmp(argv[1],"none"))
 	{
 		return 0;
 	}
-	
+
 	return badsyntax("function name given in argument 1 does not exist. Possible causes:\n- You mistyped the commandline.\n- You need to update csdr to a newer version (if available).");
 
 }
-
-
