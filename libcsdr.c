@@ -949,6 +949,19 @@ void logpower_cf(complexf* input, float* output, int size, float add_db)
 	for(int i=0;i<size;i++) output[i]=10*output[i]+add_db; //@logpower_cf: pass 3
 }
 
+void accumulate_power_cf(complexf* input, float* output, int size)
+{
+	for(int i=0;i<size;i++) output[i] += iof(input,i)*iof(input,i) + qof(input,i)*qof(input,i); //@logpower_cf: pass 1
+	
+}
+
+void log_ff(float* input, float* output, int size, float add_db) {
+	for(int i=0;i<size;i++) output[i]=log10(output[i]); //@logpower_cf: pass 2
+
+	for(int i=0;i<size;i++) output[i]=10*output[i]+add_db; //@logpower_cf: pass 3
+}
+
+
 /*
   _____        _                                            _
  |  __ \      | |                                          (_)

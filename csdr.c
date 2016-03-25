@@ -1299,6 +1299,44 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if(!strcmp(argv[1],"logaveragepower_cf"))
+	{
+		bigbufs=1;
+		if(argc<=4) return badsyntax("need required parameters (add_db, table_size, avgnumber)"); 
+		float add_db=0;
+		int avgnumber=0;
+		int fft_size=0;
+		
+		sscanf(argv[2],"%g",&add_db);
+		sscanf(argv[3],"%d",&fft_size);
+		sscanf(argv[4],"%d",&avgnumber);
+		
+		if(!getbufsize()) return -2; //dummy
+		if(!sendbufsize(initialize_buffers())) return -2;
+
+		if(fft_size != the_bufsize) return -2;
+		
+		//fprintf(stderr, "logaveragepower_cf %f %d=%d %d\n", add_db, fft_size, the_bufsize, avgnumber);
+		add_db -= 10*log10(avgnumber);
+		for(;;)
+		{
+			int i,n;
+			for(i = 0; i < the_bufsize; i++) {
+				output_buffer[i] = 0;
+			}
+			FEOF_CHECK;
+			for(n = 0; n < avgnumber; n++) {
+				FREAD_C;
+				//fprintf(stderr, "averaged %d\n", n);
+				accumulate_power_cf((complexf*)input_buffer, output_buffer, the_bufsize);	
+			}
+			log_ff(NULL, output_buffer, the_bufsize, add_db);
+			FWRITE_R;
+			TRY_YIELD;
+		}
+		return 0;
+	}
+
 	if(!strcmp(argv[1],"fft_exchange_sides_ff"))
 	{
 		if(argc<=2) return badsyntax("need required parameters (fft_size)");

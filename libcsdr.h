@@ -138,6 +138,8 @@ void rational_resampler_get_lowpass_f(float* output, int output_size, int interp
 void apply_window_c(complexf* input, complexf* output, int size, window_t window);
 void apply_window_f(float* input, float* output, int size, window_t window);
 void logpower_cf(complexf* input, float* output, int size, float add_db);
+void accumulate_power_cf(complexf* input, float* output, int size);
+void log_ff(float* input, float* output, int size, float add_db);
 
 typedef struct fractional_decimator_ff_s
 {
