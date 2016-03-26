@@ -1245,6 +1245,8 @@ int main(int argc, char *argv[])
 		FFT_PLAN_T* plan=make_fft_c2c(fft_size, windowed, output, 1, benchmark);
 		if(benchmark) fprintf(stderr," done\n");
 		if(octave) printf("setenv(\"GNUTERM\",\"X11 noraise\");y=zeros(1,%d);semilogy(y,\"ydatasource\",\"y\");\n",fft_size);
+		float *windowt;
+		windowt = precalculate_window(fft_size, window);
 		for(;;)
 		{
 			FEOF_CHECK;
@@ -1263,7 +1265,8 @@ int main(int argc, char *argv[])
 				for(int i=0;i<fft_size-every_n_samples;i++) input[i]=input[i+every_n_samples];
 				fread(input+fft_size-every_n_samples, sizeof(complexf), every_n_samples, stdin);
 			}
-			apply_window_c(input,windowed,fft_size,window);
+			//apply_window_c(input,windowed,fft_size,window);
+			apply_precalculated_window_c(input,windowed,fft_size,windowt);
 			fft_execute(plan);
 			if(octave)
 			{

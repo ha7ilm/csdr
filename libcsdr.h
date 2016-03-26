@@ -135,7 +135,9 @@ typedef struct rational_resampler_ff_s
 rational_resampler_ff_t rational_resampler_ff(float *input, float *output, int input_size, int interpolation, int decimation, float *taps, int taps_length, int last_taps_delay);
 void rational_resampler_get_lowpass_f(float* output, int output_size, int interpolation, int decimation, window_t window);
 
+float *precalculate_window(int size, window_t window);
 void apply_window_c(complexf* input, complexf* output, int size, window_t window);
+void apply_precalculated_window_c(complexf* input, complexf* output, int size, float *windowt);
 void apply_window_f(float* input, float* output, int size, window_t window);
 void logpower_cf(complexf* input, float* output, int size, float add_db);
 void accumulate_power_cf(complexf* input, float* output, int size);

@@ -930,6 +930,29 @@ void apply_window_c(complexf* input, complexf* output, int size, window_t window
 	}
 }
 
+float *precalculate_window(int size, window_t window)
+{
+	float (*window_function)(float)=firdes_get_window_kernel(window);
+	float *windowt;
+	windowt = malloc(sizeof(float) * size);
+	for(int i=0;i<size;i++) //@precalculate_window
+	{
+		float rate=(float)i/(size-1);
+		windowt[i] = window_function(2.0*rate+1.0);
+	}
+	return windowt;
+}
+
+void apply_precalculated_window_c(complexf* input, complexf* output, int size, float *windowt)
+{
+	for(int i=0;i<size;i++) //@apply_precalculated_window_c
+	{
+		iof(output,i)=iof(input,i)*windowt[i];
+		qof(output,i)=qof(input,i)*windowt[i];
+	}
+}
+
+
 void apply_window_f(float* input, float* output, int size, window_t window)
 {
 	float (*window_function)(float)=firdes_get_window_kernel(window);
