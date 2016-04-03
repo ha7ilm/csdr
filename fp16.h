@@ -147,7 +147,7 @@ FP16 approx_float_to_half(FP32 f);
 __m128i float_to_half_SSE2(__m128 f);
 __m128i float_to_half_rtne_SSE2(__m128 f);
 __m128i approx_float_to_half_SSE2(__m128 f);
-void f16_generatetables();
+void fp16_generatetables();
 uint float_to_half_foxtk(uint f);
 FP32 half_to_float(FP16 h);
 FP32 half_to_float_lit(unsigned short u);
