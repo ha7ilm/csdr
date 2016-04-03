@@ -106,7 +106,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifndef NEON_OPTS
 #include <emmintrin.h>
+#endif
 
 typedef unsigned int uint;
 
@@ -144,9 +146,11 @@ FP16 float_to_half_fast2(FP32 f);
 FP16 float_to_half_fast3(FP32 f);
 FP16 float_to_half_fast3_rtne(FP32 f);
 FP16 approx_float_to_half(FP32 f);
+#ifndef NEON_OPTS
 __m128i float_to_half_SSE2(__m128 f);
 __m128i float_to_half_rtne_SSE2(__m128 f);
 __m128i approx_float_to_half_SSE2(__m128 f);
+#endif
 void fp16_generatetables();
 uint float_to_half_foxtk(uint f);
 FP32 half_to_float(FP16 h);

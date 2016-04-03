@@ -416,6 +416,7 @@ FP16 approx_float_to_half(FP32 f)
     return o;
 }
 
+#ifndef NEON_OPTS
 // round-half-up (same as ISPC)
 __m128i float_to_half_SSE2(__m128 f)
 {
@@ -547,6 +548,7 @@ __m128i approx_float_to_half_SSE2(__m128 f)
 
 #undef CONSTF
 }
+#endif
 
 // from fox toolkit float->half code (which "approx" variants match)
 static uint basetable[512];
