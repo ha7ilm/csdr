@@ -552,7 +552,7 @@ __m128i approx_float_to_half_SSE2(__m128 f)
 static uint basetable[512];
 static unsigned char shifttable[512];
 
-void f16_generatetables()
+void fp16_generatetables()
 {
     unsigned int i;
     int e;
