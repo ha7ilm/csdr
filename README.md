@@ -110,6 +110,7 @@ Data types are noted as it follows:
 - `c` is `complexf` (two single precision floating point values in a struct)
 - `u8` is `unsigned char` of 1 byte/8 bits (e. g. the output of `rtl_sdr` is of `u8`)
 - `s16` is `signed short` of 2 bytes/16 bits (e. g. sound card input is usually `s16`)
+- `f16` is a half precision float of 2 bytes/16 bits
 
 Functions usually end as:
 
@@ -126,6 +127,9 @@ The following commands are available:
 - `csdr convert_f_s8`
 - `csdr convert_s16_f`
 - `csdr convert_f_s16`
+- `csdr convert_f16_f`
+- `csdr convert_f_f16`
+
 
 How to interpret: `csdr convert_<src>_<dst>`
 You can use these commands on complex streams, too, as they are only interleaved values (I,Q,I,Q,I,Q... coming after each other).

@@ -46,6 +46,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "libcsdr.h"
 #include "libcsdr_gpl.h"
 #include "ima_adpcm.h"
+#include "fp16.h"
 #include <sched.h>
 #include <math.h>
 
@@ -60,6 +61,8 @@ char usage[]=
 "    convert_f_s8\n"
 "    convert_f_s16\n"
 "    convert_s16_f\n"
+"    convert_f_f16\n"
+"    convert_f16_f\n"
 "    realpart_cf\n"
 "    clipdetect_ff\n"
 "    limit_ff [max_amplitude]\n"
@@ -404,6 +407,30 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			fread(buffer_i16, sizeof(short), the_bufsize, stdin);
 			convert_i16_f(buffer_i16, output_buffer, the_bufsize);
+			FWRITE_R;
+			TRY_YIELD;
+		}
+	}
+	if((!strcmp(argv[1],"convert_f_f16")) || (!strcmp(argv[1],"convert_f_s16")))
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_R;
+			convert_f_f16(input_buffer, buffer_i16, the_bufsize);
+			fwrite(buffer_i16, sizeof(short), the_bufsize, stdout);
+			TRY_YIELD;
+		}
+	}
+	if((!strcmp(argv[1],"convert_f16_f")) || (!strcmp(argv[1],"convert_s16_f"))) //not tested
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(buffer_i16, sizeof(short), the_bufsize, stdin);
+			convert_f16_f(buffer_i16, output_buffer, the_bufsize);
 			FWRITE_R;
 			TRY_YIELD;
 		}
