@@ -19,7 +19,9 @@ The project was only tested on Linux. It has the following dependencies: `libfft
 
 If you compile on ARM, please edit the Makefile and tailor `PARAMS_NEON` for your CPU.
 To run the examples, you will also need <a href="http://sdr.osmocom.org/trac/wiki/rtl-sdr">rtl_sdr</a> from Osmocom, and the following packages (at least on Debian): `mplayer octave gnuplot gnuplot-x11`
-If you compile *fftw3* from sources to use with *libcsdr*, you need to configure it with 32-bit float support enabled: `./configure --enable-float`
+If you compile *fftw3* from sources for use with *libcsdr*, you need to configure it with 32-bit float support enabled: 
+
+	./configure --enable-float && make && sudo make install
 
 Credits
 -------
