@@ -26,6 +26,8 @@ If you compile *fftw3* from sources for use with *libcsdr*, you need to configur
 
 	./configure --enable-float
 
+(This is for *fftw3*, not *libcsdr*. You do not need to run the configure script before compiling *csdr*.)
+
 Credits
 -------
 The library was written by Andras Retzler, HA7ILM &lt;<randras@sdr.hu>&gt;.
