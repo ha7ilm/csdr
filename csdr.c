@@ -802,11 +802,15 @@ int main(int argc, char *argv[])
 		}
 		else fprintf(stderr,"fir_decimate_cc: window = %s\n",firdes_get_string_from_window(window));
 
+		int taps_length=firdes_filter_len(transition_bw);
+		fprintf(stderr,"fir_decimate_cc: taps_length = %d\n",taps_length);
+
+		while (env_csdr_fixed_big_bufsize < taps_length*2) env_csdr_fixed_big_bufsize*=2; //temporary fix for buffer size if [transition_bw] is low
+		//fprintf(stderr, "env_csdr_fixed_big_bufsize = %d\n", env_csdr_fixed_big_bufsize);
+
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize/factor);
 
-		int taps_length=firdes_filter_len(transition_bw);
-		fprintf(stderr,"fir_decimate_cc: taps_length = %d\n",taps_length);
 
 		int padded_taps_length = taps_length;
 		float *taps;
