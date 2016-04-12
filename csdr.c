@@ -48,6 +48,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ima_adpcm.h"
 #include <sched.h>
 #include <math.h>
+#include <errno.h>
 
 char usage[]=
 "csdr - a simple commandline tool for Software Defined Radio receiver DSP.\n\n"
@@ -111,6 +112,7 @@ char usage[]=
 "    setbuf <buffer_size>\n"
 "    fft_exchange_sides_ff <fft_size>\n"
 "    squelch_and_smeter_cc --fifo <squelch_fifo> --outfifo <smeter_fifo> <use_every_nth> <report_every_nth>\n"
+"    fifo <buffer_size> <number_of_buffers>\n"
 "    \n"
 ;
 
@@ -335,6 +337,94 @@ int main(int argc, char *argv[])
 		if(!sendbufsize(initialize_buffers())) return -2;
 		clone_(the_bufsize);
 	}
+#define SET_NONBLOCK(fd) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK)
+
+	if(!strcmp(argv[1],"fifo"))
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+
+		int fifo_buffer_size;
+		if(argc<=2) return badsyntax("need required parameter (fifo buffer size)");
+		sscanf(argv[2],"%d",&fifo_buffer_size);
+		int fifo_num_buffers;
+		if(argc<=3) return badsyntax("need required parameter (fifo number of buffers)");
+		sscanf(argv[3],"%d",&fifo_num_buffers);
+
+		char** fifo_buffers = (char**)malloc(sizeof(char*)*fifo_num_buffers);
+		for(int i=0;i<fifo_num_buffers;i++) fifo_buffers[i]=(char*)malloc(sizeof(char)*fifo_buffer_size);
+		
+		SET_NONBLOCK(STDIN_FILENO);
+		SET_NONBLOCK(STDOUT_FILENO);
+
+		fd_set read_fds;
+		FD_ZERO(&read_fds);
+		FD_SET(STDIN_FILENO, &read_fds);
+		fd_set write_fds;
+		FD_ZERO(&write_fds);
+		FD_SET(STDOUT_FILENO, &write_fds);
+
+		int highfd = ((STDOUT_FILENO > STDIN_FILENO) ? STDOUT_FILENO : STDIN_FILENO) + 1;
+
+		int fifo_actual_buffer_wr = fifo_num_buffers - 1;
+		int fifo_actual_buffer_rd = 0;
+		int fifo_actual_buffer_wr_pos = 0;
+		int fifo_actual_buffer_rd_pos = 0;
+		int fifo_error = 0;
+		int fifo_overrun_shown = 0;
+
+		for(;;)
+		{
+			select(highfd, &read_fds, NULL, NULL, NULL);
+			
+			//try to read until buffer is full
+			if(FD_ISSET(STDIN_FILENO, &read_fds)) for(;;)
+			{
+				int read_bytes=read(STDIN_FILENO, fifo_buffers[fifo_actual_buffer_rd]+fifo_actual_buffer_rd_pos, fifo_buffer_size-fifo_actual_buffer_rd_pos);
+				//fprintf(stderr, "r %d %d | %d %d\n", read_bytes, fifo_buffer_size-fifo_actual_buffer_rd_pos, fifo_actual_buffer_rd, fifo_actual_buffer_rd_pos);
+				if(!read_bytes || ((read_bytes<0)&&(fifo_error=read_bytes)) ) break;
+				fifo_actual_buffer_rd_pos+=read_bytes;
+				if(!((fifo_actual_buffer_rd==fifo_actual_buffer_wr-1)||(fifo_actual_buffer_wr==0&&fifo_actual_buffer_rd==fifo_num_buffers-1))) 
+				{
+					if(fifo_actual_buffer_rd_pos==fifo_buffer_size) 
+					{
+						fifo_overrun_shown = 0;
+						fifo_actual_buffer_rd++;
+						fifo_actual_buffer_rd_pos = 0;
+						if(fifo_actual_buffer_rd>=fifo_num_buffers) fifo_actual_buffer_rd=0;
+					}
+				}
+				else
+				{	
+					if(fifo_actual_buffer_rd_pos==fifo_buffer_size) 
+					{
+						fifo_actual_buffer_rd_pos = 0; //rewrite same buffer
+						if(!fifo_overrun_shown) { fifo_overrun_shown=1; fprintf(stderr, "fifo: circular buffer full, dropping samples\n"); }
+					}
+				}
+			}
+			//try to write until buffer is empty
+			if(FD_ISSET(STDOUT_FILENO, &write_fds)) for(;;)
+			{
+				if(fifo_actual_buffer_wr == fifo_actual_buffer_rd) break;
+				int written_bytes=write(STDOUT_FILENO, fifo_buffers[fifo_actual_buffer_wr]+fifo_actual_buffer_wr_pos, fifo_buffer_size-fifo_actual_buffer_wr_pos);
+				//fprintf(stderr, "w %d %d | %d %d\n", written_bytes, fifo_buffer_size-fifo_actual_buffer_wr_pos, fifo_actual_buffer_wr, fifo_actual_buffer_wr_pos);
+				if(!written_bytes || ((written_bytes<0)&&(fifo_error=written_bytes)) ) break;
+				fifo_actual_buffer_wr_pos+=written_bytes;		
+				if(fifo_actual_buffer_wr_pos==fifo_buffer_size) 
+				{
+					fifo_actual_buffer_wr++;
+					fifo_actual_buffer_wr_pos = 0;
+					if(fifo_actual_buffer_wr>=fifo_num_buffers) fifo_actual_buffer_wr=0;
+				}
+
+			}
+			if(fifo_error&&errno!=11) { fprintf(stderr,"fifo: fifo_error (%d)", errno); return -1; }
+		}
+
+		return -1;
+
+	}
+
 
 	if(!strcmp(argv[1],"convert_u8_f"))
 	{
