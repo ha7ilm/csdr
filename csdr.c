@@ -344,10 +344,10 @@ int main(int argc, char *argv[])
 		if(!sendbufsize(initialize_buffers())) return -2;
 
 		int fifo_buffer_size;
-		if(argc<=2) return badsyntax("need required parameter (fifo buffer size)");
+		if(argc<=2) return badsyntax("need required parameter (buffer_size)");
 		sscanf(argv[2],"%d",&fifo_buffer_size);
 		int fifo_num_buffers;
-		if(argc<=3) return badsyntax("need required parameter (fifo number of buffers)");
+		if(argc<=3) return badsyntax("need required parameter (number of buffers)");
 		sscanf(argv[3],"%d",&fifo_num_buffers);
 
 		char** fifo_buffers = (char**)malloc(sizeof(char*)*fifo_num_buffers);
