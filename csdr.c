@@ -163,6 +163,8 @@ int clone_(int bufsize_param)
 		}
 }
 
+#define FREAD_U8	fread (input_buffer,	sizeof(unsigned char), the_bufsize, stdin)
+#define FWRITE_U8 	fwrite (output_buffer,	sizeof(unsigned char), the_bufsize, stdout)
 #define FREAD_R		fread (input_buffer,	sizeof(float),		the_bufsize, stdin)
 #define FREAD_C		fread (input_buffer,	sizeof(float)*2,	the_bufsize, stdin)
 #define FWRITE_R 	fwrite (output_buffer,	sizeof(float),		the_bufsize, stdout)
@@ -352,7 +354,7 @@ int main(int argc, char *argv[])
 
 		char** fifo_buffers = (char**)malloc(sizeof(char*)*fifo_num_buffers);
 		for(int i=0;i<fifo_num_buffers;i++) fifo_buffers[i]=(char*)malloc(sizeof(char)*fifo_buffer_size);
-		
+
 		SET_NONBLOCK(STDIN_FILENO);
 		SET_NONBLOCK(STDOUT_FILENO);
 
@@ -375,7 +377,7 @@ int main(int argc, char *argv[])
 		for(;;)
 		{
 			select(highfd, &read_fds, NULL, NULL, NULL);
-			
+
 			//try to read until buffer is full
 			if(FD_ISSET(STDIN_FILENO, &read_fds)) for(;;)
 			{
@@ -383,9 +385,9 @@ int main(int argc, char *argv[])
 				//fprintf(stderr, "r %d %d | %d %d\n", read_bytes, fifo_buffer_size-fifo_actual_buffer_rd_pos, fifo_actual_buffer_rd, fifo_actual_buffer_rd_pos);
 				if(!read_bytes || ((read_bytes<0)&&(fifo_error=read_bytes)) ) break;
 				fifo_actual_buffer_rd_pos+=read_bytes;
-				if(!((fifo_actual_buffer_rd==fifo_actual_buffer_wr-1)||(fifo_actual_buffer_wr==0&&fifo_actual_buffer_rd==fifo_num_buffers-1))) 
+				if(!((fifo_actual_buffer_rd==fifo_actual_buffer_wr-1)||(fifo_actual_buffer_wr==0&&fifo_actual_buffer_rd==fifo_num_buffers-1)))
 				{
-					if(fifo_actual_buffer_rd_pos==fifo_buffer_size) 
+					if(fifo_actual_buffer_rd_pos==fifo_buffer_size)
 					{
 						fifo_overrun_shown = 0;
 						fifo_actual_buffer_rd++;
@@ -394,8 +396,8 @@ int main(int argc, char *argv[])
 					}
 				}
 				else
-				{	
-					if(fifo_actual_buffer_rd_pos==fifo_buffer_size) 
+				{
+					if(fifo_actual_buffer_rd_pos==fifo_buffer_size)
 					{
 						fifo_actual_buffer_rd_pos = 0; //rewrite same buffer
 						if(!fifo_overrun_shown) { fifo_overrun_shown=1; fprintf(stderr, "fifo: circular buffer full, dropping samples\n"); }
@@ -409,8 +411,8 @@ int main(int argc, char *argv[])
 				int written_bytes=write(STDOUT_FILENO, fifo_buffers[fifo_actual_buffer_wr]+fifo_actual_buffer_wr_pos, fifo_buffer_size-fifo_actual_buffer_wr_pos);
 				//fprintf(stderr, "w %d %d | %d %d\n", written_bytes, fifo_buffer_size-fifo_actual_buffer_wr_pos, fifo_actual_buffer_wr, fifo_actual_buffer_wr_pos);
 				if(!written_bytes || ((written_bytes<0)&&(fifo_error=written_bytes)) ) break;
-				fifo_actual_buffer_wr_pos+=written_bytes;		
-				if(fifo_actual_buffer_wr_pos==fifo_buffer_size) 
+				fifo_actual_buffer_wr_pos+=written_bytes;
+				if(fifo_actual_buffer_wr_pos==fifo_buffer_size)
 				{
 					fifo_actual_buffer_wr++;
 					fifo_actual_buffer_wr_pos = 0;
@@ -1828,6 +1830,34 @@ int main(int argc, char *argv[])
 				fwrite(zerobuf, sizeof(complexf), the_bufsize, stdout);
 			}
 			if(read_fifo_ctl(fd,"%g\n",&squelch_level)) fprintf(stderr, "squelch_and_power_cc: new squelch level is %g\n", squelch_level);
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"bpsk31_varicode2ascii_sy_u8")) //not tested
+	{
+		unsigned long long status_shr = 0;
+		unsigned char output;
+		if(!sendbufsize(initialize_buffers())) return -2;
+		unsigned char i=0;
+		for(;;)
+		{
+			if((output=psk31_varicode_push(&status_shr, getchar()))) { putchar(output); fflush(stdout); }
+			if(i++) continue; //do the following at every 256th execution of the loop body:
+			FEOF_CHECK;
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"invert_sy_sy")) //not tested
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+		unsigned char i=0;
+		for(;;)
+		{
+			putchar(!getchar());
+			if(i++) continue; //do the following at every 256th execution of the loop body:
+			FEOF_CHECK;
 			TRY_YIELD;
 		}
 	}

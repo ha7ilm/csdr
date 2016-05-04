@@ -178,3 +178,5 @@ void convert_f_i16(float* input, short* output, int input_size);
 void convert_i16_f(short* input, float* output, int input_size);
 
 int is_nan(float f);
+
+char psk31_varicode_push(unsigned long long* status_shr, unsigned char symbol);
