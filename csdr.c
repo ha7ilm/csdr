@@ -108,11 +108,13 @@ char usage[]=
 "    convert_f_samperf <wait_for_this_sample> \n"
 "    fmmod_fc\n"
 "    fixed_amplitude_cc <new_amplitude>\n"
-"    monos2stereo_s16\n"
+"    mono2stereo_s16\n"
 "    setbuf <buffer_size>\n"
 "    fft_exchange_sides_ff <fft_size>\n"
 "    squelch_and_smeter_cc --fifo <squelch_fifo> --outfifo <smeter_fifo> <use_every_nth> <report_every_nth>\n"
 "    fifo <buffer_size> <number_of_buffers>\n"
+"    bpsk31_varicode2ascii_sy_u8\n"
+"    invert_sy_sy\n"
 "    \n"
 ;
 
