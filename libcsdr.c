@@ -1256,11 +1256,19 @@ char rtty_baudot_decoder_push(rtty_baudot_decoder_t* s, unsigned char symbol)
 	return 0;
 }
 
+#define DEBUG_SERIAL_LINE_DECODER 0
+
+//What has not been checked:
+//  behaviour on 1.5 stop bits
+//	check all exit conditions
+
 void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* output, int input_size)
 {
+	static int abs_samples_helper = 0;
+	abs_samples_helper += s->input_used;
+	int iabs_samples_helper = abs_samples_helper;
 	s->output_size = 0;
 	s->input_used = 0;
-	int oi=0;
 	short* output_s = (short*)output;
 	unsigned* output_u = (unsigned*)output;
 	for(;;)
@@ -1270,76 +1278,57 @@ void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* out
 		int i;
 		for(i=1;i<input_size;i++) if(input[i] < 0 && input[i-1] > 0) { startbit_start=i; break; }
 
-		if(startbit_start == -1) { s->input_used += i; fprintf(stderr,"sld:nstartbit\n"); return; }
-		fprintf(stderr,"sld:startbit_found at %d\n", startbit_start);
-		//We estimate where the stop bit edge can be, and search for it.
-		int stopbit_end = -1;
-		float all_bits = 1 + s->databits + s->stopbits;
-		float stopbit_end_estimate = startbit_start + s->samples_per_bits * all_bits;
-		float stopbit_end_search_start = stopbit_end_estimate - s->actual_samples_per_bits * 0.4;
-		float stopbit_end_search_end   = stopbit_end_estimate + s->actual_samples_per_bits * 0.4;
-		if(stopbit_end_search_end>=input_size) return;
-		fprintf(stderr,"sld:all_bits = %f\n", all_bits);
-		fprintf(stderr,"sld:actual_samples_per_bits = %f\n", s->actual_samples_per_bits);
-		fprintf(stderr,"sld:stopbit_end_search_start = %f\n", stopbit_end_search_start);
-		fprintf(stderr,"sld:stopbit_end_search_end = %f\n", stopbit_end_search_end);
+		if(startbit_start == -1) { s->input_used += i; DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:startbit_not_found (+%d)\n", s->input_used); return; }
+		DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:startbit_found at %d (%d)\n", startbit_start, iabs_samples_helper + startbit_start);
 
-		//If it is too far and we reached the end of the buffer, then we return failed.
+		//If the stop bit would be too far so that we reached the end of the buffer, then we return failed.
 		//The caller can rearrange the buffer so that the whole character fits into it.
-		if(stopbit_end_search_end>=input_size)
-		for(i=stopbit_end_search_start+1;i<stopbit_end_search_end;i++) if(input[i-1] < 0 && input[i] > 0) { stopbit_end=i; break; }
-		if(stopbit_end == -1)
-		{
-			s->input_used += i+1;
-			if(s->input_used >= input_size)
-			{
-				s->input_used = input_size;
-				fprintf(stderr,"sld:nstopbit input_used out %d\n", s->input_used);
-				return;
-			}
-			input += s->input_used;
-			input_size -= s->input_used;
-			fprintf(stderr,"sld:nstopbit remain = %d\n", input_size); continue;
-		}
-		fprintf(stderr,"sld:stopbit_end = %d\n", stopbit_end);
+		float all_bits = 1 + s->databits + s->stopbits;
+		DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:all_bits = %f\n", all_bits);
+		if(startbit_start + s->samples_per_bits * all_bits >= input_size) { s->input_used += MAX_M(0,startbit_start-2); DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:return_stopbit_too_far (+%d)\n", s->input_used); return; }
 
-		//If we have the position of the stop bit, we calculate the actual_samples_per_bits:
-		float calculated_samples_per_bits = (stopbit_end - startbit_start) / all_bits;
-		float error_samples_per_bits = s->actual_samples_per_bits - calculated_samples_per_bits;
-		s->actual_samples_per_bits = s->actual_samples_per_bits - s->samples_per_bits_loop_gain * error_samples_per_bits;
-		s->actual_samples_per_bits = MIN_M(s->actual_samples_per_bits, (1+s->samples_per_bits_max_deviation_rate) * s->samples_per_bits);
-		s->actual_samples_per_bits = MAX_M(s->actual_samples_per_bits, (1-s->samples_per_bits_max_deviation_rate) * s->samples_per_bits);
-		fprintf(stderr,"sld:calculated_samples_per_bits = %f\n", calculated_samples_per_bits);
-		fprintf(stderr,"sld:error_samples_per_bits = %f\n", error_samples_per_bits);
-
-		fprintf(stderr, "actual_samples_per_bits = %f\n", s->actual_samples_per_bits);
-
-		//Now we have an actual_samples_per_bits, we do the actual sampling
+		//We do the actual sampling.
 		int di; //databit counter
 		unsigned shr = 0;
 		for(di=0; di < s->databits; di++)
 		{
-			int databit_start = startbit_start + di * s->actual_samples_per_bits;
-			int databit_end   = startbit_start + (di+1) * s->actual_samples_per_bits;
+			int databit_start = startbit_start + (1+di+(0.5*(1-s->bit_sampling_width_ratio))) * s->samples_per_bits;
+			int databit_end   = startbit_start + (1+di+(0.5*(1+s->bit_sampling_width_ratio))) * s->samples_per_bits;
+			DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:databit_start = %d (%d)\n", databit_start, iabs_samples_helper+databit_start);
+			DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:databit_end   = %d (%d)\n", databit_end,   iabs_samples_helper+databit_end);
 			float databit_acc = 0;
-			for(i=databit_start;i<databit_end;i++) databit_acc += input[i];
+			for(i=databit_start;i<databit_end;i++) { databit_acc += input[i]; /*DEBUG_SERIAL_LINE_DECODER && fprintf(stderr, "%f (%f) ", input[i], databit_acc);*/ }
+			//DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"\n");
+			DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:databit_decision = %d\n", !!(databit_acc>0));
 			shr=(shr<<1)|!!(databit_acc>0);
 		}
+		DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:shr = 0x%x, %d\n", shr, shr);
 
-		//optionally we could check if the stopbit is correct
+		//We check if the stopbit is correct.
+		int stopbit_start = startbit_start + (1+s->databits) * s->samples_per_bits + (s->stopbits * 0.5 * (1-s->bit_sampling_width_ratio)) * s->samples_per_bits;
+		int stopbit_end   = startbit_start + (1+s->databits) * s->samples_per_bits + (s->stopbits * 0.5 * (1+s->bit_sampling_width_ratio)) * s->samples_per_bits;
+		DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:stopbit_start = %d (%d)\n", stopbit_start, iabs_samples_helper+stopbit_start);
+		DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:stopbit_end   = %d (%d)\n", stopbit_end,   iabs_samples_helper+stopbit_end);
+		float stopbit_acc = 0;
+		for(i=stopbit_start;i<stopbit_end;i++) { stopbit_acc += input[i]; DEBUG_SERIAL_LINE_DECODER && fprintf(stderr, "%f (%f) ", input[i], stopbit_acc); }
+		DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"\n");
+		if(stopbit_acc<0) { s->input_used += MIN_M(startbit_start + 1, input_size); DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:return_stopbit_faulty (+%d)\n", s->input_used); return; }
+		DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:stopbit_found\n");
 
 		//we write the output sample
-		if(s->databits <= 8) output[oi++] = shr;
-		else if(s->databits <= 16) output_s[oi] = shr;
-		else output_u[oi++] = shr;
+		if(s->databits <= 8) output[s->output_size] = shr;
+		else if(s->databits <= 16) output_s[s->output_size] = shr;
+		else output_u[s->output_size] = shr;
+		s->output_size++;
 
-		int samples_used_up_now = MIN_M(stopbit_end + s->actual_samples_per_bits, input_size);
+		int samples_used_up_now = MIN_M(startbit_start + all_bits * s->samples_per_bits, input_size);
 		s->input_used += samples_used_up_now;
 		input += samples_used_up_now;
 		input_size -= samples_used_up_now;
+		iabs_samples_helper += samples_used_up_now;
+		if(!input_size) { DEBUG_SERIAL_LINE_DECODER && fprintf(stderr,"sld:return_no_more_input (+%d)\n", s->input_used); return; }
 	}
-	s->output_size = oi;
-	fprintf(stderr, "so: %d\n", s->output_size);
+	DEBUG_SERIAL_LINE_DECODER && fprintf(stderr, "sld: >> output_size = %d  (+%d)\n", s->output_size, s->input_used);
 }
 
 void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)

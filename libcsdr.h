@@ -227,13 +227,11 @@ char psk31_varicode_decoder_push(unsigned long long* status_shr, unsigned char s
 typedef struct serial_line_s
 {
 	float samples_per_bits;
-	float actual_samples_per_bits;
 	int databits; //including parity
 	float stopbits;
 	int output_size;
 	int input_used;
-	float samples_per_bits_max_deviation_rate;
-	float samples_per_bits_loop_gain;
+	float bit_sampling_width_ratio;
 } serial_line_t;
 
 void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* output, int input_size);

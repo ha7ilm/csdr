@@ -1921,7 +1921,6 @@ int main(int argc, char *argv[])
 		sscanf(argv[2],"%f",&serial.samples_per_bits);
 		if(serial.samples_per_bits<1) return badsyntax("samples_per_bits should be at least 1.");
 		if(serial.samples_per_bits<5) fprintf(stderr, "serial_line_decoder_sy_u8: warning: this algorithm does not work well if samples_per_bits is too low. It should be at least 5.\n");
-		serial.actual_samples_per_bits = serial.samples_per_bits;
 
 		serial.databits=8;
 		if(argc>3) sscanf(argv[3],"%d",&serial.databits);
@@ -1931,8 +1930,7 @@ int main(int argc, char *argv[])
 		if(argc>4) sscanf(argv[4],"%f",&serial.stopbits);
 		if(serial.stopbits<1) return badsyntax("stopbits should be equal or above 1.");
 
-		serial.samples_per_bits_max_deviation_rate=0.001;
-		serial.samples_per_bits_loop_gain=0.05;
+		serial.bit_sampling_width_ratio = 0.4;
 		serial.input_used=0;
 
 		if(!sendbufsize(initialize_buffers())) return -2;
@@ -1942,13 +1940,16 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			if(serial.input_used)
 			{
-				memmove(input_buffer, input_buffer+serial.input_used, the_bufsize-serial.input_used);
-				fread(input_buffer+(the_bufsize-serial.input_used), sizeof(unsigned char), serial.input_used, stdin);
+				memmove(input_buffer, input_buffer+serial.input_used, sizeof(float)*(the_bufsize-serial.input_used));
+				fread(input_buffer+(the_bufsize-serial.input_used), sizeof(float), serial.input_used, stdin);
 			}
-			else fread(input_buffer, sizeof(unsigned char), the_bufsize, stdin); //should happen only on the first run
+			else fread(input_buffer, sizeof(float), the_bufsize, stdin); //should happen only on the first run
 			serial_line_decoder_f_u8(&serial,input_buffer, (unsigned char*)output_buffer, the_bufsize);
-			if(serial.input_used==0) { fprintf(stderr, "serial_line_decoder_sy_u8: error: serial_line_decoder() stuck.\n"); return -3; }
+			//printf("now in | ");
+			if(serial.input_used==0) { fprintf(stderr, "serial_line_decoder_sy_u8: error: serial_line_decoder_f_u8() got stuck.\n"); return -3; }
+			//printf("now out %d | ", serial.output_size);
 			fwrite(output_buffer, sizeof(unsigned char), serial.output_size, stdout);
+			fflush(stdout);
 			TRY_YIELD;
 		}
 	}
