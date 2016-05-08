@@ -113,8 +113,11 @@ char usage[]=
 "    fft_exchange_sides_ff <fft_size>\n"
 "    squelch_and_smeter_cc --fifo <squelch_fifo> --outfifo <smeter_fifo> <use_every_nth> <report_every_nth>\n"
 "    fifo <buffer_size> <number_of_buffers>\n"
-"    bpsk31_varicode2ascii_sy_u8\n"
+"    bpsk31_line_decoder_sy_u8\n"
 "    invert_sy_sy\n"
+"    rtty_line_decoder_sy_u8\n"
+"    rtty_baudot2ascii_u8_u8\n"
+"    serial_line_decoder_sy_u8\n"
 "    \n"
 ;
 
@@ -1836,7 +1839,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"bpsk31_varicode2ascii_sy_u8")) //not tested
+	if(!strcmp(argv[1],"bpsk31_line_decoder_sy_u8"))
 	{
 		unsigned long long status_shr = 0;
 		unsigned char output;
@@ -1844,14 +1847,14 @@ int main(int argc, char *argv[])
 		unsigned char i=0;
 		for(;;)
 		{
-			if((output=psk31_varicode_push(&status_shr, getchar()))) { putchar(output); fflush(stdout); }
+			if((output=psk31_varicode_decoder_push(&status_shr, getchar()))) { putchar(output); fflush(stdout); }
 			if(i++) continue; //do the following at every 256th execution of the loop body:
 			FEOF_CHECK;
 			TRY_YIELD;
 		}
 	}
 
-	if(!strcmp(argv[1],"invert_sy_sy")) //not tested
+	if(!strcmp(argv[1],"invert_sy_sy"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		unsigned char i=0;
@@ -1864,11 +1867,97 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if(!strcmp(argv[1],"rtty_line_decoder_sy_u8"))
+	{
+		static rtty_baudot_decoder_t status_baudot; //created on .bss -> initialized to 0
+		unsigned char output;
+		if(!sendbufsize(initialize_buffers())) return -2;
+		unsigned char i=0;
+		for(;;)
+		{
+			if((output=rtty_baudot_decoder_push(&status_baudot, getchar()))) { putchar(output); fflush(stdout); }
+			if(i++) continue; //do the following at every 256th execution of the loop body:
+			FEOF_CHECK;
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"rtty_baudot2ascii_u8_u8"))
+	{
+		unsigned char fig_mode = 0;
+		unsigned char output;
+		if(!sendbufsize(initialize_buffers())) return -2;
+		unsigned char i=0;
+		for(;;)
+		{
+			if((output=rtty_baudot_decoder_lookup(&fig_mode, getchar()))) { putchar(output); fflush(stdout); }
+			if(i++) continue; //do the following at every 256th execution of the loop body:
+			FEOF_CHECK;
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"binary_slicer_f_u8"))
+	{
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			if(!FREAD_R) break;
+			binary_slicer_f_u8(input_buffer, (unsigned char*)output_buffer, the_bufsize);
+			FWRITE_U8;
+			TRY_YIELD;
+		}
+		return 0;
+	}
+
+	if(!strcmp(argv[1],"serial_line_decoder_f_u8"))
+	{
+		bigbufs=1;
+
+		serial_line_t serial;
+
+		if(argc<=2) return badsyntax("need required parameter (samples_per_bits)");
+		sscanf(argv[2],"%f",&serial.samples_per_bits);
+		if(serial.samples_per_bits<1) return badsyntax("samples_per_bits should be at least 1.");
+		if(serial.samples_per_bits<5) fprintf(stderr, "serial_line_decoder_sy_u8: warning: this algorithm does not work well if samples_per_bits is too low. It should be at least 5.\n");
+		serial.actual_samples_per_bits = serial.samples_per_bits;
+
+		serial.databits=8;
+		if(argc>3) sscanf(argv[3],"%d",&serial.databits);
+		if(serial.databits>8 || serial.databits<1) return badsyntax("databits should be between 1 and 8.");
+
+		serial.stopbits=1;
+		if(argc>4) sscanf(argv[4],"%f",&serial.stopbits);
+		if(serial.stopbits<1) return badsyntax("stopbits should be equal or above 1.");
+
+		serial.samples_per_bits_max_deviation_rate=0.001;
+		serial.samples_per_bits_loop_gain=0.05;
+		serial.input_used=0;
+
+		if(!sendbufsize(initialize_buffers())) return -2;
+
+		for(;;)
+		{
+			FEOF_CHECK;
+			if(serial.input_used)
+			{
+				memmove(input_buffer, input_buffer+serial.input_used, the_bufsize-serial.input_used);
+				fread(input_buffer+(the_bufsize-serial.input_used), sizeof(unsigned char), serial.input_used, stdin);
+			}
+			else fread(input_buffer, sizeof(unsigned char), the_bufsize, stdin); //should happen only on the first run
+			serial_line_decoder_f_u8(&serial,input_buffer, (unsigned char*)output_buffer, the_bufsize);
+			if(serial.input_used==0) { fprintf(stderr, "serial_line_decoder_sy_u8: error: serial_line_decoder() stuck.\n"); return -3; }
+			fwrite(output_buffer, sizeof(unsigned char), serial.output_size, stdout);
+			TRY_YIELD;
+		}
+	}
+
 	if(!strcmp(argv[1],"none"))
 	{
 		return 0;
 	}
 
-	return badsyntax("function name given in argument 1 does not exist. Possible causes:\n- You mistyped the commandline.\n- You need to update csdr to a newer version (if available).");
-
+	fprintf(stderr, "csdr: function name \"%s\" given in argument 1 does not exist. Possible causes:\n- You mistyped the commandline.\n- You need to update csdr to a newer version (if available).", argv[1]);
+	return -1;
 }

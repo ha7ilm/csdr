@@ -30,6 +30,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #pragma once
 #define MIN_M(x,y) (((x)>(y))?(y):(x))
+#define MAX_M(x,y) (((x)<(y))?(y):(x))
 
 /*
    _____                      _
@@ -179,4 +180,61 @@ void convert_i16_f(short* input, float* output, int input_size);
 
 int is_nan(float f);
 
-char psk31_varicode_push(unsigned long long* status_shr, unsigned char symbol);
+//digital demod
+
+typedef struct rtty_baudot_item_s
+{
+	unsigned long long code;
+	unsigned char ascii_letter;
+	unsigned char ascii_figure;
+} rtty_baudot_item_t;
+
+typedef enum rtty_baudot_decoder_state_e
+{
+	RTTY_BAUDOT_WAITING_STOP_PULSE = 0,
+	RTTY_BAUDOT_WAITING_START_PULSE,
+	RTTY_BAUDOT_RECEIVING_DATA
+} rtty_baudot_decoder_state_t;
+
+typedef struct rtty_baudot_decoder_s
+{
+	unsigned char fig_mode;
+	unsigned char character_received;
+	unsigned short shr;
+	unsigned char bit_cntr;
+	rtty_baudot_decoder_state_t state;
+} rtty_baudot_decoder_t;
+
+#define RTTY_FIGURE_MODE_SELECT_CODE 0b11011
+#define RTTY_LETTER_MODE_SELECT_CODE 0b11111
+
+char rtty_baudot_decoder_lookup(unsigned char* fig_mode, unsigned char c);
+char rtty_baudot_decoder_push(rtty_baudot_decoder_t* s, unsigned char symbol);
+
+//PSK31
+
+typedef struct psk31_varicode_item_s
+{
+	unsigned long long code;
+	int bitcount;
+	unsigned char ascii;
+} psk31_varicode_item_t;
+
+char psk31_varicode_decoder_push(unsigned long long* status_shr, unsigned char symbol);
+
+//Serial
+
+typedef struct serial_line_s
+{
+	float samples_per_bits;
+	float actual_samples_per_bits;
+	int databits; //including parity
+	float stopbits;
+	int output_size;
+	int input_used;
+	float samples_per_bits_max_deviation_rate;
+	float samples_per_bits_loop_gain;
+} serial_line_t;
+
+void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* output, int input_size);
+void binary_slicer_f_u8(float* input, unsigned char* output, int input_size);

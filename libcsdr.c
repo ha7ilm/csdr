@@ -960,14 +960,6 @@ void logpower_cf(complexf* input, float* output, int size, float add_db)
            |___/
 */
 
-
-typedef struct psk31_varicode_item_s
-{
-	unsigned long long code;
-	int bitcount;
-	unsigned char ascii;
-} psk31_varicode_item_t;
-
 psk31_varicode_item_t psk31_varicode_items[] =
 {
 	{ .code = 0b1010101011,	.bitcount=10,	.ascii=0x00 }, //NUL, null
@@ -980,10 +972,10 @@ psk31_varicode_item_t psk31_varicode_items[] =
 	{ .code = 0b1011111101,	.bitcount=10,	.ascii=0x07 }, //BEL, bell
 	{ .code = 0b1011111111,	.bitcount=10,	.ascii=0x08 }, //BS, backspace
 	{ .code = 0b11101111,	.bitcount=8,	.ascii=0x09 }, //TAB, horizontal tab
-	{ .code = 0b11101,	.bitcount=5,	.ascii=0x0a }, //LF, NL line feed, new line
+	{ .code = 0b11101,		.bitcount=5,	.ascii=0x0a }, //LF, NL line feed, new line
 	{ .code = 0b1101101111,	.bitcount=10,	.ascii=0x0b }, //VT, vertical tab
 	{ .code = 0b1011011101,	.bitcount=10,	.ascii=0x0c }, //FF, NP form feed, new page
-	{ .code = 0b11111,	.bitcount=5,	.ascii=0x0d }, //CR, carriage return (overwrite)
+	{ .code = 0b11111,		.bitcount=5,	.ascii=0x0d }, //CR, carriage return (overwrite)
 	{ .code = 0b1101110101,	.bitcount=10,	.ascii=0x0e }, //SO, shift out
 	{ .code = 0b1110101011,	.bitcount=10,	.ascii=0x0f }, //SI, shift in
 	{ .code = 0b1011110111,	.bitcount=10,	.ascii=0x10 }, //DLE, data link escape
@@ -1100,8 +1092,6 @@ psk31_varicode_item_t psk31_varicode_items[] =
 	{ .code = 0b1110110101,	.bitcount=10,	.ascii=0x7f }, //DEL
 };
 
-const int n_psk31_varicode_items = sizeof(psk31_varicode_items) / sizeof(psk31_varicode_item_t);
-
 unsigned long long psk31_varicode_masklen_helper[] =
 {
 	0b0000000000000000000000000000000000000000000000000000000000000000,
@@ -1170,7 +1160,9 @@ unsigned long long psk31_varicode_masklen_helper[] =
 	0b0111111111111111111111111111111111111111111111111111111111111111
 };
 
-char psk31_varicode_push(unsigned long long* status_shr, unsigned char symbol)
+const int n_psk31_varicode_items = sizeof(psk31_varicode_items) / sizeof(psk31_varicode_item_t);
+
+char psk31_varicode_decoder_push(unsigned long long* status_shr, unsigned char symbol)
 {
 	*status_shr=((*status_shr)<<1)|(!!symbol); //shift new bit in shift register
 	//fprintf(stderr,"*status_shr = %llx\n", *status_shr);
@@ -1185,15 +1177,175 @@ char psk31_varicode_push(unsigned long long* status_shr, unsigned char symbol)
 	return 0;
 }
 
+rtty_baudot_item_t rtty_baudot_items[] =
+{
+	{ .code = 0b00000, .ascii_letter=0,		.ascii_figure=0 },
+	{ .code = 0b10000, .ascii_letter='E',	.ascii_figure='3' },
+	{ .code = 0b01000, .ascii_letter='\n',	.ascii_figure='\n' },
+	{ .code = 0b11000, .ascii_letter='A',	.ascii_figure='-' },
+	{ .code = 0b00100, .ascii_letter=' ',	.ascii_figure=' ' },
+	{ .code = 0b10100, .ascii_letter='S',	.ascii_figure='\'' },
+	{ .code = 0b01100, .ascii_letter='I',	.ascii_figure='8' },
+	{ .code = 0b11100, .ascii_letter='U',	.ascii_figure='7' },
+	{ .code = 0b00010, .ascii_letter='\r',	.ascii_figure='\r' },
+	{ .code = 0b10010, .ascii_letter='D',	.ascii_figure='#' },
+	{ .code = 0b01010, .ascii_letter='R',	.ascii_figure='4' },
+	{ .code = 0b11010, .ascii_letter='J',	.ascii_figure='\a' },
+	{ .code = 0b00110, .ascii_letter='N',	.ascii_figure=',' },
+	{ .code = 0b10110, .ascii_letter='F',	.ascii_figure='@' },
+	{ .code = 0b01110, .ascii_letter='C',	.ascii_figure=':' },
+	{ .code = 0b11110, .ascii_letter='K',	.ascii_figure='(' },
+	{ .code = 0b00001, .ascii_letter='T',	.ascii_figure='5' },
+	{ .code = 0b10001, .ascii_letter='Z',	.ascii_figure='+' },
+	{ .code = 0b01001, .ascii_letter='L',	.ascii_figure=')' },
+	{ .code = 0b11001, .ascii_letter='W',	.ascii_figure='2' },
+	{ .code = 0b00101, .ascii_letter='H',	.ascii_figure='$' },
+	{ .code = 0b10101, .ascii_letter='Y',	.ascii_figure='6' },
+	{ .code = 0b01101, .ascii_letter='P',	.ascii_figure='0' },
+	{ .code = 0b11101, .ascii_letter='Q',	.ascii_figure='1' },
+	{ .code = 0b00011, .ascii_letter='O',	.ascii_figure='9' },
+	{ .code = 0b10011, .ascii_letter='B',	.ascii_figure='?' },
+	{ .code = 0b01011, .ascii_letter='G',	.ascii_figure='*' },
+	{ .code = 0b00111, .ascii_letter='M',	.ascii_figure='.' },
+	{ .code = 0b10111, .ascii_letter='X',	.ascii_figure='/' },
+	{ .code = 0b01111, .ascii_letter='V',	.ascii_figure='=' }
+};
 
+const int n_rtty_baudot_items = sizeof(rtty_baudot_items) / sizeof(rtty_baudot_item_t);
 
-/*
+char rtty_baudot_decoder_lookup(unsigned char* fig_mode, unsigned char c)
+{
+	if(c==RTTY_FIGURE_MODE_SELECT_CODE) { *fig_mode=1; return 0; }
+	if(c==RTTY_LETTER_MODE_SELECT_CODE) { *fig_mode=0; return 0; }
+	for(int i=0;i<n_rtty_baudot_items;i++)
+		if(rtty_baudot_items[i].code==c)
+			return (*fig_mode) ? rtty_baudot_items[i].ascii_figure : rtty_baudot_items[i].ascii_letter;
+	return 0;
+}
 
-*/
+char rtty_baudot_decoder_push(rtty_baudot_decoder_t* s, unsigned char symbol)
+{
+	//For RTTY waveforms, check this: http://www.ham.hu/radiosatvitel/szoveg/RTTY/kepek/rtty.gif
+	//RTTY is much like an UART data transfer with 1 start bit, 5 data bits and 1 stop bit.
+	//The start pulse and stop pulse are used for synchronization.
+	symbol=!!symbol; //We want symbol to be 0 or 1.
+	switch(s->state)
+	{
+	case RTTY_BAUDOT_WAITING_STOP_PULSE:
+		if(symbol==1) { s->state = RTTY_BAUDOT_WAITING_START_PULSE; if(s->character_received) return rtty_baudot_decoder_lookup(&s->fig_mode, s->shr&31); }
+			//If the character data is followed by a stop pulse, then we go on to wait for the next character.
+		else  s->character_received = 0;
+			//The character should be followed by a stop pulse. If the stop pulse is missing, that is certainly an error.
+			//In that case, we remove forget the character we just received.
+		break;
+	case RTTY_BAUDOT_WAITING_START_PULSE:
+		s->character_received = 0;
+		if(symbol==0) { s->state = RTTY_BAUDOT_RECEIVING_DATA; s->shr = s->bit_cntr = 0; }
+			//Any number of high bits can come after each other, until interrupted with a low bit (start pulse) to indicate
+			//the beginning of a new character. If we get this start pulse, we go on to wait for the characters. We also
+			//clear the variables used for counting (bit_cntr) and storing (shr) the data bits.
+		break;
+	case RTTY_BAUDOT_RECEIVING_DATA:
+		s->shr = (s->shr<<1)|(!!symbol);
+			//We store 5 bits into our shift register
+		if(s->bit_cntr++==4) { s->state = RTTY_BAUDOT_WAITING_STOP_PULSE; s->character_received = 1; }
+			//If this is the 5th bit stored, then we wait for the stop pulse.
+		break;
+	default: break;
+	}
+	return 0;
+}
 
+void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* output, int input_size)
+{
+	s->output_size = 0;
+	s->input_used = 0;
+	int oi=0;
+	short* output_s = (short*)output;
+	unsigned* output_u = (unsigned*)output;
+	for(;;)
+	{
+		//we find the start bit (first negative edge on the line)
+		int startbit_start = -1;
+		int i;
+		for(i=1;i<input_size;i++) if(input[i] < 0 && input[i-1] > 0) { startbit_start=i; break; }
 
+		if(startbit_start == -1) { s->input_used += i; fprintf(stderr,"sld:nstartbit\n"); return; }
+		fprintf(stderr,"sld:startbit_found at %d\n", startbit_start);
+		//We estimate where the stop bit edge can be, and search for it.
+		int stopbit_end = -1;
+		float all_bits = 1 + s->databits + s->stopbits;
+		float stopbit_end_estimate = startbit_start + s->samples_per_bits * all_bits;
+		float stopbit_end_search_start = stopbit_end_estimate - s->actual_samples_per_bits * 0.4;
+		float stopbit_end_search_end   = stopbit_end_estimate + s->actual_samples_per_bits * 0.4;
+		if(stopbit_end_search_end>=input_size) return;
+		fprintf(stderr,"sld:all_bits = %f\n", all_bits);
+		fprintf(stderr,"sld:actual_samples_per_bits = %f\n", s->actual_samples_per_bits);
+		fprintf(stderr,"sld:stopbit_end_search_start = %f\n", stopbit_end_search_start);
+		fprintf(stderr,"sld:stopbit_end_search_end = %f\n", stopbit_end_search_end);
 
+		//If it is too far and we reached the end of the buffer, then we return failed.
+		//The caller can rearrange the buffer so that the whole character fits into it.
+		if(stopbit_end_search_end>=input_size)
+		for(i=stopbit_end_search_start+1;i<stopbit_end_search_end;i++) if(input[i-1] < 0 && input[i] > 0) { stopbit_end=i; break; }
+		if(stopbit_end == -1)
+		{
+			s->input_used += i+1;
+			if(s->input_used >= input_size)
+			{
+				s->input_used = input_size;
+				fprintf(stderr,"sld:nstopbit input_used out %d\n", s->input_used);
+				return;
+			}
+			input += s->input_used;
+			input_size -= s->input_used;
+			fprintf(stderr,"sld:nstopbit remain = %d\n", input_size); continue;
+		}
+		fprintf(stderr,"sld:stopbit_end = %d\n", stopbit_end);
 
+		//If we have the position of the stop bit, we calculate the actual_samples_per_bits:
+		float calculated_samples_per_bits = (stopbit_end - startbit_start) / all_bits;
+		float error_samples_per_bits = s->actual_samples_per_bits - calculated_samples_per_bits;
+		s->actual_samples_per_bits = s->actual_samples_per_bits - s->samples_per_bits_loop_gain * error_samples_per_bits;
+		s->actual_samples_per_bits = MIN_M(s->actual_samples_per_bits, (1+s->samples_per_bits_max_deviation_rate) * s->samples_per_bits);
+		s->actual_samples_per_bits = MAX_M(s->actual_samples_per_bits, (1-s->samples_per_bits_max_deviation_rate) * s->samples_per_bits);
+		fprintf(stderr,"sld:calculated_samples_per_bits = %f\n", calculated_samples_per_bits);
+		fprintf(stderr,"sld:error_samples_per_bits = %f\n", error_samples_per_bits);
+
+		fprintf(stderr, "actual_samples_per_bits = %f\n", s->actual_samples_per_bits);
+
+		//Now we have an actual_samples_per_bits, we do the actual sampling
+		int di; //databit counter
+		unsigned shr = 0;
+		for(di=0; di < s->databits; di++)
+		{
+			int databit_start = startbit_start + di * s->actual_samples_per_bits;
+			int databit_end   = startbit_start + (di+1) * s->actual_samples_per_bits;
+			float databit_acc = 0;
+			for(i=databit_start;i<databit_end;i++) databit_acc += input[i];
+			shr=(shr<<1)|!!(databit_acc>0);
+		}
+
+		//optionally we could check if the stopbit is correct
+
+		//we write the output sample
+		if(s->databits <= 8) output[oi++] = shr;
+		else if(s->databits <= 16) output_s[oi] = shr;
+		else output_u[oi++] = shr;
+
+		int samples_used_up_now = MIN_M(stopbit_end + s->actual_samples_per_bits, input_size);
+		s->input_used += samples_used_up_now;
+		input += samples_used_up_now;
+		input_size -= samples_used_up_now;
+	}
+	s->output_size = oi;
+	fprintf(stderr, "so: %d\n", s->output_size);
+}
+
+void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
+{
+	for(int i=0;i<input_size;i++) output[i] = input[i] > 0;
+}
 
 /*
   _____        _                                            _
