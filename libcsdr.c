@@ -1372,7 +1372,8 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vc
 
 		float input_phase = atan2(iof(input,i),qof(input,i));
 		float new_dphase = input_phase - p->output_phase; //arg(input[i]/abs(input[i]) * conj(current_output_vco[i]))
-
+		while(new_dphase>PI) new_dphase-=2*PI;
+		while(new_dphase<-PI) new_dphase+=2*PI;
 
 		if(p->pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
 		{
@@ -1395,6 +1396,7 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vc
 		}
 		else return;
 		if(output_dphase) output_dphase[i] = p->dphase;
+		//if(output_dphase) output_dphase[i] = new_dphase/3.15;
 	}
 }
 
