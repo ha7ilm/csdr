@@ -1366,8 +1366,8 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vc
 		while(p->output_phase<-PI) p->output_phase+=2*PI;
 		if(output_vco) //we don't output anything if it is a NULL pointer
 		{
-			iof(output_vco,i) = cos(p->output_phase);
-			qof(output_vco,i) = sin(p->output_phase);
+			iof(output_vco,i) = sin(p->output_phase);
+			qof(output_vco,i) = cos(p->output_phase);
 		}
 
 		float input_phase = atan2(iof(input,i),qof(input,i));
@@ -1395,7 +1395,7 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vc
 			p->dphase = p->dphase * (1-p->alpha) + new_dphase * p->alpha;
 		}
 		else return;
-		if(output_dphase) output_dphase[i] = p->dphase;
+		if(output_dphase) output_dphase[i] = -p->dphase;
 		//if(output_dphase) output_dphase[i] = new_dphase/3.15;
 	}
 }
