@@ -1954,6 +1954,45 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if(!strcmp(argv[1],"pll_cc"))
+	{
+		pll_t pll;
+
+		if(argc<=2) return badsyntax("need required parameter (pll_type)");
+		sscanf(argv[2],"%d",(int*)&pll.pll_type);
+		//if(serial.samples_per_bits<1) return badsyntax("samples_per_bits should be at least 1.");
+		//if(serial.samples_per_bits<5) fprintf(stderr, "serial_line_decoder_sy_u8: warning: this algorithm does not work well if samples_per_bits is too low. It should be at least 5.\n");
+		if(pll.pll_type == PLL_1ST_ORDER_IIR_LOOP_FILTER)
+		{
+				float alpha = 0.01;
+				if(argc>3) sscanf(argv[3],"%f",&alpha);
+				pll_cc_init_1st_order_IIR(&pll, alpha);
+		}
+		else if(pll.pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
+		{
+			float bandwidth = 0.1, gain = 1000, damping_factor = 0.707;
+			if(argc>3) sscanf(argv[3],"%f",&bandwidth);
+			if(argc>4) sscanf(argv[4],"%f",&gain);
+			if(argc>5) sscanf(argv[5],"%f",&damping_factor);
+			pll_cc_init_2nd_order_IIR(&pll, bandwidth, gain, damping_factor);
+			fprintf(stderr, "%f %f %f | a: %f %f %f | b: %f %f %f\n", bandwidth, gain, damping_factor,
+				pll.filter_taps_a[0], pll.filter_taps_a[1], pll.filter_taps_a[2], pll.filter_taps_b[0], pll.filter_taps_b[1], pll.filter_taps_b[2]);
+		}
+		else return badsyntax("invalid pll_type. Valid values are:\n\t1: PLL_1ST_ORDER_IIR_LOOP_FILTER\n\t2: PLL_2ND_ORDER_IIR_LOOP_FILTER");
+
+		if(!sendbufsize(initialize_buffers())) return -2;
+
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_C;
+			//pll_cc(&pll, (complexf*)input_buffer, NULL, (complexf*)output_buffer, the_bufsize);
+			pll_cc(&pll, (complexf*)input_buffer, output_buffer, NULL, the_bufsize);
+			fwrite(output_buffer, sizeof(float), the_bufsize, stdout);
+			TRY_YIELD;
+		}
+	}
+
 	if(!strcmp(argv[1],"none"))
 	{
 		return 0;

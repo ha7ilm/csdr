@@ -1336,6 +1336,68 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 	for(int i=0;i<input_size;i++) output[i] = input[i] > 0;
 }
 
+void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float gain, float dampling_factor)
+{
+	p->filter_taps_a[0] = 1;
+	p->filter_taps_a[1] = -2;
+	p->filter_taps_a[2] = 1;
+	float tau1 = gain / (bandwidth*bandwidth);
+	float tau2 = (2*dampling_factor) / bandwidth;
+	p->filter_taps_b[0] = 4*(gain/tau1)*(1+tau2/2);
+	p->filter_taps_b[1] = 8*(gain/tau1);
+	p->filter_taps_b[2] = 4*(gain/tau1)*(1-tau2/2);
+	p->last_filter_outputs[0]=p->last_filter_outputs[1]=p->last_filter_inputs[0]=p->last_filter_inputs[1]=0;
+	p->dphase=p->output_phase=0;
+}
+
+void pll_cc_init_1st_order_IIR(pll_t* p, float alpha)
+{
+	p->alpha = alpha;
+	p->dphase=p->output_phase=0;
+}
+
+
+void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vco, int input_size)
+{
+	for(int i=0;i<input_size;i++)
+	{
+		p->output_phase += p->dphase;
+		while(p->output_phase>PI) p->output_phase-=2*PI;
+		while(p->output_phase<-PI) p->output_phase+=2*PI;
+		if(output_vco) //we don't output anything if it is a NULL pointer
+		{
+			iof(output_vco,i) = cos(p->output_phase);
+			qof(output_vco,i) = sin(p->output_phase);
+		}
+
+		float input_phase = atan2(iof(input,i),qof(input,i));
+		float new_dphase = input_phase - p->output_phase; //arg(input[i]/abs(input[i]) * conj(current_output_vco[i]))
+
+
+		if(p->pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
+		{
+			p->dphase = 0 //...
+				+ new_dphase                * p->filter_taps_b[0]
+				+ p->last_filter_inputs[1]  * p->filter_taps_b[1]
+				+ p->last_filter_inputs[0]  * p->filter_taps_b[2]
+				- p->last_filter_outputs[1] * p->filter_taps_a[1]
+				- p->last_filter_outputs[0] * p->filter_taps_a[2];
+			//dphase /= filter_taps_a[0]; //The filter taps are already normalized, a[0]==1 always, so it is not necessary.
+
+			p->last_filter_outputs[0]=p->last_filter_outputs[1];
+			p->last_filter_outputs[1]=p->dphase;
+			p->last_filter_inputs[0]=p->last_filter_inputs[1];
+			p->last_filter_inputs[1]=new_dphase;
+		}
+		else if(p->pll_type == PLL_1ST_ORDER_IIR_LOOP_FILTER)
+		{
+			p->dphase = p->dphase * (1-p->alpha) + new_dphase * p->alpha;
+		}
+		else return;
+		if(output_dphase) output_dphase[i] = p->dphase;
+	}
+}
+
 /*
   _____        _                                            _
  |  __ \      | |                                          (_)

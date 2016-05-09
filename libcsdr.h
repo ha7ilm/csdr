@@ -236,3 +236,30 @@ typedef struct serial_line_s
 
 void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* output, int input_size);
 void binary_slicer_f_u8(float* input, unsigned char* output, int input_size);
+
+
+typedef enum pll_type_e
+{
+	PLL_1ST_ORDER_IIR_LOOP_FILTER=1,
+	PLL_2ND_ORDER_IIR_LOOP_FILTER=2
+} pll_type_t;
+
+typedef struct pll_s
+{
+	pll_type_t pll_type;
+	//common:
+	float output_phase;
+	float dphase;
+	float frequency;
+	//2nd order IIR:
+	float last_filter_outputs[2];
+	float last_filter_inputs[2];
+	float filter_taps_a[3];
+	float filter_taps_b[3];
+	//1st order IIR:
+	float alpha;
+} pll_t;
+
+void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float gain, float dampling_factor);
+void pll_cc_init_1st_order_IIR(pll_t* p, float alpha);
+void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vco, int input_size);
