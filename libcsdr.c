@@ -1338,9 +1338,10 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 
 void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float gain, float dampling_factor)
 {
-	p->filter_taps_a[0] = 1;
-	p->filter_taps_a[1] = -2;
-	p->filter_taps_a[2] = 1;
+	float k=0.9;
+	p->filter_taps_a[0] = k*1;
+	p->filter_taps_a[1] = k*(-2);
+	p->filter_taps_a[2] = k*1;
 	float tau1 = gain / (bandwidth*bandwidth);
 	float tau2 = (2*dampling_factor) / bandwidth;
 	p->filter_taps_b[0] = 4*(gain/tau1)*(1+tau2/2);
@@ -1348,6 +1349,11 @@ void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float gain, float damp
 	p->filter_taps_b[2] = 4*(gain/tau1)*(1-tau2/2);
 	p->last_filter_outputs[0]=p->last_filter_outputs[1]=p->last_filter_inputs[0]=p->last_filter_inputs[1]=0;
 	p->dphase=p->output_phase=0;
+
+	p->filter_taps_b[0] = 0.02868000;
+	p->filter_taps_b[1] = 0.00080000;
+	p->filter_taps_b[2] = -0.02788000;
+	// s=tf([0.02868000,0.00080000,-0.02788000],[1 -2 1]); pzmap(s)
 }
 
 void pll_cc_init_1st_order_IIR(pll_t* p, float alpha)
@@ -1370,6 +1376,8 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vc
 			qof(output_vco,i) = cos(p->output_phase);
 		}
 
+		//ket komplex szam szorzataval inkabb
+
 		float input_phase = atan2(iof(input,i),qof(input,i));
 		float new_dphase = input_phase - p->output_phase; //arg(input[i]/abs(input[i]) * conj(current_output_vco[i]))
 		while(new_dphase>PI) new_dphase-=2*PI;
@@ -1389,14 +1397,16 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vc
 			p->last_filter_outputs[1]=p->dphase;
 			p->last_filter_inputs[0]=p->last_filter_inputs[1];
 			p->last_filter_inputs[1]=new_dphase;
+			while(p->dphase>PI) p->dphase-=2*PI; //ez nem fog kelleni
+			while(p->dphase<-PI) p->dphase+=2*PI;
 		}
 		else if(p->pll_type == PLL_1ST_ORDER_IIR_LOOP_FILTER)
 		{
-			p->dphase = p->dphase * (1-p->alpha) + new_dphase * p->alpha;
+			p->dphase = /*p->dphase * (1-p->alpha) +*/ new_dphase * p->alpha;
 		}
 		else return;
-		if(output_dphase) output_dphase[i] = -p->dphase;
-		//if(output_dphase) output_dphase[i] = new_dphase/3.15;
+		if(output_dphase) output_dphase[i] = -p->dphase/10;
+		// if(output_dphase) output_dphase[i] = new_dphase/10;
 	}
 }
 
