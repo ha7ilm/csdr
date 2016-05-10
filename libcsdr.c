@@ -1363,17 +1363,17 @@ void pll_cc_init_1st_order_IIR(pll_t* p, float alpha)
 }
 
 
-void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vco, int input_size)
+void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nco, int input_size)
 {
 	for(int i=0;i<input_size;i++)
 	{
 		p->output_phase += p->dphase;
 		while(p->output_phase>PI) p->output_phase-=2*PI;
 		while(p->output_phase<-PI) p->output_phase+=2*PI;
-		if(output_vco) //we don't output anything if it is a NULL pointer
+		if(output_nco) //we don't output anything if it is a NULL pointer
 		{
-			iof(output_vco,i) = sin(p->output_phase);
-			qof(output_vco,i) = cos(p->output_phase);
+			iof(output_nco,i) = sin(p->output_phase);
+			qof(output_nco,i) = cos(p->output_phase);
 		}
 
 		//ket komplex szam szorzataval inkabb
@@ -1397,15 +1397,19 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vc
 			p->last_filter_outputs[1]=p->dphase;
 			p->last_filter_inputs[0]=p->last_filter_inputs[1];
 			p->last_filter_inputs[1]=new_dphase;
+			//static float lasttemp;
+			//lasttemp = p->beta *
+			//p->dphase = new_dphase * p->alpha;
+
 			while(p->dphase>PI) p->dphase-=2*PI; //ez nem fog kelleni
 			while(p->dphase<-PI) p->dphase+=2*PI;
 		}
 		else if(p->pll_type == PLL_1ST_ORDER_IIR_LOOP_FILTER)
 		{
-			p->dphase = /*p->dphase * (1-p->alpha) +*/ new_dphase * p->alpha;
+			p->dphase = new_dphase * p->alpha;
 		}
 		else return;
-		if(output_dphase) output_dphase[i] = -p->dphase/10;
+		if(output_dphase) output_dphase[i] = -p->dphase;
 		// if(output_dphase) output_dphase[i] = new_dphase/10;
 	}
 }

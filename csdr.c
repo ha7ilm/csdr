@@ -1986,11 +1986,11 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			FREAD_C;
-			//pll_cc(&pll, (complexf*)input_buffer, NULL, (complexf*)output_buffer, the_bufsize);
-			fprintf(stderr, "| i");
+			fprintf(stderr, "| ai");
 			pll_cc(&pll, (complexf*)input_buffer, output_buffer, NULL, the_bufsize);
-			//pll_cc(&pll, (complexf*)input_buffer, NULL, (complexf*)output_buffer, the_bufsize);
 			fwrite(output_buffer, sizeof(float), the_bufsize, stdout);
+			// pll_cc(&pll, (complexf*)input_buffer, NULL, (complexf*)output_buffer, the_bufsize);
+			// fwrite(output_buffer, sizeof(complexf), the_bufsize, stdout);
 			fprintf(stderr, "| o");
 			TRY_YIELD;
 		}

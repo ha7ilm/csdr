@@ -262,4 +262,4 @@ typedef struct pll_s
 
 void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float gain, float dampling_factor);
 void pll_cc_init_1st_order_IIR(pll_t* p, float alpha);
-void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_vco, int input_size);
+void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nco, int input_size);
