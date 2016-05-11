@@ -251,15 +251,10 @@ typedef struct pll_s
 	float output_phase;
 	float dphase;
 	float frequency;
-	//2nd order IIR:
-	float last_filter_outputs[2];
-	float last_filter_inputs[2];
-	float filter_taps_a[3];
-	float filter_taps_b[3];
-	//1st order IIR:
 	float alpha;
+	float beta;
 } pll_t;
 
-void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float gain, float dampling_factor);
+void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float ko, float kd, float float damping_factor);
 void pll_cc_init_1st_order_IIR(pll_t* p, float alpha);
 void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nco, int input_size);

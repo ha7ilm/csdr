@@ -1336,23 +1336,13 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 	for(int i=0;i<input_size;i++) output[i] = input[i] > 0;
 }
 
-void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float gain, float dampling_factor)
+void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float ko, float kd, float float damping_factor)
 {
-	float k=0.9;
-	p->filter_taps_a[0] = k*1;
-	p->filter_taps_a[1] = k*(-2);
-	p->filter_taps_a[2] = k*1;
-	float tau1 = gain / (bandwidth*bandwidth);
-	float tau2 = (2*dampling_factor) / bandwidth;
-	p->filter_taps_b[0] = 4*(gain/tau1)*(1+tau2/2);
-	p->filter_taps_b[1] = 8*(gain/tau1);
-	p->filter_taps_b[2] = 4*(gain/tau1)*(1-tau2/2);
-	p->last_filter_outputs[0]=p->last_filter_outputs[1]=p->last_filter_inputs[0]=p->last_filter_inputs[1]=0;
-	p->dphase=p->output_phase=0;
-
-	p->filter_taps_b[0] = 0.02868000;
-	p->filter_taps_b[1] = 0.00080000;
-	p->filter_taps_b[2] = -0.02788000;
+	float bandwidth_omega 2*M_PI*bandwidth;
+	p->alpha = (damping_factor*2*bandwidth_omega)/(ko*kd);
+	float sampling_rate = 1; //the bandwidth is normalized to the sampling rate
+	p->beta   = (bandwidth_omega*bandwidth_omega)/(sampling_rate*ko*kd);
+	p->dphase = p->output_phase=0;
 	// s=tf([0.02868000,0.00080000,-0.02788000],[1 -2 1]); pzmap(s)
 }
 
@@ -1376,30 +1366,20 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 			qof(output_nco,i) = cos(p->output_phase);
 		}
 
-		//ket komplex szam szorzataval inkabb
 
+		//calculating error from phase offset
 		float input_phase = atan2(iof(input,i),qof(input,i));
 		float new_dphase = input_phase - p->output_phase; //arg(input[i]/abs(input[i]) * conj(current_output_vco[i]))
 		while(new_dphase>PI) new_dphase-=2*PI;
 		while(new_dphase<-PI) new_dphase+=2*PI;
 
+		//calculating error from two complex samples
+
 		if(p->pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
 		{
-			p->dphase = 0 //...
-				+ new_dphase                * p->filter_taps_b[0]
-				+ p->last_filter_inputs[1]  * p->filter_taps_b[1]
-				+ p->last_filter_inputs[0]  * p->filter_taps_b[2]
-				- p->last_filter_outputs[1] * p->filter_taps_a[1]
-				- p->last_filter_outputs[0] * p->filter_taps_a[2];
-			//dphase /= filter_taps_a[0]; //The filter taps are already normalized, a[0]==1 always, so it is not necessary.
-
-			p->last_filter_outputs[0]=p->last_filter_outputs[1];
-			p->last_filter_outputs[1]=p->dphase;
-			p->last_filter_inputs[0]=p->last_filter_inputs[1];
-			p->last_filter_inputs[1]=new_dphase;
-			//static float lasttemp;
-			//lasttemp = p->beta *
-			//p->dphase = new_dphase * p->alpha;
+			static float lasttemp;
+			p->dphase = new_dphase * p->alpha + lasttemp;
+			lasttemp += new_dphase * p->beta;
 
 			while(p->dphase>PI) p->dphase-=2*PI; //ez nem fog kelleni
 			while(p->dphase<-PI) p->dphase+=2*PI;
