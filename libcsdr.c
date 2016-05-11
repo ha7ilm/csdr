@@ -1360,20 +1360,22 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 		p->output_phase += p->dphase;
 		while(p->output_phase>PI) p->output_phase-=2*PI;
 		while(p->output_phase<-PI) p->output_phase+=2*PI;
-		if(output_nco) //we don't output anything if it is a NULL pointer
-		{
-			iof(output_nco,i) = sin(p->output_phase);
-			qof(output_nco,i) = cos(p->output_phase);
-		}
+		complexf current_nco;
+		iof(current_nco,i) = sin(p->output_phase);
+		qof(current_nco,i) = cos(p->output_phase);
+		if(output_nco) output_nco[i] = current_nco; //we don't output anything if it is a NULL pointer
 
-
-		//calculating error from phase offset
+		//accurate phase detector: calculating error from phase offset
 		float input_phase = atan2(iof(input,i),qof(input,i));
-		float new_dphase = input_phase - p->output_phase; //arg(input[i]/abs(input[i]) * conj(current_output_vco[i]))
+		float new_dphase = input_phase - p->output_phase;
 		while(new_dphase>PI) new_dphase-=2*PI;
 		while(new_dphase<-PI) new_dphase+=2*PI;
 
-		//calculating error from two complex samples
+		//modeling analog phase detector: abs(input[i] * conj(current_nco))
+		//qof(&current_nco,0)=-qof(&current_nco,0); //calculate conjugate
+		//complexf multiply_result;
+		//cmult(&multiply_result, &input[i], &current_nco);
+		//float new_dphase = absof(&multiply_result,0);
 
 		if(p->pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
 		{
