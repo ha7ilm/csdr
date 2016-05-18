@@ -1970,7 +1970,7 @@ int main(int argc, char *argv[])
 		}
 		else if(pll.pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
 		{
-			float bandwidth = 0.01, gain = 1000, damping_factor = 0.707;
+			float bandwidth = 0.01, ko = 10, kd=100, damping_factor = 0.707;
 			if(argc>3) sscanf(argv[3],"%f",&bandwidth);
 			if(argc>4) sscanf(argv[4],"%f",&damping_factor);
 			if(argc>5) sscanf(argv[5],"%f",&ko);
@@ -1988,10 +1988,10 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			FREAD_C;
 			fprintf(stderr, "| i");
-			pll_cc(&pll, (complexf*)input_buffer, output_buffer, NULL, the_bufsize);
-			fwrite(output_buffer, sizeof(float), the_bufsize, stdout);
-			// pll_cc(&pll, (complexf*)input_buffer, NULL, (complexf*)output_buffer, the_bufsize);
-			// fwrite(output_buffer, sizeof(complexf), the_bufsize, stdout);
+			// pll_cc(&pll, (complexf*)input_buffer, output_buffer, NULL, the_bufsize);
+			// fwrite(output_buffer, sizeof(float), the_bufsize, stdout);
+			pll_cc(&pll, (complexf*)input_buffer, NULL, (complexf*)output_buffer, the_bufsize);
+			fwrite(output_buffer, sizeof(complexf), the_bufsize, stdout);
 			fprintf(stderr, "| o");
 			TRY_YIELD;
 		}

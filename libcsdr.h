@@ -48,9 +48,9 @@ typedef struct complexf_s { float i; float q; } complexf;
 //apply to pointers:
 #define iof(complexf_input_p,i) (*(((float*)complexf_input_p)+2*(i)))
 #define qof(complexf_input_p,i) (*(((float*)complexf_input_p)+2*(i)+1))
-#define absof(complexf_input_p,i) (sqrt(iof(complexf_input_p,i)*iof(complexf_input_p,i)+qof(complexf_input_p,i)*qof(complexf_input_p,i)))
+#define absof(complexf_input_p,i) (sqrt((iof(complexf_input_p,i)*iof(complexf_input_p,i))+(qof(complexf_input_p,i)*qof(complexf_input_p,i))))
 #define argof(complexf_input_p,i) (atan2(qof(complexf_input_p,i),iof(complexf_input_p,i)))
-#define cmult(cfo, cfi1, cfi2) iof(cfo,0)=iof(cfi1,0)*iof(cfi2,0)-qof(cfi1,0)*qof(cfi2,0);qof(cfo,0)=iof(cfi1,0)*qof(cfi2,0)+iof(cfi2,0)*qof(cfi1,0)
+#define cmult(cfo, cfi1, cfi2) {iof(cfo,0)=iof(cfi1,0)*iof(cfi2,0)-qof(cfi1,0)*qof(cfi2,0);qof(cfo,0)=iof(cfi1,0)*qof(cfi2,0)+iof(cfi2,0)*qof(cfi1,0);}
 //(ai+aq*j)*(bi+bq*j)=ai*bi-aq*bq+(aq*bi+ai*bq)*j
 #define cmultadd(cfo, cfi1, cfi2) { iof(cfo,0)+=iof(cfi1,0)*iof(cfi2,0)-qof(cfi1,0)*qof(cfi2,0);qof(cfo,0)+=iof(cfi1,0)*qof(cfi2,0)+iof(cfi2,0)*qof(cfi1,0); }
 #define csetnull(cf) { iof(cf,0)=0.0; qof(cf,0)=0.0; }
@@ -253,8 +253,9 @@ typedef struct pll_s
 	float frequency;
 	float alpha;
 	float beta;
+	float iir_temp;
 } pll_t;
 
-void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float ko, float kd, float float damping_factor);
+void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float ko, float kd, float damping_factor);
 void pll_cc_init_1st_order_IIR(pll_t* p, float alpha);
 void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nco, int input_size);
