@@ -1,4 +1,4 @@
-/*
+u/*
 This software is part of libcsdr, a set of simple DSP routines for
 Software Defined Radio.
 
@@ -113,7 +113,7 @@ char usage[]=
 "    fft_exchange_sides_ff <fft_size>\n"
 "    squelch_and_smeter_cc --fifo <squelch_fifo> --outfifo <smeter_fifo> <use_every_nth> <report_every_nth>\n"
 "    fifo <buffer_size> <number_of_buffers>\n"
-"    bpsk31_line_decoder_sy_u8\n"
+"    bpsk31_varicode2ascii_sy_u8\n"
 "    invert_sy_sy\n"
 "    rtty_line_decoder_sy_u8\n"
 "    rtty_baudot2ascii_u8_u8\n"
@@ -1839,7 +1839,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"bpsk31_line_decoder_sy_u8"))
+	if(!strcmp(argv[1],"bpsk31_varicode2ascii_sy_u8"))
 	{
 		unsigned long long status_shr = 0;
 		unsigned char output;
@@ -1970,13 +1970,13 @@ int main(int argc, char *argv[])
 		}
 		else if(pll.pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
 		{
-			float bandwidth = 0.01, ko = 10, kd=100, damping_factor = 0.707;
+			float bandwidth = 0.01, ko = 10, kd=0.1, damping_factor = 0.707;
 			if(argc>3) sscanf(argv[3],"%f",&bandwidth);
 			if(argc>4) sscanf(argv[4],"%f",&damping_factor);
 			if(argc>5) sscanf(argv[5],"%f",&ko);
 			if(argc>6) sscanf(argv[6],"%f",&kd);
 			pll_cc_init_2nd_order_IIR(&pll, bandwidth, ko, kd, damping_factor);
-			//fprintf(stderr, "%f %f %f | a: %f %f %f | b: %f %f %f\n", bandwidth, gain, damping_factor,
+			fprintf(stderr, "bw=%f damping=%f ko=%f kd=%f alpha=%f beta=%f\n", bandwidth, damping_factor, ko, kd, pll.alpha, pll.beta);
 			//	pll.filter_taps_a[0], pll.filter_taps_a[1], pll.filter_taps_a[2], pll.filter_taps_b[0], pll.filter_taps_b[1], pll.filter_taps_b[2]);
 		}
 		else return badsyntax("invalid pll_type. Valid values are:\n\t1: PLL_1ST_ORDER_IIR_LOOP_FILTER\n\t2: PLL_2ND_ORDER_IIR_LOOP_FILTER");
@@ -1987,12 +1987,12 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			FREAD_C;
-			fprintf(stderr, "| i");
+			//fprintf(stderr, "| i");
 			// pll_cc(&pll, (complexf*)input_buffer, output_buffer, NULL, the_bufsize);
 			// fwrite(output_buffer, sizeof(float), the_bufsize, stdout);
 			pll_cc(&pll, (complexf*)input_buffer, NULL, (complexf*)output_buffer, the_bufsize);
 			fwrite(output_buffer, sizeof(complexf), the_bufsize, stdout);
-			fprintf(stderr, "| o");
+			//fprintf(stderr, "| o");
 			TRY_YIELD;
 		}
 	}

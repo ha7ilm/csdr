@@ -1338,12 +1338,13 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 
 void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float ko, float kd, float damping_factor)
 {
+	//kd: detector gain
+	//ko: VCO gain
 	float bandwidth_omega = 2*M_PI*bandwidth;
 	p->alpha  = (damping_factor*2*bandwidth_omega)/(ko*kd);
 	float sampling_rate = 1; //the bandwidth is normalized to the sampling rate
 	p->beta   = (bandwidth_omega*bandwidth_omega)/(sampling_rate*ko*kd);
 	p->iir_temp = p->dphase = p->output_phase = 0;
-	// s=tf([0.02868000,0.00080000,-0.02788000],[1 -2 1]); pzmap(s)
 }
 
 void pll_cc_init_1st_order_IIR(pll_t* p, float alpha)
@@ -1366,17 +1367,17 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 		if(output_nco) output_nco[i] = current_nco; //we don't output anything if it is a NULL pointer
 
 		//accurate phase detector: calculating error from phase offset
-		// float input_phase = atan2(iof(input,i),qof(input,i));
-		// float new_dphase = input_phase - p->output_phase;
-		// while(new_dphase>PI) new_dphase-=2*PI;
-		// while(new_dphase<-PI) new_dphase+=2*PI;
+		float input_phase = atan2(iof(input,i),qof(input,i));
+		float new_dphase = input_phase - p->output_phase;
+		while(new_dphase>PI) new_dphase-=2*PI;
+		while(new_dphase<-PI) new_dphase+=2*PI;
 
-		//modeling analog phase detector: abs(input[i] * conj(current_nco))
-		qof(&current_nco,0)=-qof(&current_nco,0); //calculate conjugate
-		complexf multiply_result;
-		cmult(&multiply_result, &input[i], &current_nco);
-		output_nco[i] = multiply_result;
-		float new_dphase = absof(&multiply_result,0);
+		//modeling analog phase detector, which would be abs(input[i] * current_nco) if we had a real output signal, but what if we have complex signals?
+		//qof(&current_nco,0)=-qof(&current_nco,0); //calculate conjugate
+		//complexf multiply_result;
+		//cmult(&multiply_result, &input[i], &current_nco);
+		//output_nco[i] = multiply_result;
+		//float new_dphase = absof(&multiply_result,0);
 
 		if(p->pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
 		{
@@ -1392,7 +1393,7 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 		}
 		else return;
 		if(output_dphase) output_dphase[i] = -p->dphase;
-		if(output_dphase) output_dphase[i] = new_dphase/10;
+		//if(output_dphase) output_dphase[i] = new_dphase/10;
 	}
 }
 
