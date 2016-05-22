@@ -1962,24 +1962,24 @@ int main(int argc, char *argv[])
 		sscanf(argv[2],"%d",(int*)&pll.pll_type);
 		//if(serial.samples_per_bits<1) return badsyntax("samples_per_bits should be at least 1.");
 		//if(serial.samples_per_bits<5) fprintf(stderr, "serial_line_decoder_sy_u8: warning: this algorithm does not work well if samples_per_bits is too low. It should be at least 5.\n");
-		if(pll.pll_type == PLL_1ST_ORDER_IIR_LOOP_FILTER)
+		if(pll.pll_type == PLL_P_CONTROLLER)
 		{
 				float alpha = 0.01;
 				if(argc>3) sscanf(argv[3],"%f",&alpha);
-				pll_cc_init_1st_order_IIR(&pll, alpha);
+				pll_cc_init_p_controller(&pll, alpha);
 		}
-		else if(pll.pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
+		else if(pll.pll_type == PLL_PI_CONTROLLER)
 		{
 			float bandwidth = 0.01, ko = 10, kd=0.1, damping_factor = 0.707;
 			if(argc>3) sscanf(argv[3],"%f",&bandwidth);
 			if(argc>4) sscanf(argv[4],"%f",&damping_factor);
 			if(argc>5) sscanf(argv[5],"%f",&ko);
 			if(argc>6) sscanf(argv[6],"%f",&kd);
-			pll_cc_init_2nd_order_IIR(&pll, bandwidth, ko, kd, damping_factor);
+			pll_cc_init_pi_controller(&pll, bandwidth, ko, kd, damping_factor);
 			fprintf(stderr, "bw=%f damping=%f ko=%f kd=%f alpha=%f beta=%f\n", bandwidth, damping_factor, ko, kd, pll.alpha, pll.beta);
 			//	pll.filter_taps_a[0], pll.filter_taps_a[1], pll.filter_taps_a[2], pll.filter_taps_b[0], pll.filter_taps_b[1], pll.filter_taps_b[2]);
 		}
-		else return badsyntax("invalid pll_type. Valid values are:\n\t1: PLL_1ST_ORDER_IIR_LOOP_FILTER\n\t2: PLL_2ND_ORDER_IIR_LOOP_FILTER");
+		else return badsyntax("invalid pll_type. Valid values are:\n\t1: PLL_P_CONTROLLER\n\t2: PLL_PI_CONTROLLER");
 
 		if(!sendbufsize(initialize_buffers())) return -2;
 

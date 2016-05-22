@@ -240,8 +240,8 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size);
 
 typedef enum pll_type_e
 {
-	PLL_1ST_ORDER_IIR_LOOP_FILTER=1,
-	PLL_2ND_ORDER_IIR_LOOP_FILTER=2
+	PLL_P_CONTROLLER=1,
+	PLL_PI_CONTROLLER=2
 } pll_type_t;
 
 typedef struct pll_s
@@ -256,6 +256,6 @@ typedef struct pll_s
 	float iir_temp;
 } pll_t;
 
-void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float ko, float kd, float damping_factor);
-void pll_cc_init_1st_order_IIR(pll_t* p, float alpha);
+void pll_cc_init_pi_controller(pll_t* p, float bandwidth, float ko, float kd, float damping_factor);
+void pll_cc_init_p_controller(pll_t* p, float alpha);
 void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nco, int input_size);

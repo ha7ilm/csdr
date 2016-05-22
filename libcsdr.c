@@ -1336,7 +1336,7 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 	for(int i=0;i<input_size;i++) output[i] = input[i] > 0;
 }
 
-void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float ko, float kd, float damping_factor)
+void pll_cc_init_pi_controller(pll_t* p, float bandwidth, float ko, float kd, float damping_factor)
 {
 	//kd: detector gain
 	//ko: VCO gain
@@ -1347,7 +1347,7 @@ void pll_cc_init_2nd_order_IIR(pll_t* p, float bandwidth, float ko, float kd, fl
 	p->iir_temp = p->dphase = p->output_phase = 0;
 }
 
-void pll_cc_init_1st_order_IIR(pll_t* p, float alpha)
+void pll_cc_init_p_controller(pll_t* p, float alpha)
 {
 	p->alpha = alpha;
 	p->dphase=p->output_phase=0;
@@ -1379,7 +1379,7 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 		//output_nco[i] = multiply_result;
 		//float new_dphase = absof(&multiply_result,0);
 
-		if(p->pll_type == PLL_2ND_ORDER_IIR_LOOP_FILTER)
+		if(p->pll_type == PLL_PI_CONTROLLER)
 		{
 			p->dphase = new_dphase * p->alpha + p->iir_temp;
 			p->iir_temp += new_dphase * p->beta;
@@ -1387,7 +1387,7 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 			while(p->dphase>PI) p->dphase-=2*PI; //ez nem fog kelleni
 			while(p->dphase<-PI) p->dphase+=2*PI;
 		}
-		else if(p->pll_type == PLL_1ST_ORDER_IIR_LOOP_FILTER)
+		else if(p->pll_type == PLL_P_CONTROLLER)
 		{
 			p->dphase = new_dphase * p->alpha;
 		}
