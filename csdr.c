@@ -1,4 +1,4 @@
-u/*
+/*
 This software is part of libcsdr, a set of simple DSP routines for
 Software Defined Radio.
 
