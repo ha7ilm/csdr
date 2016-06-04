@@ -187,18 +187,16 @@ int main(int argc, char* argv[])
 		if( (new_socket = accept(listen_socket, (struct sockaddr*)&addr_cli, &addr_cli_len)) != -1)
 		{
 			clients_close_all_finished();
-			int new_client_id = clients_get_new_id();
-			if(new_client_id!=-1 && pthread_create(&new_client->thread, NULL, client_thread , (void*)&new_client)<0)
+			if(pthread_create(&new_client->thread, NULL, client_thread , (void*)&new_client)<0)
 			{
 				//We're the parent
 				client_t* new_client = new client_t;
 				new_client->error = 0;
 				memcpy(&new_client->addr, &addr_cli, sizeof(new_client->addr));
 				new_client->socket = new_socket;
-				new_client->id = new_client_id;
 				new_client->status = CS_CREATED;
 				clients.push_back(new_client);
-				fprintf(stderr, MSG_START "pthread_create() done, new_client->id: %d\n", new_client->id);
+				fprintf(stderr, MSG_START "pthread_create() done, clients now: %d\n", clients.size());
 			}
 			else  fprintf(stderr, MSG_START "pthread_create() failed.");
 		}
@@ -256,22 +254,6 @@ for (int i=0; i<clients.size(); i++)
 }
 //TODO: at the end, server closes pipefd[1] for client
 #endif
-
-int clients_get_new_id()
-{
-	int new_id=-1;
-	for(int i=0; i<clients.size(); i++) if (new_id<clients[i]->id) new_id = clients[i]->id;
-	if(new_id!=INT_MAX) return ++new_id; //will also work if clients is empty (will return -1+1==0)
-	//should test this part, too:
-	for(new_id=0;new_id<INT_MAX;new_id++)
-	{
-		int found = 0;
-		for(int i=0; i<clients.size(); i++) if (clients[i]->id==new_id) { found = 1; break; }
-		if(found) continue;
-		else return new_id;
-	}
-	return -1;
-}
 
 void clients_close_all_finished()
 {

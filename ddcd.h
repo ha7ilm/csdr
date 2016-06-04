@@ -31,7 +31,6 @@ typedef enum client_status_e
 typedef struct client_s
 {
 	struct sockaddr_in addr;
-	int id;
 	int socket;
 	int error; //set to non-zero on error (data transfer failed)
 	pthread_t thread;
