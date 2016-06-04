@@ -267,6 +267,8 @@ void* client_thread (void* param) //!TODO
 {
 	client_t* me_the_client = (client_t*)param;
 
+
+	pthread_exit(NULL);
 	return NULL;
 }
 

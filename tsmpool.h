@@ -19,7 +19,7 @@ private:
 	pthread_mutex_t mutex;
 	int ok;
 	int write_index; //it always points to the next buffer to be written
-	int lowest_read_index;
+	int lowest_read_index; //unused
 
 public:
 	size_t get_size();
