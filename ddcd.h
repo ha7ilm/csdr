@@ -9,27 +9,36 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <vector>
+#include <limits.h>
 
 #define SOFTWARE_NAME "ddcd"
 #define MSG_START SOFTWARE_NAME ": "
 
-typedef enum ddc_method_e 
+typedef enum ddc_method_e
 {
 	M_TD,
 	M_FASTDDC
 } ddc_method_t;
+
+typedef enum client_status_e
+{
+	CS_CREATED,
+	CS_THREAD_RUNNING,
+	CS_THREAD_FINISHED
+} client_status_t;
+
 
 typedef struct client_s
 {
 	struct sockaddr_in addr;
 	int id;
 	int socket;
-	int error;
+	int error; //set to non-zero on error (data transfer failed)
 	pthread_t thread;
+	client_status_t status;
+
 } client_t;
 
 void print_exit(const char* why);
 void error_exit(const char* why);
 void maxfd(int* maxfd, int fd);
-
-

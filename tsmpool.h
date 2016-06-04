@@ -1,7 +1,12 @@
-typedef struct tsmthread_s 
-{ 
+//tsmpool stands for Thread-Safe Memory Pool.
+
+//It implements a big circular buffer that one thread writes into, and multiple threads read from.
+//The reader threads have lower priority than the writer thread (they can be left behind if the don't read fast enough).
+
+typedef struct tsmthread_s
+{
 	int read_index; //it always points to the next buffer to be read
-} tsmthread_t; 
+} tsmthread_t;
 
 class tsmpool
 {
@@ -25,5 +30,3 @@ public:
 	int index_next(int index) { return (index+1==size)?0:index; }
 	int index_before(int index) { return (index-1<0)?size-1:index; }
 }
-
-
