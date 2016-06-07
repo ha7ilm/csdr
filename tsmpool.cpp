@@ -8,6 +8,7 @@ tsmpool::tsmpool(size_t size, int num)
 	this->ok = 1;
 	this->lowest_read_index = -1;
 	this->write_index = 0;
+	this->my_read_index = 0;
     if (pthread_mutex_init(&this->mutex, NULL) != 0) this->ok=0;
 }
 
@@ -50,8 +51,4 @@ void* tsmpool::get_read_buffer(tsmthread_t* thread)
 	if(*actual_read_index==index_before(write_index)) return NULL;
 	void* to_return = buffers[*actual_read_index];
 	*actual_read_index=index_next(*actual_read_index);
-}
-
-void* tsmpool::set_read_index_distance(tsmthread_t* thread, int distance)
-{
 }
