@@ -173,6 +173,7 @@ int main(int argc, char* argv[])
 
 	//Create tsmpool
 	tsmpool* pool = new tsmpool(bufsize, bufcnt);
+	if(!pool->ok) print_exit(MSG_START "tsmpool failed to initialize\n");
 
 	unsigned char* current_write_buffer = pool->get_write_buffer();
 	int index_in_current_write_buffer = 0;
@@ -198,13 +199,13 @@ int main(int argc, char* argv[])
 				clients.push_back(new_client);
 				fprintf(stderr, MSG_START "pthread_create() done, clients now: %d\n", clients.size());
 			}
-			else  fprintf(stderr, MSG_START "pthread_create() failed.");
+			else  fprintf(stderr, MSG_START "pthread_create() failed.\n");
 		}
 
 		if(index_in_current_write_buffer >= bufsize)
 		{
 			current_write_buffer = pool->get_write_buffer();
-			index_in_current_write_buffer = 0;
+			index_in_current_write_buffer = 0;error_exiterror_exit
 		}
 		int retval = read(input_fd, current_write_buffer + index_in_current_write_buffer, bufsize - index_in_current_write_buffer);
 		if(retval>0)
@@ -263,18 +264,54 @@ void clients_close_all_finished()
 	}
 }
 
+void client_parser_push(char c)
+{ //!TODO
+	command_t cmd;
+	char* commands_cstr = commands.c_str();
+	int newline_index = -1;
+
+	for(int i=0;commands_cstr[i];i++) if(commands_cstr[i]=='\n') newline_index = i;
+	if(newline_index == -1)
+
+	char param_name[101];
+	char param_value[101];
+	for(int i=0;i<100;commands_csdr
+
+}
+
 void* client_thread (void* param) //!TODO
 {
 	client_t* me_the_client = (client_t*)param;
+	me_the_client->status = CS_THREAD_RUNNING;
+	char ctl_data_buffer;
+	int retval;
+	for(;;)
+	{
+		do
+		{
+			retval = recv(me_the_client->socket, &ctl_data_buffer, 1, 0);
+			if(client_parser_push(ctl_data_buffer)) break;
+		} while (retval);
 
 
+		//read control data from socket
+		//process control data
+		//run shift
+		//run decimation
+		//have an exit condition (??)
+		if(ddc_method == M_TD)
+		{
+
+		}
+	}
+	me_the_client->status = CS_THREAD_FINISHED;
 	pthread_exit(NULL);
 	return NULL;
 }
 
 void error_exit(const char* why)
 {
-	perror(why);
+	perror(why); //do we need a \n at the end of (why)?
 	exit(1);
 }
 

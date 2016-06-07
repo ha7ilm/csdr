@@ -38,6 +38,19 @@ typedef struct client_s
 
 } client_t;
 
+typedef enum command_type_e
+{
+	CT_SHIFT,
+	CT_BYPASS
+} command_type_t;
+
+
+typedef struct command_s
+{
+	command_type_t type;
+	float float_param;
+} command_t;
+
 void print_exit(const char* why);
 void error_exit(const char* why);
 void maxfd(int* maxfd, int fd);

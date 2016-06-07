@@ -46,9 +46,10 @@ int tsmpool::remove_thread(tsmthread_t* thread)
 
 void* tsmpool::get_read_buffer(tsmthread_t* thread)
 {
-	if(thread->read_index==index_before(write_index)) return NULL;
-	void* to_return = buffers[thread->read_index];
-	thread->read_index=index_next(thread->read_index);
+	int* actual_read_index = (thread==NULL) ? &my_read_index : &thread->read_index;
+	if(*actual_read_index==index_before(write_index)) return NULL;
+	void* to_return = buffers[*actual_read_index];
+	*actual_read_index=index_next(*actual_read_index);
 }
 
 void* tsmpool::set_read_index_distance(tsmthread_t* thread, int distance)

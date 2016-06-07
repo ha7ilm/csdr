@@ -20,6 +20,7 @@ private:
 	int ok;
 	int write_index; //it always points to the next buffer to be written
 	int lowest_read_index; //unused
+	int my_read_index; //it is used when tsmpool is used as a single writer - single reader circular buffer
 
 public:
 	size_t get_size();
