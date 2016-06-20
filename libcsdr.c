@@ -1004,19 +1004,19 @@ void convert_f_s24(float* input, unsigned char* output, int input_size, int bige
 	int k=0;
 	if(bigendian) for(int i=0;i<input_size;i++)
 	{
-		int temp=input[i]*INT_MAX;
+		int temp=input[i]*(INT_MAX>>8);
 		unsigned char* ptemp=(unsigned char*)&temp;
-		output[k++]=*ptemp;
-		output[k++]=*(ptemp+1);
 		output[k++]=*(ptemp+2);
+		output[k++]=*(ptemp+1);
+		output[k++]=*ptemp;
 	}
 	else for(int i=0;i<input_size;i++)
 	{
-		int temp=input[i]*INT_MAX;
+		int temp=input[i]*(INT_MAX>>8);
 		unsigned char* ptemp=(unsigned char*)&temp;
-		output[k++]=*(ptemp+2);
-		output[k++]=*(ptemp+1);
 		output[k++]=*ptemp;
+		output[k++]=*(ptemp+1);
+		output[k++]=*(ptemp+2);
 	}
 }
 
