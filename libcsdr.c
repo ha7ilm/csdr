@@ -999,6 +999,43 @@ void convert_f_s16(float* input, short* output, int input_size)
 void convert_i16_f(short* input, float* output, int input_size) { convert_s16_f(input, output, input_size); }
 void convert_f_i16(float* input, short* output, int input_size) { convert_f_s16(input, output, input_size); }
 
+void convert_f_s24(float* input, unsigned char* output, int input_size, int bigendian)
+{
+	int k=0;
+	if(bigendian) for(int i=0;i<input_size;i++)
+	{
+		int temp=input[i]*INT_MAX;
+		unsigned char* ptemp=(unsigned char*)&temp;
+		output[k++]=*ptemp;
+		output[k++]=*(ptemp+1);
+		output[k++]=*(ptemp+2);
+	}
+	else for(int i=0;i<input_size;i++)
+	{
+		int temp=input[i]*INT_MAX;
+		unsigned char* ptemp=(unsigned char*)&temp;
+		output[k++]=*(ptemp+2);
+		output[k++]=*(ptemp+1);
+		output[k++]=*ptemp;
+	}
+}
+
+void convert_s24_f(unsigned char* input, float* output, int input_size, int bigendian)
+{
+	int k=0;
+	if(bigendian) for(int i=0;i<input_size*3;i+=3)
+	{
+		int temp=(input[i+2]<<8)|(input[i+1]<<16)|(input[i]<<24);
+		output[k++]=((float)temp)/INT_MAX;
+	}
+	else for(int i=0;i<input_size*3;i+=3)
+	{
+		int temp=(input[i]<<8)|(input[i+1]<<16)|(input[i+2]<<24);
+		output[k++]=((float)temp)/INT_MAX;
+	}
+}
+
+
 int trivial_vectorize()
 {
 	//this function is trivial to vectorize and should pass on both NEON and SSE

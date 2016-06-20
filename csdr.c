@@ -61,6 +61,8 @@ char usage[]=
 "    convert_f_s8\n"
 "    convert_f_s16\n"
 "    convert_s16_f\n"
+"    convert_f_s24\n"
+"    convert_s24_f\n"
 "    realpart_cf\n"
 "    clipdetect_ff\n"
 "    limit_ff [max_amplitude]\n"
@@ -352,7 +354,7 @@ int main(int argc, char *argv[])
 
 		char** fifo_buffers = (char**)malloc(sizeof(char*)*fifo_num_buffers);
 		for(int i=0;i<fifo_num_buffers;i++) fifo_buffers[i]=(char*)malloc(sizeof(char)*fifo_buffer_size);
-		
+
 		SET_NONBLOCK(STDIN_FILENO);
 		SET_NONBLOCK(STDOUT_FILENO);
 
@@ -375,7 +377,7 @@ int main(int argc, char *argv[])
 		for(;;)
 		{
 			select(highfd, &read_fds, NULL, NULL, NULL);
-			
+
 			//try to read until buffer is full
 			if(FD_ISSET(STDIN_FILENO, &read_fds)) for(;;)
 			{
@@ -383,9 +385,9 @@ int main(int argc, char *argv[])
 				//fprintf(stderr, "r %d %d | %d %d\n", read_bytes, fifo_buffer_size-fifo_actual_buffer_rd_pos, fifo_actual_buffer_rd, fifo_actual_buffer_rd_pos);
 				if(!read_bytes || ((read_bytes<0)&&(fifo_error=read_bytes)) ) break;
 				fifo_actual_buffer_rd_pos+=read_bytes;
-				if(!((fifo_actual_buffer_rd==fifo_actual_buffer_wr-1)||(fifo_actual_buffer_wr==0&&fifo_actual_buffer_rd==fifo_num_buffers-1))) 
+				if(!((fifo_actual_buffer_rd==fifo_actual_buffer_wr-1)||(fifo_actual_buffer_wr==0&&fifo_actual_buffer_rd==fifo_num_buffers-1)))
 				{
-					if(fifo_actual_buffer_rd_pos==fifo_buffer_size) 
+					if(fifo_actual_buffer_rd_pos==fifo_buffer_size)
 					{
 						fifo_overrun_shown = 0;
 						fifo_actual_buffer_rd++;
@@ -394,8 +396,8 @@ int main(int argc, char *argv[])
 					}
 				}
 				else
-				{	
-					if(fifo_actual_buffer_rd_pos==fifo_buffer_size) 
+				{
+					if(fifo_actual_buffer_rd_pos==fifo_buffer_size)
 					{
 						fifo_actual_buffer_rd_pos = 0; //rewrite same buffer
 						if(!fifo_overrun_shown) { fifo_overrun_shown=1; fprintf(stderr, "fifo: circular buffer full, dropping samples\n"); }
@@ -409,8 +411,8 @@ int main(int argc, char *argv[])
 				int written_bytes=write(STDOUT_FILENO, fifo_buffers[fifo_actual_buffer_wr]+fifo_actual_buffer_wr_pos, fifo_buffer_size-fifo_actual_buffer_wr_pos);
 				//fprintf(stderr, "w %d %d | %d %d\n", written_bytes, fifo_buffer_size-fifo_actual_buffer_wr_pos, fifo_actual_buffer_wr, fifo_actual_buffer_wr_pos);
 				if(!written_bytes || ((written_bytes<0)&&(fifo_error=written_bytes)) ) break;
-				fifo_actual_buffer_wr_pos+=written_bytes;		
-				if(fifo_actual_buffer_wr_pos==fifo_buffer_size) 
+				fifo_actual_buffer_wr_pos+=written_bytes;
+				if(fifo_actual_buffer_wr_pos==fifo_buffer_size)
 				{
 					fifo_actual_buffer_wr++;
 					fifo_actual_buffer_wr_pos = 0;
@@ -486,7 +488,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if((!strcmp(argv[1],"convert_i16_f")) || (!strcmp(argv[1],"convert_s16_f"))) //not tested
+	if((!strcmp(argv[1],"convert_i16_f")) || (!strcmp(argv[1],"convert_s16_f")))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -494,6 +496,32 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			fread(buffer_i16, sizeof(short), the_bufsize, stdin);
 			convert_i16_f(buffer_i16, output_buffer, the_bufsize);
+			FWRITE_R;
+			TRY_YIELD;
+		}
+	}
+	if(!strcmp(argv[1],"convert_f_s24"))
+	{
+		int bigendian = argc>2 && !strcmp(argv[2],"--bigendian");
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_R;
+			convert_f_s24(input_buffer, (unsigned char*)output_buffer, the_bufsize, bigendian);
+			fwrite(output_buffer, sizeof(unsigned char)*3, the_bufsize, stdout);
+			TRY_YIELD;
+		}
+	}
+	if(!strcmp(argv[1],"convert_s24_f"))
+	{
+		int bigendian = argc>2 && !strcmp(argv[2],"--bigendian");
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(input_buffer, sizeof(unsigned char)*3, the_bufsize, stdin);
+			convert_s24_f((unsigned char*)input_buffer, output_buffer, the_bufsize, bigendian);
 			FWRITE_R;
 			TRY_YIELD;
 		}
