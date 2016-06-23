@@ -502,26 +502,28 @@ int main(int argc, char *argv[])
 	}
 	if(!strcmp(argv[1],"convert_f_s24"))
 	{
-		int bigendian = argc>2 && !strcmp(argv[2],"--bigendian");
+		int bigendian = (argc>2) && (!strcmp(argv[2],"--bigendian"));
+		unsigned char* s24buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*3);
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
 		{
 			FEOF_CHECK;
 			FREAD_R;
-			convert_f_s24(input_buffer, (unsigned char*)output_buffer, the_bufsize, bigendian);
-			fwrite(output_buffer, sizeof(unsigned char)*3, the_bufsize, stdout);
+			convert_f_s24(input_buffer, s24buffer, the_bufsize, bigendian);
+			fwrite(s24buffer, sizeof(unsigned char)*3, the_bufsize, stdout);
 			TRY_YIELD;
 		}
 	}
 	if(!strcmp(argv[1],"convert_s24_f"))
 	{
-		int bigendian = argc>2 && !strcmp(argv[2],"--bigendian");
+		int bigendian = (argc>2) && (!strcmp(argv[2],"--bigendian"));
+		unsigned char* s24buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*3);
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
 		{
 			FEOF_CHECK;
-			fread(input_buffer, sizeof(unsigned char)*3, the_bufsize, stdin);
-			convert_s24_f((unsigned char*)input_buffer, output_buffer, the_bufsize, bigendian);
+			fread(s24buffer, sizeof(unsigned char)*3, the_bufsize, stdin);
+			convert_s24_f(s24buffer, output_buffer, the_bufsize, bigendian);
 			FWRITE_R;
 			TRY_YIELD;
 		}
