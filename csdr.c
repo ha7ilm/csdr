@@ -321,9 +321,11 @@ int main(int argc, char *argv[])
 	if(argc<=1) return badsyntax(0);
 	if(!strcmp(argv[1],"--help")) return badsyntax(0);
 
+#ifndef CSDR_NOLINUX
 	fcntl(STDIN_FILENO, F_SETPIPE_SZ, 65536*32);
 	fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 65536*32);
 	//fprintf(stderr, "csdr: F_SETPIPE_SZ\n");
+#endif
 
 	if(!strcmp(argv[1],"setbuf"))
 	{
@@ -1386,6 +1388,7 @@ int main(int argc, char *argv[])
 
 #define TIME_TAKEN(start,end) ((end.tv_sec-start.tv_sec)+(end.tv_nsec-start.tv_nsec)/1e9)
 
+#ifndef CSDR_NOLINUX
 	if(!strcmp(argv[1],"fft_benchmark"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (fft_size, fft_cycles)");
@@ -1424,6 +1427,7 @@ int main(int argc, char *argv[])
 		fprintf(stderr,"fft_benchmark: %d transforms of %d processed in %g seconds, %g seconds each.\n",fft_cycles,fft_size,time_taken_fft,time_taken_fft/fft_cycles);
 		return 0;
 	}
+#endif
 
 	if(!strcmp(argv[1],"bandpass_fir_fft_cc")) //this command does not exist as a separate function
 	{
@@ -1663,6 +1667,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
+#ifndef CSDR_NOLINUX
 	if(!strcmp(argv[1],"through"))
 	{
 		struct timespec start_time, end_time;
@@ -1700,6 +1705,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
+#endif
 
 	if(!strcmp(argv[1],"dsb_fc"))
 	{

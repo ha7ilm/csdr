@@ -31,6 +31,11 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #pragma once
 #define MIN_M(x,y) (((x)>(y))?(y):(x))
 
+#ifdef __CYGWIN__
+ #define CSDR_NOLINUX
+#endif
+
+
 /*
    _____                      _
   / ____|                    | |

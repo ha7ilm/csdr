@@ -1,9 +1,9 @@
-# This software is part of libcsdr, a set of simple DSP routines for 
+# This software is part of libcsdr, a set of simple DSP routines for
 # Software Defined Radio.
 #
 # Copyright (c) 2014, Andras Retzler <randras@sdr.hu>
 # All rights reserved.
-# 
+#
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are met:
 #    * Redistributions of source code must retain the above copyright
@@ -28,10 +28,10 @@
 
 
 
-LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c 
+LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c
 #SOURCES = csdr.c $(LIBSOURCES)
 cpufeature = $(if $(findstring $(1),$(shell cat /proc/cpuinfo)),$(2))
-PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4,-msse4) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2) -mfpmath=sse 
+PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4,-msse4) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2) -mfpmath=sse
 PARAMS_NEON = -mfloat-abi=hard -march=armv7-a -mtune=cortex-a8 -mfpu=neon -mvectorize-with-neon-quad -funsafe-math-optimizations -Wformat=0 -DNEON_OPTS
 #tnx Jan Szumiec for the Raspberry Pi support
 PARAMS_RASPI = -mfloat-abi=hard -mcpu=arm1176jzf-s -mfpu=vfp -funsafe-math-optimizations -Wformat=0
@@ -39,15 +39,17 @@ PARAMS_ARM = $(if $(call cpufeature,BCM2708,dummy-text),$(PARAMS_RASPI),$(PARAMS
 PARAMS_SIMD = $(if $(call cpufeature,sse,dummy-text),$(PARAMS_SSE),$(PARAMS_ARM))
 PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
 PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
-PARAMS_SO = -fpic  
+PARAMS_SO = -fpic
 PARAMS_MISC = -Wno-unused-result
 FFTW_PACKAGE = fftw-3.3.3
+SO_EXT = $(if $(findstring CYGWIN,$(shell uname -a)),dll,so)
 
 all: clean-vect
 	@echo NOTE: you may have to manually edit Makefile to optimize for your CPU \(especially if you compile on ARM, please edit PARAMS_NEON\).
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
-	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -o libcsdr.so
+	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -o libcsdr.$(SO_EXT)
+
 	-./parsevect dumpvect*.vect
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
 arm-cross: clean-vect
@@ -56,17 +58,17 @@ arm-cross: clean-vect
 clean-vect:
 	rm -f dumpvect*.vect
 clean: clean-vect
-	rm -f libcsdr.so csdr 
-install: 
-	install -m 0755 libcsdr.so /usr/lib
+	rm -f libcsdr.$(SO_EXT) csdr
+install:
+	install -m 0755 libcsdr.$(SO_EXT) /usr/lib
 	install -m 0755 csdr /usr/bin
 	install -m 0755 csdr-fm /usr/bin
 	ldconfig
 uninstall:
-	rm /usr/lib/libcsdr.so /usr/bin/csdr /usr/bin/csdr-fm
+	rm /usr/lib/libcsdr.$(SO_EXT) /usr/bin/csdr /usr/bin/csdr-fm
 	ldconfig
 disasm:
-	objdump -S libcsdr.so > libcsdr.disasm
+	objdump -S libcsdr.$(SO_EXT) > libcsdr.disasm
 emcc-clean:
 	-rm sdr.js/sdr.js
 	-rm sdr.js/sdrjs-compiled.js
