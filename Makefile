@@ -43,6 +43,7 @@ PARAMS_SO = -fpic
 PARAMS_MISC = -Wno-unused-result
 FFTW_PACKAGE = fftw-3.3.3
 SO_EXT = $(if $(findstring CYGWIN,$(shell uname -a)),dll,so)
+SO_PATH = $(if $(findstring CYGWIN,$(shell uname -a)),/bin,/usr/lib)
 
 all: clean-vect
 	@echo NOTE: you may have to manually edit Makefile to optimize for your CPU \(especially if you compile on ARM, please edit PARAMS_NEON\).
@@ -60,12 +61,12 @@ clean-vect:
 clean: clean-vect
 	rm -f libcsdr.$(SO_EXT) csdr
 install:
-	install -m 0755 libcsdr.$(SO_EXT) /usr/lib
+	install -m 0755 libcsdr.$(SO_EXT) $(SO_PATH)
 	install -m 0755 csdr /usr/bin
 	install -m 0755 csdr-fm /usr/bin
 	-ldconfig
 uninstall:
-	rm /usr/lib/libcsdr.$(SO_EXT) /usr/bin/csdr /usr/bin/csdr-fm
+	rm $(SO_PATH)/libcsdr.$(SO_EXT) /usr/bin/csdr /usr/bin/csdr-fm
 	-ldconfig
 disasm:
 	objdump -S libcsdr.$(SO_EXT) > libcsdr.disasm
