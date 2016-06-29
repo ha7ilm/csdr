@@ -63,10 +63,10 @@ install:
 	install -m 0755 libcsdr.$(SO_EXT) /usr/lib
 	install -m 0755 csdr /usr/bin
 	install -m 0755 csdr-fm /usr/bin
-	ldconfig
+	-ldconfig
 uninstall:
 	rm /usr/lib/libcsdr.$(SO_EXT) /usr/bin/csdr /usr/bin/csdr-fm
-	ldconfig
+	-ldconfig
 disasm:
 	objdump -S libcsdr.$(SO_EXT) > libcsdr.disasm
 emcc-clean:
