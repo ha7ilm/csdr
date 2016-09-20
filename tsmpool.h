@@ -26,8 +26,9 @@ public:
 	size_t get_size();
 	tsmpool(size_t size, int num);
 	void* get_write_buffer();
-	int register_thread();
-	void* get_read_buffer(int thread_id);
+	tsmthread_t* register_thread();
+	int remove_thread(tsmthread_t* thread);
+	void* get_read_buffer(tsmthread_t* thread);
 	int index_next(int index) { return (index+1==size)?0:index; }
 	int index_before(int index) { return (index-1<0)?size-1:index; }
 }
