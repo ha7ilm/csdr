@@ -205,7 +205,7 @@ int main(int argc, char* argv[])
 		if(index_in_current_write_buffer >= bufsize)
 		{
 			current_write_buffer = pool->get_write_buffer();
-			index_in_current_write_buffer = 0;error_exiterror_exit
+			index_in_current_write_buffer = 0;
 		}
 		int retval = read(input_fd, current_write_buffer + index_in_current_write_buffer, bufsize - index_in_current_write_buffer);
 		if(retval>0)
@@ -285,6 +285,14 @@ void* client_thread (void* param) //!TODO
 	me_the_client->status = CS_THREAD_RUNNING;
 	char ctl_data_buffer;
 	int retval;
+	tsmpool* p1_temp;
+	tsmpool* p2_temp;
+	const int num_client_buffers = 20;
+	if(ddc_method == M_TD)
+	{
+		p1_temp = new tsmpool(bufsize, )
+	}
+
 	for(;;)
 	{
 		do
@@ -312,7 +320,7 @@ void* client_thread (void* param) //!TODO
 void error_exit(const char* why)
 {
 	perror(why); //do we need a \n at the end of (why)?
-	exit(1);
+	exit(1); 
 }
 
 void print_exit(const char* why)
