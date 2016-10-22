@@ -1344,27 +1344,23 @@ int main(int argc, char *argv[])
 		sscanf(argv[3],"%d",&fft_size);
 		sscanf(argv[4],"%d",&avgnumber);
 		
-		if(!getbufsize()) return -2; //dummy
-		if(!sendbufsize(initialize_buffers())) return -2;
+		float *input = malloc(sizeof(float)*2 * fft_size);
+		float *output = malloc(sizeof(float) * fft_size);
 
-		if(fft_size != the_bufsize) return -2;
-		
-		//fprintf(stderr, "logaveragepower_cf %f %d=%d %d\n", add_db, fft_size, the_bufsize, avgnumber);
-		add_db -= 10*log10(avgnumber);
+		add_db -= 10.0*log10(avgnumber);
 		for(;;)
 		{
 			int i,n;
-			for(i = 0; i < the_bufsize; i++) {
-				output_buffer[i] = 0;
+			for(i = 0; i < fft_size; i++) {
+				output[i] = 0;
 			}
 			FEOF_CHECK;
 			for(n = 0; n < avgnumber; n++) {
-				FREAD_C;
-				//fprintf(stderr, "averaged %d\n", n);
-				accumulate_power_cf((complexf*)input_buffer, output_buffer, the_bufsize);	
+				fread (input, sizeof(float)*2, fft_size, stdin);
+				accumulate_power_cf((complexf*)input, output, fft_size);
 			}
-			log_ff(NULL, output_buffer, the_bufsize, add_db);
-			FWRITE_R;
+			log_ff(output, output, fft_size, add_db);
+			fwrite (output, sizeof(float), fft_size, stdout);
 			TRY_YIELD;
 		}
 		return 0;
