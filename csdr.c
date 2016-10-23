@@ -1314,6 +1314,97 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
+
+	if(!strcmp(argv[1],"fft_fc"))
+	{
+		/* For real FFT, the parameter is the number of output complex bins
+		instead of the actual FFT size.
+		Thus, the number of input samples used for each FFT is twice the given parameter
+		and for this reason, out_of_every_n_samples is also doubled
+		to get correct amount of overlap.
+		This is not very neat but makes it easier to replace fft_cc by fft_fc
+		in some applications. */
+		if(argc<=3) return badsyntax("need required parameters (fft_out_size, out_of_every_n_samples)");
+		int fft_in_size=0, fft_out_size=0;
+		sscanf(argv[2],"%d",&fft_out_size);
+		if(log2n(fft_out_size)==-1) return badsyntax("fft_out_size should be power of 2");
+		fft_in_size = 2*fft_out_size;
+		int every_n_samples;
+		sscanf(argv[3],"%d",&every_n_samples);
+		every_n_samples *= 2;
+		int benchmark=0;
+		int octave=0;
+		window_t window = WINDOW_DEFAULT;
+		if(argc>=5)
+		{
+			window=firdes_get_window_from_string(argv[4]);
+		}
+		if(argc>=6)
+		{
+			benchmark|=!strcmp("--benchmark",argv[5]);
+			octave|=!strcmp("--octave",argv[5]);
+		}
+		if(argc>=7)
+		{
+			benchmark|=!strcmp("--benchmark",argv[6]);
+			octave|=!strcmp("--octave",argv[6]);
+		}
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(fft_out_size);
+
+		//make FFT plan
+		float* input=(float*)fft_malloc(sizeof(float)*fft_in_size);
+		float* windowed=(float*)fft_malloc(sizeof(float)*fft_in_size);
+		complexf* output=(complexf*)fft_malloc(sizeof(complexf)*fft_out_size);
+		if(benchmark) fprintf(stderr,"fft_cc: benchmarking...");
+		FFT_PLAN_T* plan=make_fft_r2c(fft_in_size, windowed, output, benchmark);
+		if(benchmark) fprintf(stderr," done\n");
+		//if(octave) printf("setenv(\"GNUTERM\",\"X11 noraise\");y=zeros(1,%d);semilogy(y,\"ydatasource\",\"y\");\n",fft_size); // TODO
+		float *windowt;
+		windowt = precalculate_window(fft_in_size, window);
+		for(;;)
+		{
+			FEOF_CHECK;
+			if(every_n_samples>fft_in_size)
+			{
+				fread(input, sizeof(float), fft_in_size, stdin);
+				//skipping samples before next FFT (but fseek doesn't work for pipes)
+				for(int seek_remain=every_n_samples-fft_in_size;seek_remain>0;seek_remain-=the_bufsize)
+				{
+					fread(temp_f, sizeof(complexf), MIN_M(the_bufsize,seek_remain), stdin);
+				}
+			}
+			else
+			{
+				//overlapped FFT
+				for(int i=0;i<fft_in_size-every_n_samples;i++) input[i]=input[i+every_n_samples];
+				fread(input+fft_in_size-every_n_samples, sizeof(float), every_n_samples, stdin);
+			}
+			//apply_window_c(input,windowed,fft_size,window);
+			apply_precalculated_window_f(input,windowed,fft_in_size,windowt);
+			fft_execute(plan);
+			if(octave)
+			{
+#if 0
+			// TODO
+				printf("fftdata=[");
+				//we have to swap the two parts of the array to get a valid spectrum
+				for(int i=fft_size/2;i<fft_size;i++) printf("(%g)+(%g)*i ",iof(output,i),qof(output,i));
+				for(int i=0;i<fft_size/2;i++) printf("(%g)+(%g)*i ",iof(output,i),qof(output,i));
+				printf(
+					"];\n"
+					"y=abs(fftdata);\n"
+					"refreshdata;\n"
+				);
+#endif
+			}
+			else fwrite(output, sizeof(complexf), fft_out_size, stdout);
+			TRY_YIELD;
+		}
+	}
+
+
 	#define LOGPOWERCF_BUFSIZE 64
 	if(!strcmp(argv[1],"logpower_cf"))
 	{
