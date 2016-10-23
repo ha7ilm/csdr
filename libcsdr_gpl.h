@@ -31,6 +31,7 @@ typedef struct shift_addition_data_s
 } shift_addition_data_t;
 shift_addition_data_t shift_addition_init(float rate);
 float shift_addition_cc(complexf *input, complexf* output, int input_size, shift_addition_data_t d, float starting_phase);
+float shift_addition_fc(float *input, complexf* output, int input_size, shift_addition_data_t d, float starting_phase);
 void shift_addition_cc_test(shift_addition_data_t d);
 
 float agc_ff(float* input, float* output, int input_size, float reference, float attack_rate, float decay_rate, float max_gain, short hang_time, short attack_wait_time, float gain_filter_alpha, float last_gain);

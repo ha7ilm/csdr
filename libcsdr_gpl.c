@@ -51,6 +51,33 @@ float shift_addition_cc(complexf *input, complexf* output, int input_size, shift
 	return starting_phase;
 }
 
+float shift_addition_fc(float *input, complexf* output, int input_size, shift_addition_data_t d, float starting_phase)
+{
+	//The original idea was taken from wdsp:
+	//http://svn.tapr.org/repos_sdr_hpsdr/trunk/W5WC/PowerSDR_HPSDR_mRX_PS/Source/wdsp/shift.c
+
+	//However, this method introduces noise (from floating point rounding errors), which increases until the end of the buffer.
+	//fprintf(stderr, "cosd=%g sind=%g\n", d.cosdelta, d.sindelta);
+	float cosphi=cos(starting_phase);
+	float sinphi=sin(starting_phase);
+	float cosphi_last, sinphi_last;
+	for(int i=0;i<input_size;i++) //@shift_addition_cc: work
+	{
+		iof(output,i)=cosphi*input[i];
+		qof(output,i)=sinphi*input[i];
+		//using the trigonometric addition formulas
+		//cos(phi+delta)=cos(phi)cos(delta)-sin(phi)*sin(delta)
+		cosphi_last=cosphi;
+		sinphi_last=sinphi;
+		cosphi=cosphi_last*d.cosdelta-sinphi_last*d.sindelta;
+		sinphi=sinphi_last*d.cosdelta+cosphi_last*d.sindelta;
+	}
+	starting_phase+=d.rate*PI*input_size;
+	while(starting_phase>PI) starting_phase-=2*PI; //@shift_addition_cc: normalize starting_phase
+	while(starting_phase<-PI) starting_phase+=2*PI;
+	return starting_phase;
+}
+
 shift_addition_data_t shift_addition_init(float rate)
 {
 	rate*=2;
