@@ -1275,6 +1275,8 @@ int main(int argc, char *argv[])
 		FFT_PLAN_T* plan=make_fft_c2c(fft_size, windowed, output, 1, benchmark);
 		if(benchmark) fprintf(stderr," done\n");
 		if(octave) printf("setenv(\"GNUTERM\",\"X11 noraise\");y=zeros(1,%d);semilogy(y,\"ydatasource\",\"y\");\n",fft_size);
+		float *windowt;
+		windowt = precalculate_window(fft_size, window);
 		for(;;)
 		{
 			FEOF_CHECK;
@@ -1293,7 +1295,8 @@ int main(int argc, char *argv[])
 				for(int i=0;i<fft_size-every_n_samples;i++) input[i]=input[i+every_n_samples];
 				fread(input+fft_size-every_n_samples, sizeof(complexf), every_n_samples, stdin);
 			}
-			apply_window_c(input,windowed,fft_size,window);
+			//apply_window_c(input,windowed,fft_size,window);
+			apply_precalculated_window_c(input,windowed,fft_size,windowt);
 			fft_execute(plan);
 			if(octave)
 			{
@@ -1327,6 +1330,40 @@ int main(int argc, char *argv[])
 			fwrite(output_buffer, sizeof(float), the_bufsize, stdout);
 			TRY_YIELD;
 		}
+	}
+
+	if(!strcmp(argv[1],"logaveragepower_cf"))
+	{
+		bigbufs=1;
+		if(argc<=4) return badsyntax("need required parameters (add_db, table_size, avgnumber)"); 
+		float add_db=0;
+		int avgnumber=0;
+		int fft_size=0;
+		
+		sscanf(argv[2],"%g",&add_db);
+		sscanf(argv[3],"%d",&fft_size);
+		sscanf(argv[4],"%d",&avgnumber);
+		
+		float *input = malloc(sizeof(float)*2 * fft_size);
+		float *output = malloc(sizeof(float) * fft_size);
+
+		add_db -= 10.0*log10(avgnumber);
+		for(;;)
+		{
+			int i,n;
+			for(i = 0; i < fft_size; i++) {
+				output[i] = 0;
+			}
+			FEOF_CHECK;
+			for(n = 0; n < avgnumber; n++) {
+				fread (input, sizeof(float)*2, fft_size, stdin);
+				accumulate_power_cf((complexf*)input, output, fft_size);
+			}
+			log_ff(output, output, fft_size, add_db);
+			fwrite (output, sizeof(float), fft_size, stdout);
+			TRY_YIELD;
+		}
+		return 0;
 	}
 
 	if(!strcmp(argv[1],"fft_exchange_sides_ff"))
