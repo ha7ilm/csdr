@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #pragma once
+#include <stdint.h>
 #define MIN_M(x,y) (((x)>(y))?(y):(x))
 
 /*
@@ -186,3 +187,7 @@ void convert_s24_f(unsigned char* input, float* output, int input_size, int bige
 
 
 int is_nan(float f);
+
+void *cicddc_init(int factor);
+void cicddc_free(void *state);
+void cicddc_s16_c(void *state, int16_t *input, complexf *output, int outsize, float rate);

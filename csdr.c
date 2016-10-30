@@ -2036,6 +2036,45 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if(!strcmp(argv[1],"cicddc_s16_c")) {
+		float rate=0;
+		int fd;
+		int factor=0, insize, outsize;
+
+		if(argc<=2) return badsyntax("need required parameter(s) (decimation factor, [rate])");
+		sscanf(argv[2],"%d",&factor);
+		if(fd=init_fifo(argc,argv))
+		{
+			while(!read_fifo_ctl(fd,"%g\n",&rate)) usleep(10000);
+		}
+		else
+		{
+			if(argc<=3) return badsyntax("need required parameters (decimation factor, rate)");
+			sscanf(argv[3],"%g",&rate);
+		}
+
+		the_bufsize = getbufsize();
+		outsize = the_bufsize / factor;
+		insize = outsize * factor; // make it integer multiple of factor
+		sendbufsize(outsize);
+
+		int16_t *input_buffer = malloc(sizeof(int16_t) * insize);
+		complexf *output_buffer = malloc(sizeof(complexf) * outsize);
+
+		void *state = cicddc_init(factor);
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(input_buffer, sizeof(int16_t), insize, stdin);
+			cicddc_s16_c(state, input_buffer, output_buffer, outsize, rate);
+			fwrite(output_buffer, sizeof(complexf), outsize, stdout);
+			fflush(stdout);
+			if(read_fifo_ctl(fd,"%g\n",&rate)) break;
+			TRY_YIELD;
+		}
+		cicddc_free(state);
+	}
+
 	if(!strcmp(argv[1],"none"))
 	{
 		return 0;
