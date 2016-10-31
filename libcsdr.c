@@ -574,7 +574,7 @@ void cicddc_s16_c(void *state, int16_t *input, complexf *output, int outsize, fl
 	int16_t *sinetable = s->sinetable;
 	float gain = s->gain;
 
-	freq = rate * ((float)(1ULL << 63) / M_PI);
+	freq = rate * ((float)(1ULL << 63) * 2);
 
 	int16_t *inp = input;
 	for(k = 0; k < outsize; k++) {
@@ -584,8 +584,8 @@ void cicddc_s16_c(void *state, int16_t *input, complexf *output, int outsize, fl
 		for(i = 0; i < factor; i++) {
 			cic_dt in_a, in_b;
 			int sinep = phase >> (64-SINESHIFT);
-			in_a = (int32_t)inp[i] * (int32_t)sinetable[sinep];
-			in_b = (int32_t)inp[i] * (int32_t)sinetable[sinep + (1<<(SINESHIFT-2))];
+			in_a = (int32_t)inp[i] * (int32_t)sinetable[sinep + (1<<(SINESHIFT-2))];
+			in_b = (int32_t)inp[i] * (int32_t)sinetable[sinep];
 			phase += freq;
 			/* integrators:
 			   The calculations are ordered so that each integrator
