@@ -527,7 +527,8 @@ void apply_fir_fft_cc(FFT_PLAN_T* plan, FFT_PLAN_T* plan_inverse, complexf* taps
 
 
 /* CIC DDC */
-#define SINESIZE 0x1000
+#define SINESHIFT 12
+#define SINESIZE (1<<SINESHIFT)
 typedef int64_t cic_dt; // data type used for integrators and combs
 typedef struct {
 	int factor;
@@ -549,7 +550,7 @@ void *cicddc_init(int factor) {
 	s->factor = factor;
 	s->gain = 1.0f / SHRT_MAX / sineamp / factor / factor / factor; // compensate for gain of 3 integrators
 
-	s->sinetable = malloc(SINESIZE * 5/4 * sizeof(*s->sinetable));
+	s->sinetable = malloc(sinesize2 * sizeof(*s->sinetable));
 	double f = 2.0*M_PI / (double)SINESIZE;
 	for(i = 0; i < sinesize2; i++) {
 		s->sinetable[i] = sineamp * cos(f * i);
@@ -582,14 +583,17 @@ void cicddc_s16_c(void *state, int16_t *input, complexf *output, int outsize, fl
 		cic_dt ig2a = 0, ig2b = 0; // last integrator and first comb replaced simply by sum
 		for(i = 0; i < factor; i++) {
 			cic_dt in_a, in_b;
-			int sinep = phase >> (64-12);
-			in_a = (cic_dt)inp[i] * (cic_dt)sinetable[sinep];
-			in_b = (cic_dt)inp[i] * (cic_dt)sinetable[sinep + (SINESIZE/4)];
+			int sinep = phase >> (64-SINESHIFT);
+			in_a = (int32_t)inp[i] * (int32_t)sinetable[sinep];
+			in_b = (int32_t)inp[i] * (int32_t)sinetable[sinep + (1<<(SINESHIFT-2))];
 			phase += freq;
-			// integrators:
-			ig0a += in_a; ig0b += in_b;
-			ig1a += ig0a; ig1b += ig0b;
+			/* integrators:
+			   The calculations are ordered so that each integrator
+			   takes a result from previous loop iteration
+			   to make the code more "pipeline-friendly". */
 			ig2a += ig1a; ig2b += ig1b;
+			ig1a += ig0a; ig1b += ig0b;
+			ig0a += in_a; ig0b += in_b;
 		}
 		inp += factor;
 		// comb filters:
