@@ -177,13 +177,16 @@ int init_fifo(int argc, char *argv[])
 {
 	if(argc>=4)
 	{
-		if(!strcmp(argv[2],"--fifo"))
-		{
-			fprintf(stderr,"csdr: fifo control mode on\n");
-			int fd = open(argv[3], O_RDONLY);
-			int flags = fcntl(fd, F_GETFL, 0);
-			fcntl(fd, F_SETFL, flags | O_NONBLOCK);
-			return fd;
+		int i;
+		for(i = 2; i < argc-1; i++) {
+			if(!strcmp(argv[i],"--fifo"))
+			{
+				fprintf(stderr,"csdr: fifo control mode on\n");
+				int fd = open(argv[i+1], O_RDONLY);
+				int flags = fcntl(fd, F_GETFL, 0);
+				fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+				return fd;
+			}
 		}
 	}
 	return 0;
@@ -2069,7 +2072,7 @@ int main(int argc, char *argv[])
 			cicddc_s16_c(state, input_buffer, output_buffer, outsize, rate);
 			fwrite(output_buffer, sizeof(complexf), outsize, stdout);
 			fflush(stdout);
-			if(read_fifo_ctl(fd,"%g\n",&rate)) break;
+			read_fifo_ctl(fd,"%g\n",&rate);
 			TRY_YIELD;
 		}
 		cicddc_free(state);
