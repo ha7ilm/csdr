@@ -1366,13 +1366,11 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"fft_fc"))
 	{
-		/* For real FFT, the parameter is the number of output complex bins
+		/*
+		For real FFT, the parameter is the number of output complex bins
 		instead of the actual FFT size.
-		Thus, the number of input samples used for each FFT is twice the given parameter
-		and for this reason, out_of_every_n_samples is also doubled
-		to get correct amount of overlap.
-		This is not very neat but makes it easier to replace fft_cc by fft_fc
-		in some applications. */
+		Number of input samples used for each FFT is twice the given parameter.
+		This makes it easier to replace fft_cc by fft_fc in some applications. */
 		if(argc<=3) return badsyntax("need required parameters (fft_out_size, out_of_every_n_samples)");
 		int fft_in_size=0, fft_out_size=0;
 		sscanf(argv[2],"%d",&fft_out_size);
@@ -1380,7 +1378,6 @@ int main(int argc, char *argv[])
 		fft_in_size = 2*fft_out_size;
 		int every_n_samples;
 		sscanf(argv[3],"%d",&every_n_samples);
-		every_n_samples *= 2;
 		int benchmark=0;
 		int octave=0;
 		window_t window = WINDOW_DEFAULT;
