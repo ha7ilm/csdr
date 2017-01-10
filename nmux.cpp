@@ -28,7 +28,7 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#include "tsmpool.h"
+#include "nmux.h"
 
 int host_port = 0;
 char host_address[100] = "127.0.0.1";
@@ -38,7 +38,7 @@ int thread_cntr = 0;
 int bufsize = 1024; //! currently unused
 int bufcnt = 1024;
 
-char* global_argv;
+char** global_argv;
 int global_argc;
 tsmpool* pool;
 
@@ -150,8 +150,9 @@ int main(int argc, char* argv[])
 	unsigned char* current_write_buffer = pool->get_write_buffer();
 	int index_in_current_write_buffer = 0;
 
-	pthread_cond_t* wait_condition = new wait_condition;
-	pthread_cond_init(wait_condition, NULL);
+	pthread_cond_t* wait_condition = new pthread_cond_t;
+	if(!pthread_cond_init(wait_condition, NULL)) 
+		print_exit(MSG_START "pthread_cond_init failed"); //cond_attrs is ignored by Linux
 
 	for(;;)
 	{
@@ -181,7 +182,6 @@ int main(int argc, char* argv[])
 			}
 			else
 			{
-
 				fprintf(stderr, MSG_START "pthread_create() failed.\n");
 			}
 		}

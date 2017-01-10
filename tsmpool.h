@@ -3,6 +3,10 @@
 //It implements a big circular buffer that one thread writes into, and multiple threads read from.
 //The reader threads have lower priority than the writer thread (they can be left behind if the don't read fast enough).
 
+#include <vector>
+
+using namespace std;
+
 typedef struct tsmthread_s
 {
 	int read_index; //it always points to the next buffer to be read
@@ -31,4 +35,4 @@ public:
 	void* get_read_buffer(tsmthread_t* thread);
 	int index_next(int index) { return (index+1==size)?0:index; }
 	int index_before(int index) { return (index-1<0)?size-1:index; }
-}
+};
