@@ -1,5 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <getopt.h>
+#include <signal.h>
+#include <string.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -29,3 +33,12 @@ typedef struct client_s
     pthread_cond_t* wait_condition;
     pthread_mutex_t wait_mutex;
 } client_t;
+
+void print_exit(const char* why);
+void sig_handler(int signo);
+void client_erase(client_t* client);
+void clients_close_all_finished();
+void* client_thread (void* param);
+void error_exit(const char* why);
+void maxfd(int* maxfd, int fd);
+int set_nonblocking(int fd);

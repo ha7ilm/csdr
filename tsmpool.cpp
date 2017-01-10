@@ -1,18 +1,24 @@
 #include "tsmpool.h"
 
 tsmpool::tsmpool(size_t size, int num)
+	size(size), 
+	num(num) //number of buffers of (size) to alloc
 {
 	this->threads_cntr = 0;
-	this->size = size;
-	this->num = num; //number of buffers of (size) to alloc
 	this->ok = 1;
 	this->lowest_read_index = -1;
 	this->write_index = 0;
 	this->my_read_index = 0;
-    if (pthread_mutex_init(&this->mutex, NULL) != 0) this->ok=0;
+    if (pthread_mutex_init(&this->mutex, NULL) != 0) { this->ok = 0; return; }
+	for(int i=0; i<num; i++) 
+	{
+		void* newptr = (void*)new char[size];
+		if(!newptr) { this->ok = 0; return; }
+		buffers.push_back(newptr);
+	}
 }
 
-size_t tsmpool::get_size() { return this->size; }
+int tsmpool::is_ok() { return this->ok; }
 
 void* tsmpool::get_write_buffer()
 {

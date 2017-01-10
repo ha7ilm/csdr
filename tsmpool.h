@@ -15,19 +15,20 @@ typedef struct tsmthread_s
 class tsmpool
 {
 private:
-	size_t size;
-	int num;
 	vector<tsmthread_t*> threads;
 	vector<void*> buffers;
 	int threads_cntr;
 	pthread_mutex_t mutex;
-	int ok;
+	int ok; //tsmpool is expected to be included in C-style programs. 
+			//	If something fails in the constructor, it will be seen here instead of a try{}catch{}
 	int write_index; //it always points to the next buffer to be written
 	int lowest_read_index; //unused
 	int my_read_index; //it is used when tsmpool is used as a single writer - single reader circular buffer
 
 public:
-	size_t get_size();
+	const size_t size;
+	const int num;
+	int is_ok();
 	tsmpool(size_t size, int num);
 	void* get_write_buffer();
 	tsmthread_t* register_thread();
