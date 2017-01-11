@@ -4,6 +4,7 @@
 //The reader threads have lower priority than the writer thread (they can be left behind if the don't read fast enough).
 
 #include <vector>
+#include <pthread.h>
 
 using namespace std;
 

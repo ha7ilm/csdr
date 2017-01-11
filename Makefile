@@ -26,8 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-
 LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c 
 #SOURCES = csdr.c $(LIBSOURCES)
 cpufeature = $(if $(findstring $(1),$(shell cat /proc/cpuinfo)),$(2))
@@ -41,6 +39,8 @@ PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
 PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
 PARAMS_SO = -fpic  
 PARAMS_MISC = -Wno-unused-result
+#DEBUG_ON = 0 #debug is always on by now (anyway it could be compiled with `make DEBUG_ON=1`)
+#PARAMS_DEBUG = $(if $(DEBUG_ON),-g,)
 FFTW_PACKAGE = fftw-3.3.3
 
 .PHONY: clean-vect clean
@@ -56,20 +56,21 @@ csdr: csdr.c libcsdr.so
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
 ddcd: ddcd.cpp libcsdr.so ddcd.h
 	g++ $(PARAMS_LOOPVECT) $(PARAMS_SIMD) ddcd.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o ddcd
-nmux: nmux.cpp libcsdr.so nmux.h
-	g++ $(PARAMS_LOOPVECT) $(PARAMS_SIMD) nmux.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o nmux
+nmux: nmux.cpp libcsdr.so nmux.h tsmpool.cpp tsmpool.h
+	g++ $(PARAMS_LOOPVECT) $(PARAMS_SIMD) nmux.cpp tsmpool.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o nmux
 arm-cross: clean-vect
 	#note: this doesn't work since having added FFTW
 	arm-linux-gnueabihf-gcc -std=gnu99 -O3 -fshort-double -ffast-math -dumpbase dumpvect-arm -fdump-tree-vect-details -mfloat-abi=softfp -march=armv7-a -mtune=cortex-a9 -mfpu=neon -mvectorize-with-neon-quad -Wno-unused-result -Wformat=0 $(SOURCES) -lm -o ./csdr
 clean-vect:
 	rm -f dumpvect*.vect
 clean: clean-vect
-	rm -f libcsdr.so csdr ddcd
+	rm -f libcsdr.so csdr ddcd nmux
 install: all 
 	install -m 0755 libcsdr.so /usr/lib
 	install -m 0755 csdr /usr/bin
 	install -m 0755 csdr-fm /usr/bin
-	install -m 0755 ddcd /usr/bin
+	install -m 0755 nmux /usr/bin
+	-install -m 0755 ddcd /usr/bin
 	ldconfig
 uninstall:
 	rm /usr/lib/libcsdr.so /usr/bin/csdr /usr/bin/csdr-fm

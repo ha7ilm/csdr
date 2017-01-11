@@ -4,6 +4,9 @@
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -25,7 +28,7 @@ typedef struct client_s
 	int socket;
 	int error; //set to non-zero on error (data transfer failed)
 	pthread_t thread;
-    tsmthread_t tsmthread;
+    tsmthread_t* tsmthread;
 	client_status_t status;
     //the following members are there to give access to some global variables inside the thread:
     tsmpool* lpool; //local pool
@@ -37,7 +40,6 @@ typedef struct client_s
 void print_exit(const char* why);
 void sig_handler(int signo);
 void client_erase(client_t* client);
-void clients_close_all_finished();
 void* client_thread (void* param);
 void error_exit(const char* why);
 void maxfd(int* maxfd, int fd);

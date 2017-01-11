@@ -1,6 +1,6 @@
 #include "tsmpool.h"
 
-tsmpool::tsmpool(size_t size, int num)
+tsmpool::tsmpool(size_t size, int num) :
 	size(size), 
 	num(num) //number of buffers of (size) to alloc
 {
@@ -45,7 +45,7 @@ int tsmpool::remove_thread(tsmthread_t* thread)
 		if(threads[i] == thread)
 		{
 			delete threads[i];
-			threads.erase(i);
+			threads.erase(threads.begin()+i);
 			break;
 		}
 	pthread_mutex_unlock(&this->mutex);
