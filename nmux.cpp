@@ -181,12 +181,15 @@ int main(int argc, char* argv[])
 	{
 		if(NMUX_DEBUG) fprintf(stderr, "mainfor: selecting...");
 		//Let's wait until there is any new data to read, or any new connection!
-		select(highfd, &select_fds, NULL, NULL, NULL);
+		int select_num = select(highfd, &select_fds, NULL, NULL, NULL);
 		if(NMUX_DEBUG) fprintf(stderr, "selected.\n");
+
+		if(select_num == -1) error_exit("mainfor select() error");
 
 		//Is there a new client connection?
 		if( (new_socket = accept(listen_socket, (struct sockaddr*)&addr_cli, &addr_cli_len)) != -1)
 		{
+			select_num--;
 			if(NMUX_DEBUG) fprintf(stderr, "mainfor: accepted (socket = %d).\n", new_socket);
 			//Close all finished clients
 			for(int i=0;i<clients.size();i++)
@@ -221,6 +224,7 @@ int main(int argc, char* argv[])
 			}
 		}
 
+		if(!select_num) continue;
 		if(index_in_current_write_buffer >= bufsize)
 		{
 			if(NMUX_DEBUG) fprintf(stderr, "mainfor: gwbing...");
