@@ -27,6 +27,7 @@ void* tsmpool::get_write_buffer()
 	void* to_return = buffers[write_index];
 	write_index = index_next(write_index);
 	pthread_mutex_unlock(&this->mutex);
+	fprintf(stderr, "gwb: write_index = %d\n", write_index);
 	return to_return;
 }
 
@@ -58,9 +59,15 @@ void* tsmpool::get_read_buffer(tsmthread_t* thread)
 {
 	pthread_mutex_lock(&this->mutex);
 	int* actual_read_index = (thread==NULL) ? &my_read_index : &thread->read_index;
-	if(*actual_read_index==index_before(write_index)) return NULL;
+	if(*actual_read_index==index_before(write_index)) 
+	{
+		fprintf(stderr, "grb: fail,"
+			"read_index %d is just before write_index\n", *actual_read_index);
+		return NULL;
+	}
 	void* to_return = buffers[*actual_read_index];
 	*actual_read_index=index_next(*actual_read_index);
 	pthread_mutex_unlock(&this->mutex);
+	fprintf(stderr, "grb: read_index = %d\n", *actual_read_index);
 	return to_return;
 }
