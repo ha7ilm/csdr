@@ -7,12 +7,14 @@
 #include <pthread.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <poll.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include "tsmpool.h"
 
 #define MSG_START "nmux: "
+#define NMUX_DEBUG 1
 
 typedef enum client_status_e
 {
