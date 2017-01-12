@@ -232,22 +232,26 @@ int main(int argc, char* argv[])
 				//	client->wait_condition). 
 			index_in_current_write_buffer = 0;
 		}
-		if(NMUX_DEBUG) fprintf(stderr, "mainfor: reading...\n");
-		int retval = read(input_fd, current_write_buffer + index_in_current_write_buffer, bufsize - index_in_current_write_buffer);
-		if(NMUX_DEBUG) fprintf(stderr, "read %d\n", retval);
-		if(retval>0)
+		for(;;)
 		{
-			index_in_current_write_buffer += retval;
-		}
-		else if(retval==0)
-		{
-			//End of input stream, close clients and exit
-			print_exit(MSG_START "(main thread/for) end input stream, exiting.\n");
-		}
-		else if(retval==-1)
-		{
-			if(errno == EAGAIN) { if(NMUX_DEBUG) fprintf(stderr, "mainfor: read %d\n", retval); }
-			else error_exit(MSG_START "(main thread/for) error in read(), exiting.\n");
+			if(NMUX_DEBUG) fprintf(stderr, "mainfor: reading...\n");
+			int retval = read(input_fd, current_write_buffer + index_in_current_write_buffer, bufsize - index_in_current_write_buffer);
+			if(NMUX_DEBUG) fprintf(stderr, "read %d\n", retval);
+			if(retval>0)
+			{
+				index_in_current_write_buffer += retval;
+				break;
+			}
+			else if(retval==0)
+			{
+				//End of input stream, close clients and exit
+				print_exit(MSG_START "(main thread/for) end input stream, exiting.\n");
+			}
+			else if(retval==-1)
+			{
+				if(errno == EAGAIN) { if(NMUX_DEBUG) fprintf(stderr, "mainfor: read EAGAIN\n"); /* seems like select would block forever, so we just read again */ break; }
+				else error_exit(MSG_START "(main thread/for) error in read(), exiting.\n");
+			}
 		}
 	}
 }
