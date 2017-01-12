@@ -3,9 +3,13 @@
 //It implements a big circular buffer that one thread writes into, and multiple threads read from.
 //The reader threads have lower priority than the writer thread (they can be left behind if the don't read fast enough).
 
-#include <stdio.h>
 #include <vector>
 #include <pthread.h>
+
+#define TSM_DEBUG 1
+#if TSM_DEBUG == 1
+ #include <stdio.h>
+#endif
 
 using namespace std;
 

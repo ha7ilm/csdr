@@ -102,8 +102,8 @@ int main(int argc, char* argv[])
 
 	if(no_options) print_exit(help_text);
 	if(!host_port) print_exit(MSG_START "missing required command line argument, --port.\n");
-	if(bufsize<0) print_exit(MSG_START "invalid value for --bufsize (should be >0)\n");
-	if(bufcnt<0) print_exit(MSG_START "invalid value for --bufcnt (should be >0)\n");
+	if(bufsize=<0) print_exit(MSG_START "invalid value for --bufsize (should be >0)\n");
+	if(bufcnt=<0) print_exit(MSG_START "invalid value for --bufcnt (should be >0)\n");
 
 	//set signals
 	struct sigaction sa;
@@ -174,10 +174,10 @@ int main(int argc, char* argv[])
 
 	for(;;)
 	{
-		// if(NMUX_DEBUG) fprintf(stderr, "mainfor: selecting...");
+		if(NMUX_DEBUG) fprintf(stderr, "mainfor: selecting...");
 		//Let's wait until there is any new data to read, or any new connection!
 		select(highfd, &select_fds, NULL, NULL, NULL);
-		// if(NMUX_DEBUG) fprintf(stderr, "selected.\n");
+		if(NMUX_DEBUG) fprintf(stderr, "selected.\n");
 
 		//Is there a new client connection?
 		if( (new_socket = accept(listen_socket, (struct sockaddr*)&addr_cli, &addr_cli_len)) != -1)
@@ -221,16 +221,20 @@ int main(int argc, char* argv[])
 
 		if(index_in_current_write_buffer >= bufsize)
 		{
+			if(NMUX_DEBUG) fprintf(stderr, "mainfor: gwbing...");
 			current_write_buffer = (unsigned char*)pool->get_write_buffer();
+			if(NMUX_DEBUG) fprintf(stderr, "gwbed.\nmainfor: cond broadcasting...");
 			pthread_cond_broadcast(wait_condition); 
+			if(NMUX_DEBUG) fprintf(stderr, "cond broadcasted.\n");
 				//Shouldn't we do it after we put data in?
 				//	No, on get_write_buffer() actually the previous buffer is getting available 
 				//	for read for threads that wait for new data (wait on pthead mutex 
 				//	client->wait_condition). 
 			index_in_current_write_buffer = 0;
 		}
+		if(NMUX_DEBUG) fprintf(stderr, "mainfor: reading...\n");
 		int retval = read(input_fd, current_write_buffer + index_in_current_write_buffer, bufsize - index_in_current_write_buffer);
-		// if(NMUX_DEBUG) fprintf(stderr, "mainfor: read %d\n", retval);
+		if(NMUX_DEBUG) fprintf(stderr, "read %d\n", retval);
 		if(retval>0)
 		{
 			index_in_current_write_buffer += retval;
@@ -269,7 +273,7 @@ void* client_thread (void* param)
 	pollfds[0].fd = this_client->socket;
 	pollfds[0].events = POLLOUT;
 	pollfds[0].revents = 0;
-	if(NMUX_DEBUG) fprintf(stderr, "done.\n");
+	if(NMUX_DEBUG) fprintf(stderr, "client poll inited.\n");
 
 	//Set this_client->socket to non-blocking
 	if(set_nonblocking(this_client->socket))
@@ -286,9 +290,10 @@ void* client_thread (void* param)
 		//	(Wait for the server process to wake me up.)
 		while(!pool_read_buffer || client_buffer_index >= lpool->size)
 		{
-			if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: cond_waiting for more data\n", (unsigned)param);
+			if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: trying to grb\n", (unsigned)param);
 			pool_read_buffer = (char*)lpool->get_read_buffer(this_client->tsmthread);
 			if(pool_read_buffer) { client_buffer_index = 0; break; }
+			if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: cond_waiting for more data\n", (unsigned)param);
 			pthread_mutex_lock(&this_client->wait_mutex);
 			this_client->sleeping = 1;
 			pthread_cond_wait(this_client->wait_condition, &this_client->wait_mutex);
@@ -297,14 +302,14 @@ void* client_thread (void* param)
 		//Wait for the socket to be available for write.
 		if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: polling for socket write...", (unsigned)param);
 		int ret = poll(pollfds, 1, -1);
-		if(NMUX_DEBUG) fprintf(stderr, "done.\n");
+		if(NMUX_DEBUG) fprintf(stderr, "client polled for socket write.\n");
 		if(ret == 0) continue;
 		else if (ret == -1) { client_goto_source = 1; goto client_thread_exit; }
 
 		//Read data from global tsmpool and write it to client socket
 		if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: sending...", (unsigned)param);
 		ret = send(this_client->socket, pool_read_buffer + client_buffer_index, lpool->size - client_buffer_index, 0);
-		if(NMUX_DEBUG) fprintf(stderr, "done.\n");
+		if(NMUX_DEBUG) fprintf(stderr, "client sent.\n");
 		if(ret == -1) 
 		{
 			switch(errno)
