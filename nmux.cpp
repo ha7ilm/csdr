@@ -47,6 +47,9 @@ char** global_argv;
 int global_argc;
 tsmpool* pool;
 
+pthread_cond_t wait_condition;
+pthread_mutex_t wait_mutex;
+
 void sig_handler(int signo)
 {
 	fprintf(stderr, MSG_START "signal %d caught, exiting...\n", signo);
@@ -168,9 +171,11 @@ int main(int argc, char* argv[])
 	//Create wait condition: client threads waiting for input data from the main thread will be
 	//	waiting on this condition. They will be woken up with pthread_cond_broadcast() if new
 	//	data arrives.
-	pthread_cond_t* wait_condition = new pthread_cond_t; 
-	if(pthread_cond_init(wait_condition, NULL)) 
+	if(pthread_cond_init(&wait_condition, NULL)) 
 		print_exit(MSG_START "pthread_cond_init failed"); //cond_attrs is ignored by Linux
+	
+	if(pthread_mutex_init(&wait_mutex, NULL))
+		print_exit(MSG_START "pthread_mutex_t failed"); //cond_attrs is ignored by Linux
 
 	for(;;)
 	{
@@ -202,8 +207,6 @@ int main(int argc, char* argv[])
 			new_client->status = CS_CREATED;
 			new_client->tsmthread = pool->register_thread();
 			new_client->lpool = pool;
-			pthread_mutex_init(&new_client->wait_mutex, NULL);
-			new_client->wait_condition = wait_condition;
 			new_client->sleeping = 0;
 			if(pthread_create(&new_client->thread, NULL, client_thread, (void*)new_client)==0)
 			{
@@ -214,7 +217,6 @@ int main(int argc, char* argv[])
 			{
 				fprintf(stderr, MSG_START "pthread_create() failed.\n");
 				pool->remove_thread(new_client->tsmthread);
-				pthread_mutex_destroy(&new_client->wait_mutex);
 				delete new_client;
 			}
 		}
@@ -224,12 +226,12 @@ int main(int argc, char* argv[])
 			if(NMUX_DEBUG) fprintf(stderr, "mainfor: gwbing...");
 			current_write_buffer = (unsigned char*)pool->get_write_buffer();
 			if(NMUX_DEBUG) fprintf(stderr, "gwbed.\nmainfor: cond broadcasting...");
-			pthread_cond_broadcast(wait_condition); 
+			pthread_cond_broadcast(&wait_condition); 
 			if(NMUX_DEBUG) fprintf(stderr, "cond broadcasted.\n");
 				//Shouldn't we do it after we put data in?
 				//	No, on get_write_buffer() actually the previous buffer is getting available 
-				//	for read for threads that wait for new data (wait on pthead mutex 
-				//	client->wait_condition). 
+				//	for read for threads that wait for new data (wait on global pthead mutex 
+				//	wait_condition). 
 			index_in_current_write_buffer = 0;
 		}
 		for(;;)
@@ -258,8 +260,6 @@ int main(int argc, char* argv[])
 
 void client_erase(client_t* client)
 {
-	pthread_mutex_destroy(&client->wait_mutex);
-	pthread_cond_destroy(client->wait_condition);
 	pool->remove_thread(client->tsmthread);
 }
 
@@ -298,9 +298,9 @@ void* client_thread (void* param)
 			pool_read_buffer = (char*)lpool->get_read_buffer(this_client->tsmthread);
 			if(pool_read_buffer) { client_buffer_index = 0; break; }
 			if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: cond_waiting for more data\n", (unsigned)param);
-			pthread_mutex_lock(&this_client->wait_mutex);
+			pthread_mutex_lock(&wait_mutex);
 			this_client->sleeping = 1;
-			pthread_cond_wait(this_client->wait_condition, &this_client->wait_mutex);
+			pthread_cond_wait(&wait_condition, &wait_mutex);
 		}
 
 		//Wait for the socket to be available for write.

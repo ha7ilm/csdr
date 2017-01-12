@@ -35,8 +35,6 @@ typedef struct client_s
     //the following members are there to give access to some global variables inside the thread:
     tsmpool* lpool; 
     int sleeping;
-    pthread_cond_t* wait_condition;
-    pthread_mutex_t wait_mutex;
 } client_t;
 
 void print_exit(const char* why);
