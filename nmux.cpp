@@ -102,8 +102,8 @@ int main(int argc, char* argv[])
 
 	if(no_options) print_exit(help_text);
 	if(!host_port) print_exit(MSG_START "missing required command line argument, --port.\n");
-	if(bufsize=<0) print_exit(MSG_START "invalid value for --bufsize (should be >0)\n");
-	if(bufcnt=<0) print_exit(MSG_START "invalid value for --bufcnt (should be >0)\n");
+	if(bufsize<=0) print_exit(MSG_START "invalid value for --bufsize (should be >0)\n");
+	if(bufcnt<=0) print_exit(MSG_START "invalid value for --bufcnt (should be >0)\n");
 
 	//set signals
 	struct sigaction sa;
