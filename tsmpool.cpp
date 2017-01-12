@@ -8,7 +8,7 @@ tsmpool::tsmpool(size_t size, int num) :
 	this->ok = 1;
 	this->lowest_read_index = -1;
 	this->write_index = 0;
-	this->my_read_index = 0;
+	this->my_read_index = index_before(0);
     if (pthread_mutex_init(&this->mutex, NULL) != 0) { this->ok = 0; return; }
 	for(int i=0; i<num; i++) 
 	{
@@ -23,15 +23,18 @@ int tsmpool::is_ok() { return this->ok; }
 void* tsmpool::get_write_buffer()
 {
 	//if(write_index==index_before(lowest_read_index)) return NULL;
+	pthread_mutex_lock(&this->mutex);
 	void* to_return = buffers[write_index];
-	write_index=index_next(write_index);
+	write_index = index_next(write_index);
+	pthread_mutex_unlock(&this->mutex);
+	return to_return;
 }
 
 tsmthread_t* tsmpool::register_thread()
 {
 	if(!ok) return NULL;
 	pthread_mutex_lock(&this->mutex);
-	tsmthread_t* thread = new tsmthread_t;
+	tsmthread_t* thread = new tsmthread_t();
 	thread->read_index = index_before(write_index);
 	threads.push_back(thread);
 	pthread_mutex_unlock(&this->mutex);
@@ -53,8 +56,11 @@ int tsmpool::remove_thread(tsmthread_t* thread)
 
 void* tsmpool::get_read_buffer(tsmthread_t* thread)
 {
+	pthread_mutex_lock(&this->mutex);
 	int* actual_read_index = (thread==NULL) ? &my_read_index : &thread->read_index;
 	if(*actual_read_index==index_before(write_index)) return NULL;
 	void* to_return = buffers[*actual_read_index];
 	*actual_read_index=index_next(*actual_read_index);
+	pthread_mutex_unlock(&this->mutex);
+	return to_return;
 }

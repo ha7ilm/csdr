@@ -169,22 +169,26 @@ int main(int argc, char* argv[])
 	//	waiting on this condition. They will be woken up with pthread_cond_broadcast() if new
 	//	data arrives.
 	pthread_cond_t* wait_condition = new pthread_cond_t; 
-	if(!pthread_cond_init(wait_condition, NULL)) 
+	if(pthread_cond_init(wait_condition, NULL)) 
 		print_exit(MSG_START "(main thread) pthread_cond_init failed"); //cond_attrs is ignored by Linux
 
 	for(;;)
 	{
+		fprintf(stderr, "mainfor: selecting...");
 		//Let's wait until there is any new data to read, or any new connection!
 		select(highfd, &select_fds, NULL, NULL, NULL);
+		fprintf(stderr, "selected.\n");
 
 		//Is there a new client connection?
 		if( (new_socket = accept(listen_socket, (struct sockaddr*)&addr_cli, &addr_cli_len)) != -1)
 		{
+			fprintf(stderr, "mainfor: accepted.\n");
 			//Close all finished clients
 			for(int i=0;i<clients.size();i++)
 			{
 				if(clients[i]->status == CS_THREAD_FINISHED)
 				{
+					fprintf(stderr, "mainfor: client removed: %d\n", i);
 					client_erase(clients[i]);
 					clients.erase(clients.begin()+i);
 				}
@@ -193,7 +197,7 @@ int main(int argc, char* argv[])
 			//We're the parent, let's create a new client and initialize it
 			client_t* new_client = new client_t;
 			new_client->error = 0;
-			memcpy(&new_client->addr, &addr_cli, sizeof(new_client->addr));
+			memcpy(&new_client->addr, &addr_cli, sizeof(struct sockaddr_in));
 			new_client->socket = new_socket;
 			new_client->status = CS_CREATED;
 			new_client->tsmthread = pool->register_thread();
@@ -201,7 +205,7 @@ int main(int argc, char* argv[])
 			pthread_mutex_init(&new_client->wait_mutex, NULL);
 			new_client->wait_condition = wait_condition;
 			new_client->sleeping = 0;
-			if(pthread_create(&new_client->thread, NULL, client_thread , (void*)&new_client)<0)
+			if(pthread_create(&new_client->thread, NULL, client_thread , (void*)&new_client)==0)
 			{
 				clients.push_back(new_client);
 				fprintf(stderr, MSG_START "(main thread) pthread_create() done, clients now: %d\n", clients.size());
@@ -209,6 +213,9 @@ int main(int argc, char* argv[])
 			else
 			{
 				fprintf(stderr, MSG_START "(main thread) pthread_create() failed.\n");
+				pool->remove_thread(new_client->tsmthread);
+				pthread_mutex_destroy(&new_client->wait_mutex);
+				delete new_client;
 			}
 		}
 
@@ -223,6 +230,7 @@ int main(int argc, char* argv[])
 			index_in_current_write_buffer = 0;
 		}
 		int retval = read(input_fd, current_write_buffer + index_in_current_write_buffer, bufsize - index_in_current_write_buffer);
+		fprintf(stderr, "mainfor: read %d\n", retval);
 		if(retval>0)
 		{
 			index_in_current_write_buffer += retval;
@@ -248,16 +256,22 @@ void client_erase(client_t* client)
 
 void* client_thread (void* param)
 {
+	fprintf(stderr, "client 0x%x: started!\n", (unsigned)param);
 	client_t* this_client = (client_t*)param;
 	this_client->status = CS_THREAD_RUNNING;
 	int retval;
 	tsmpool* lpool = this_client->lpool;
 
+	fprintf(stderr, "client 0x%x: make maxfd... ", (unsigned)param);
 	fd_set client_select_fds;
+	fprintf(stderr, "1");
 	int client_highfd = 0;
 	FD_ZERO(&client_select_fds);
+	fprintf(stderr, "2 %d <= %d  ", this_client->socket, FD_SETSIZE);
 	FD_SET(this_client->socket, &client_select_fds);
+	fprintf(stderr, "3");
 	maxfd(&client_highfd, this_client->socket);
+	fprintf(stderr, "done.\n");
 
 	//Set client->socket to non-blocking
 	if(set_nonblocking(this_client->socket))
@@ -271,8 +285,9 @@ void* client_thread (void* param)
 		//Wait until there is any data to send.
 		//  If I haven't sent all the data from my last buffer, don't wait.
 		//	(Wait for the server process to wake me up.)
-		while(!pool_read_buffer || client_buffer_index == lpool->size)
+		while(!pool_read_buffer || client_buffer_index >= lpool->size)
 		{
+			fprintf(stderr, "client 0x%x: waiting\n", (unsigned)param);
 			char* pool_read_buffer = (char*)lpool->get_read_buffer(this_client->tsmthread);
 			pthread_mutex_lock(&this_client->wait_mutex);
 			this_client->sleeping = 1;
@@ -280,10 +295,14 @@ void* client_thread (void* param)
 		}
 
 		//Wait for the socket to be available for write.
+		fprintf(stderr, "client 0x%x: selecting...", (unsigned)param);
 		select(client_highfd, NULL, &client_select_fds, NULL, NULL);
+		fprintf(stderr, "done.\n");
 
 		//Read data from global tsmpool and write it to client socket
+		fprintf(stderr, "client 0x%x: sending...", (unsigned)param);
 		int ret = send(this_client->socket, pool_read_buffer + client_buffer_index, lpool->size - client_buffer_index, 0);
+		fprintf(stderr, "done.\n");
 		if(ret == -1) 
 		{
 			switch(errno)

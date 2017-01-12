@@ -35,6 +35,6 @@ public:
 	tsmthread_t* register_thread();
 	int remove_thread(tsmthread_t* thread);
 	void* get_read_buffer(tsmthread_t* thread);
-	int index_next(int index) { return (index+1==size)?0:index; }
-	int index_before(int index) { return (index-1<0)?size-1:index; }
+	int index_next(int index) { return (index+1==num)?0:index+1; }
+	int index_before(int index) { return (index-1<0)?num-1:index-1; }
 };
