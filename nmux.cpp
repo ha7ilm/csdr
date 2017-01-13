@@ -231,7 +231,9 @@ int main(int argc, char* argv[])
 				if(NMUX_DEBUG) fprintf(stderr, "mainfor: gwbing...");
 				current_write_buffer = (unsigned char*)pool->get_write_buffer();
 				if(NMUX_DEBUG) fprintf(stderr, "gwbed.\nmainfor: cond broadcasting...");
+				pthread_mutex_lock(&wait_mutex);
 				pthread_cond_broadcast(&wait_condition); 
+				pthread_mutex_unlock(&wait_mutex);
 				if(NMUX_DEBUG) fprintf(stderr, "cond broadcasted.\n");
 					//Shouldn't we do it after we put data in?
 					//	No, on get_write_buffer() actually the previous buffer is getting available 
@@ -304,6 +306,7 @@ void* client_thread (void* param)
 			pthread_mutex_lock(&wait_mutex);
 			this_client->sleeping = 1;
 			pthread_cond_wait(&wait_condition, &wait_mutex);
+			pthread_mutex_unlock(&wait_mutex);
 		}
 
 		//Wait for the socket to be available for write.
