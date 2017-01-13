@@ -189,7 +189,6 @@ int main(int argc, char* argv[])
 		//Is there a new client connection?
 		if( FD_ISSET(listen_socket, &select_fds) && ((new_socket = accept(listen_socket, (struct sockaddr*)&addr_cli, &addr_cli_len)) != -1) )
 		{
-			select_ret--;
 			if(NMUX_DEBUG) fprintf(stderr, "mainfor: accepted (socket = %d).\n", new_socket);
 			//Close all finished clients
 			for(int i=0;i<clients.size();i++)
@@ -197,9 +196,17 @@ int main(int argc, char* argv[])
 				if(clients[i]->status == CS_THREAD_FINISHED)
 				{
 					if(NMUX_DEBUG) fprintf(stderr, "mainfor: client removed: %d\n", i);
-					client_erase(clients[i]);
+					//client destructor
+					pool->remove_thread(clients[i]->tsmthread);
 					clients.erase(clients.begin()+i);
+					i--;
 				}
+			}
+			if(NMUX_DEBUG) 
+			{
+				fprintf(stderr, "\x1b[33mmainfor: clients now: ");
+				for(int i=0;i<clients.size();i++) fprintf(stderr, "0x%x ", (unsigned)clients[i]);
+				fprintf(stderr, "\x1b[0m\n");
 			}
 
 			//We're the parent, let's create a new client and initialize it
@@ -263,11 +270,6 @@ int main(int argc, char* argv[])
 	}
 }
 
-void client_erase(client_t* client)
-{
-	pool->remove_thread(client->tsmthread);
-}
-
 void* client_thread (void* param)
 {
 	fprintf(stderr, "client 0x%x: started!\n", (unsigned)param);
@@ -318,7 +320,7 @@ void* client_thread (void* param)
 
 		//Read data from global tsmpool and write it to client socket
 		if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: sending...", (unsigned)param);
-		ret = send(this_client->socket, pool_read_buffer + client_buffer_index, lpool->size - client_buffer_index, 0);
+		ret = send(this_client->socket, pool_read_buffer + client_buffer_index, lpool->size - client_buffer_index, MSG_NOSIGNAL);
 		if(NMUX_DEBUG) fprintf(stderr, "client sent.\n");
 		if(ret == -1) 
 		{
@@ -332,8 +334,8 @@ void* client_thread (void* param)
 	}
 
 client_thread_exit:
-	this_client->status = CS_THREAD_FINISHED;
 	fprintf(stderr, "client 0x%x: CS_THREAD_FINISHED, client_goto_source = %d, errno = %d", (unsigned)param, client_goto_source, errno);
+	this_client->status = CS_THREAD_FINISHED;
 	pthread_exit(NULL);
 	return NULL;
 }

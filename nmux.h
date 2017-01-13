@@ -39,7 +39,6 @@ typedef struct client_s
 
 void print_exit(const char* why);
 void sig_handler(int signo);
-void client_erase(client_t* client);
 void* client_thread (void* param);
 void error_exit(const char* why);
 void maxfd(int* maxfd, int fd);
