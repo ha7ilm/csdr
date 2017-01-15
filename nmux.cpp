@@ -189,6 +189,12 @@ int main(int argc, char* argv[])
 		//Is there a new client connection?
 		if( FD_ISSET(listen_socket, &select_fds) && ((new_socket = accept(listen_socket, (struct sockaddr*)&addr_cli, &addr_cli_len)) != -1) )
 		{
+			if(NMUX_DEBUG) 
+			{
+				fprintf(stderr, "\x1b[1m\x1b[33mmainfor: clients before closing: ");
+				for(int i=0;i<clients.size();i++) fprintf(stderr, "0x%x ", (unsigned)clients[i]);
+				fprintf(stderr, "\x1b[0m\n");
+			}
 			if(NMUX_DEBUG) fprintf(stderr, "mainfor: accepted (socket = %d).\n", new_socket);
 			//Close all finished clients
 			for(int i=0;i<clients.size();i++)
@@ -204,7 +210,7 @@ int main(int argc, char* argv[])
 			}
 			if(NMUX_DEBUG) 
 			{
-				fprintf(stderr, "\x1b[33mmainfor: clients now: ");
+				fprintf(stderr, "\x1b[1m\x1b[33mmainfor: clients after closing: ");
 				for(int i=0;i<clients.size();i++) fprintf(stderr, "0x%x ", (unsigned)clients[i]);
 				fprintf(stderr, "\x1b[0m\n");
 			}
