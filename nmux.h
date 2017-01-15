@@ -14,7 +14,7 @@
 #include "tsmpool.h"
 
 #define MSG_START "nmux: "
-#define NMUX_DEBUG 1
+#define NMUX_DEBUG 0
 
 typedef enum client_status_e
 {

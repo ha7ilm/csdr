@@ -1917,8 +1917,9 @@ int main(int argc, char *argv[])
 	{
 		return 0;
 	}
-	
-	return badsyntax("function name given in argument 1 does not exist. Possible causes:\n- You mistyped the commandline.\n- You need to update csdr to a newer version (if available).");
+
+	fprintf(stderr,"csdr: function name given in argument 1 (%s) does not exist. Possible causes:\n- You mistyped the commandline.\n- You need to update csdr to a newer version (if available).", argv[1]);
+	return -1;
 
 }
 
