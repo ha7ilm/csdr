@@ -70,7 +70,7 @@ install: all
 	install -m 0755 csdr /usr/bin
 	install -m 0755 csdr-fm /usr/bin
 	install -m 0755 nmux /usr/bin
-	-install -m 0755 ddcd /usr/bin
+	#-install -m 0755 ddcd /usr/bin
 	ldconfig
 uninstall:
 	rm /usr/lib/libcsdr.so /usr/bin/csdr /usr/bin/csdr-fm
