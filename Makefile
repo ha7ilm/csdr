@@ -29,7 +29,7 @@
 LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c 
 #SOURCES = csdr.c $(LIBSOURCES)
 cpufeature = $(if $(findstring $(1),$(shell cat /proc/cpuinfo)),$(2))
-PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4,-msse4) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2) -mfpmath=sse 
+PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4a,-msse4a) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2 -msse4) -mfpmath=sse 
 PARAMS_NEON = -mfloat-abi=hard -march=armv7-a -mtune=cortex-a8 -mfpu=neon -mvectorize-with-neon-quad -funsafe-math-optimizations -Wformat=0 -DNEON_OPTS
 #tnx Jan Szumiec for the Raspberry Pi support
 PARAMS_RASPI = -mfloat-abi=hard -mcpu=arm1176jzf-s -mfpu=vfp -funsafe-math-optimizations -Wformat=0
@@ -92,7 +92,7 @@ emcc-get-deps:
 	emmake make; \
 	emmake make install
 emcc:
-	emcc -O3 -Isdr.js/$(FFTW_PACKAGE)/api -Lsdr.js/$(FFTW_PACKAGE)/emscripten-lib -o sdr.js/sdrjs-compiled.js fft_fftw.c libcsdr_wrapper.c -DLIBCSDR_GPL -DUSE_IMA_ADPCM -DUSE_FFTW -lfftw3f -s EXPORTED_FUNCTIONS="`python sdr.js/exported_functions.py`"
+	emcc -O3 -Isdr.js/$(FFTW_PACKAGE)/api -Lsdr.js/$(FFTW_PACKAGE)/emscripten-lib -o sdr.js/sdrjs-compiled.js fft_fftw.c libcsdr_wrapper.c -s TOTAL_MEMORY=67108864 -DLIBCSDR_GPL -DUSE_IMA_ADPCM -DUSE_FFTW -lfftw3f -s EXPORTED_FUNCTIONS="`python sdr.js/exported_functions.py`"
 	cat sdr.js/sdrjs-header.js sdr.js/sdrjs-compiled.js sdr.js/sdrjs-footer.js > sdr.js/sdr.js
 emcc-beautify:
 	bash -c 'type js-beautify >/dev/null 2>&1; if [ $$? -eq 0 ]; then js-beautify sdr.js/sdr.js >sdr.js/sdr.js.beautiful; mv sdr.js/sdr.js.beautiful sdr.js/sdr.js; fi'

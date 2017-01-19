@@ -1,5 +1,5 @@
 /*
-This software is part of libcsdr, a set of simple DSP routines for 
+This software is part of libcsdr, a set of simple DSP routines for
 Software Defined Radio.
 
 Copyright (c) 2014, Andras Retzler <randras@sdr.hu>
@@ -32,14 +32,14 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #define MIN_M(x,y) (((x)>(y))?(y):(x))
 
 /*
-   _____                      _                                                 
-  / ____|                    | |                                                
- | |     ___  _ __ ___  _ __ | | _____  __ 
- | |    / _ \| '_ ` _ \| '_ \| |/ _ \ \/ / 
- | |___| (_) | | | | | | |_) | |  __/>  <  
-  \_____\___/|_| |_| |_| .__/|_|\___/_/\_\ 
-                       | |                  
-                       |_|                  
+   _____                      _
+  / ____|                    | |
+ | |     ___  _ __ ___  _ __ | | _____  __
+ | |    / _ \| '_ ` _ \| '_ \| |/ _ \ \/ /
+ | |___| (_) | | | | | | |_) | |  __/>  <
+  \_____\___/|_| |_| |_| .__/|_|\___/_/\_\
+                       | |
+                       |_|
 */
 
 typedef struct complexf_s { float i; float q; } complexf;
@@ -66,7 +66,7 @@ typedef struct complexf_s { float i; float q; } complexf;
 #define TIME_TAKEN(start,end) ((end.tv_sec-start.tv_sec)+(end.tv_nsec-start.tv_nsec)/1e9)
 
 //window
-typedef enum window_s 
+typedef enum window_s
 {
 	WINDOW_BOXCAR, WINDOW_BLACKMAN, WINDOW_HAMMING
 } window_t;
@@ -115,7 +115,7 @@ float fastdcblock_ff(float* input, float* output, int input_size, float last_dc_
 
 typedef struct fastagc_ff_s
 {
-	float* buffer_1; 
+	float* buffer_1;
 	float* buffer_2;
 	float* buffer_input; //it is the actual input buffer to fill
 	float peak_1;
@@ -137,9 +137,13 @@ typedef struct rational_resampler_ff_s
 rational_resampler_ff_t rational_resampler_ff(float *input, float *output, int input_size, int interpolation, int decimation, float *taps, int taps_length, int last_taps_delay);
 void rational_resampler_get_lowpass_f(float* output, int output_size, int interpolation, int decimation, window_t window);
 
+float *precalculate_window(int size, window_t window);
 void apply_window_c(complexf* input, complexf* output, int size, window_t window);
+void apply_precalculated_window_c(complexf* input, complexf* output, int size, float *windowt);
 void apply_window_f(float* input, float* output, int size, window_t window);
 void logpower_cf(complexf* input, float* output, int size, float add_db);
+void accumulate_power_cf(complexf* input, float* output, int size);
+void log_ff(float* input, float* output, int size, float add_db);
 
 typedef struct fractional_decimator_ff_s
 {
@@ -152,7 +156,7 @@ fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, i
 typedef struct shift_table_data_s
 {
 	float* table;
-	int table_size;	
+	int table_size;
 } shift_table_data_t;
 void shift_table_deinit(shift_table_data_t table_data);
 shift_table_data_t shift_table_init(int table_size);
@@ -182,6 +186,8 @@ int log2n(int x);
 int next_pow2(int x);
 void apply_fir_fft_cc(FFT_PLAN_T* plan, FFT_PLAN_T* plan_inverse, complexf* taps_fft, complexf* last_overlap, int overlap_size);
 void gain_ff(float* input, float* output, int input_size, float gain);
+float get_power_f(float* input, int input_size, int decimation);
+float get_power_c(complexf* input, int input_size, int decimation);
 
 void add_dcoffset_cc(complexf* input, complexf* output, int input_size);
 float fmmod_fc(float* input, complexf* output, int input_size, float last_phase);
@@ -191,7 +197,12 @@ void convert_u8_f(unsigned char* input, float* output, int input_size);
 void convert_f_u8(float* input, unsigned char* output, int input_size);
 void convert_s8_f(signed char* input, float* output, int input_size);
 void convert_f_s8(float* input, signed char* output, int input_size);
+void convert_f_s16(float* input, short* output, int input_size);
+void convert_s16_f(short* input, float* output, int input_size);
 void convert_f_i16(float* input, short* output, int input_size);
 void convert_i16_f(short* input, float* output, int input_size);
+void convert_f_s24(float* input, unsigned char* output, int input_size, int bigendian);
+void convert_s24_f(unsigned char* input, float* output, int input_size, int bigendian);
+
 
 int is_nan(float f);

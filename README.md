@@ -12,13 +12,21 @@ Most of the code is available under the permissive BSD license, with some option
 
 How to compile
 --------------
-The project was only tested on Linux. It has the following dependencies: `libfftw3-dev`
 
 	make
 	sudo make install
 
+The project was only tested on Linux. It has the following dependencies: `libfftw3-dev`
+
 If you compile on ARM, please edit the Makefile and tailor `PARAMS_NEON` for your CPU.
+
 To run the examples, you will also need <a href="http://sdr.osmocom.org/trac/wiki/rtl-sdr">rtl_sdr</a> from Osmocom, and the following packages (at least on Debian): `mplayer octave gnuplot gnuplot-x11`
+
+If you compile *fftw3* from sources for use with *libcsdr*, you need to configure it with 32-bit float support enabled: 
+
+	./configure --enable-float
+
+(This is for *fftw3*, not *libcsdr*. You do not need to run the configure script before compiling *libcsdr*.)
 
 Credits
 -------
@@ -31,19 +39,19 @@ Usage by example
 
 ### Demodulate WFM
 
-	rtl_sdr -s 240000 -f 89500000 -g 20 - | csdr convert_u8_f | csdr fmdemod_quadri_cf | csdr fractional_decimator_ff 5 | csdr deemphasis_wfm_ff 48000 50e-6 | csdr convert_f_i16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
+	rtl_sdr -s 240000 -f 89500000 -g 20 - | csdr convert_u8_f | csdr fmdemod_quadri_cf | csdr fractional_decimator_ff 5 | csdr deemphasis_wfm_ff 48000 50e-6 | csdr convert_f_s16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
 
 - Baseband I/Q signal is coming from an RTL-SDR USB dongle, with a center frequency of `-f 104300000` Hz, a sampling rate of `-s 240000` samples per second.
 - The `rtl_sdr` tool outputs an unsigned 8-bit I/Q signal (one byte of I sample and one byte of Q coming after each other), but `libcsdr` DSP routines internally use floating point data type, so we convert the data stream of `unsigned char` to `float` by `csdr convert_u8_f`.
 - We want to listen one radio station at the frequency `-f 89500000` Hz (89.5 MHz).
-- No other radio station is within the sampled bandwidth, so we send the signal directly to the demodulator. (This is an easy, but not perfect solution as the anti-aliasing filter at RTL-SDR DDC is too short.) 
+- No other radio station is within the sampled bandwidth, so we send the signal directly to the demodulator. (This is an easy, but not perfect solution as the anti-aliasing filter at RTL-SDR DDC is too short.)
 - After FM demodulation we decimate the signal by a factor of 5 to match the rate of the audio card (240000 / 5 = 48000).
 - A de-emphasis filter is used, because pre-emphasis is applied at the transmitter to compensate noise at higher frequencies. The time constant for de-emphasis for FM broadcasting in Europe is 50 microseconds (hence the `50e-6`).
 - Also, `mplayer` cannot play floating point audio, so we convert our signal to a stream of 16-bit integers.  
 
 ### Demodulate WFM: advanced
 
-	rtl_sdr -s 2400000 -f 89300000 -g 20 - | csdr convert_u8_f | csdr shift_addition_cc -0.085 | csdr fir_decimate_cc 10 0.05 HAMMING | csdr fmdemod_quadri_cf | csdr fractional_decimator_ff 5 | csdr deemphasis_wfm_ff 48000 50e-6 | csdr convert_f_i16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
+	rtl_sdr -s 2400000 -f 89300000 -g 20 - | csdr convert_u8_f | csdr shift_addition_cc -0.085 | csdr fir_decimate_cc 10 0.05 HAMMING | csdr fmdemod_quadri_cf | csdr fractional_decimator_ff 5 | csdr deemphasis_wfm_ff 48000 50e-6 | csdr convert_f_s16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
 
 - We want to listen to one radio station, but input signal contains multiple stations, and its bandwidth is too large for sending it directly to the FM demodulator.
 - We shift the signal to the center frequency of the station we want to receive: `-0.085*2400000 = -204000`, so basically we will listen to the radio station centered at 89504000 Hz.
@@ -58,13 +66,13 @@ Sample rates look like this:
 
 *Note:* there is an example shell script that does this for you (without the unnecessary shift operation). If you just want to listen to FM radio, type:
 
-	csdr-fm 89.5 20 
+	csdr-fm 89.5 20
 
 The first parameter is the frequency in MHz, and the second optional parameter is the RTL-SDR tuner gain in dB.
 
 ### Demodulate NFM
-	
-	rtl_sdr -s 2400000 -f 145000000 -g 20 - | csdr convert_u8_f | csdr shift_addition_cc `python -c "print float(145000000-145350000)/2400000"` | csdr fir_decimate_cc 50 0.005 HAMMING | csdr fmdemod_quadri_cf | csdr limit_ff | csdr deemphasis_nfm_ff 48000 | csdr fastagc_ff | csdr convert_f_i16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
+
+	rtl_sdr -s 2400000 -f 145000000 -g 20 - | csdr convert_u8_f | csdr shift_addition_cc `python -c "print float(145000000-145350000)/2400000"` | csdr fir_decimate_cc 50 0.005 HAMMING | csdr fmdemod_quadri_cf | csdr limit_ff | csdr deemphasis_nfm_ff 48000 | csdr fastagc_ff | csdr convert_f_s16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
 
 - Note that the decimation factor is higher (we want to select a ~25 kHz channel).
 - Also there is a python hack to calculate the relative shift offset. The real receiver frequency is `145350000` Hz.
@@ -72,9 +80,9 @@ The first parameter is the frequency in MHz, and the second optional parameter i
 
 ### Demodulate AM
 
-	rtl_sdr -s 2400000 -f 145000000 -g 20 - | csdr convert_u8_f | csdr shift_addition_cc `python -c "print float(145000000-144400000)/2400000"` | csdr fir_decimate_cc 50 0.005 HAMMING | csdr amdemod_cf | csdr fastdcblock_ff | csdr agc_ff | csdr limit_ff | csdr convert_f_i16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
+	rtl_sdr -s 2400000 -f 145000000 -g 20 - | csdr convert_u8_f | csdr shift_addition_cc `python -c "print float(145000000-144400000)/2400000"` | csdr fir_decimate_cc 50 0.005 HAMMING | csdr amdemod_cf | csdr fastdcblock_ff | csdr agc_ff | csdr limit_ff | csdr convert_f_s16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
 
-- `amdemod_cf` is used as demodulator. 
+- `amdemod_cf` is used as demodulator.
 - `agc_ff` should be used for AM and SSB.
 
 ### Design FIR band-pass filter (with complex taps)
@@ -87,16 +95,16 @@ The first parameter is the frequency in MHz, and the second optional parameter i
 
 ### Demodulate SSB
 
-	rtl_sdr -s 2400000 -f 145000000 -g 20 - | csdr convert_u8_f | csdr shift_addition_cc `python -c "print float(145000000-144400000)/2400000"` | csdr fir_decimate_cc 50 0.005 HAMMING | csdr bandpass_fir_fft_cc 0 0.1 0.05 | csdr realpart_cf | csdr agc_ff | csdr limit_ff | csdr convert_f_i16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
+	rtl_sdr -s 2400000 -f 145000000 -g 20 - | csdr convert_u8_f | csdr shift_addition_cc `python -c "print float(145000000-144400000)/2400000"` | csdr fir_decimate_cc 50 0.005 HAMMING | csdr bandpass_fir_fft_cc 0 0.1 0.05 | csdr realpart_cf | csdr agc_ff | csdr limit_ff | csdr convert_f_s16 | mplayer -cache 1024 -quiet -rawaudio samplesize=2:channels=1:rate=48000 -demuxer rawaudio -
 
-- It is a modified Weaver-demodulator. The complex FIR filter removes the lower sideband and lets only the upper pass (USB). If you want to demodulate LSB, change `bandpass_fir_fft_cc 0 0.05` to `bandpass_fir_fft_cc -0.05 0`. 
+- It is a modified Weaver-demodulator. The complex FIR filter removes the lower sideband and lets only the upper pass (USB). If you want to demodulate LSB, change `bandpass_fir_fft_cc 0 0.05` to `bandpass_fir_fft_cc -0.05 0`.
 
 ### Draw FFT
 
 	rtl_sdr -s 2400000 -f 104300000 -g 20 - | csdr convert_u8_f | csdr fft_cc 1024 1200000 HAMMING --octave | octave -i > /dev/null
 
 - We calculate the Fast Fourier Transform by `csdr fft_cc` on the first 1024 samples of every block of 1200000 complex samples coming after each other. (We calculate FFT from 1024 samples and then skip 1200000-1024=1198976 samples. This way we will calculate FFT two times every second.)
-- The window used for FFT is the Hamming window, and the output consists of commands that can be directly interpreted by GNU Octave which plots us the spectrum. 
+- The window used for FFT is the Hamming window, and the output consists of commands that can be directly interpreted by GNU Octave which plots us the spectrum.
 
 Usage
 -----
@@ -107,9 +115,9 @@ Function name endings found in *libcsdr* mean the input and output data types of
 Data types are noted as it follows:
 
 - `f` is `float` (single percision)
-- `c` is `complexf` (two single precision floating point values in a struct) 
+- `c` is `complexf` (two single precision floating point values in a struct)
 - `u8` is `unsigned char` of 1 byte/8 bits (e. g. the output of `rtl_sdr` is of `u8`)
-- `i16` is `signed short` of 2 bytes/16 bits (e. g. sound card input is usually `i16`)
+- `s16` is `signed short` of 2 bytes/16 bits (e. g. sound card input is usually `s16`)
 
 Functions usually end as:
 
@@ -117,18 +125,20 @@ Functions usually end as:
 - `_cf` complex input, float output
 - `_cc` complex input, complex output
 
-Regarding *csdr*, it can convert a real/complex stream from one data format to another, to interface it with other SDR tools and the sound card. 
-The following commands are available: 
+Regarding *csdr*, it can convert a real/complex stream from one data format to another, to interface it with other SDR tools and the sound card.
+The following commands are available:
 
-- `csdr convert_u8_f` 
-- `csdr convert_f_u8` 
+- `csdr convert_u8_f`
+- `csdr convert_f_u8`
 - `csdr convert_s8_f`
 - `csdr convert_f_s8`
-- `csdr convert_i16_f` 
-- `csdr convert_f_i16`
+- `csdr convert_s16_f`
+- `csdr convert_f_s16`
 
 How to interpret: `csdr convert_<src>_<dst>`
 You can use these commands on complex streams, too, as they are only interleaved values (I,Q,I,Q,I,Q... coming after each other).
+
+> Note: The the functions with `i16` in their names have been renamed, but still work (e.g. `csdr convert_f_i16`).
 
 #### csdr commands
 
@@ -157,13 +167,17 @@ It multiplies all samples by `gain`.
 
 It copies the input to the output.
 
+	through
+
+It copies the input to the output, while also displaying the speed of the data going through it.
+
 	none
 
 The `csdr` process just exits with 0.
 
 	yes_f <to_repeat> [buf_times]
 
-It outputs continously the `to_repeat` float number. 
+It outputs continously the `to_repeat` float number.
 If `buf_times` is not given, it never stops.
 Else, after outputing `buf_times` number of buffers (the size of which is stated in the `BUFSIZE` macro), it exits.
 
@@ -173,7 +187,7 @@ Along with copying its input samples to the output, it prints a warning message 
 
 	floatdump_f
 
-It prints any floating point input samples. 
+It prints any floating point input samples.
 The format string used is `"%g "`.
 
 	flowcontrol <data_rate> <reads_per_second>
@@ -184,8 +198,8 @@ It copies `data_rate / reads_per_second` bytes from the input to the output, doi
 	shift_math_cc <rate>
 
 It shifts the signal in the frequency domain by `rate`.
-`rate` is a floating point number between -0.5 and 0.5. 
-`rate` is relative to the sampling rate. 
+`rate` is a floating point number between -0.5 and 0.5.
+`rate` is relative to the sampling rate.
 
 Internally, a sine and cosine wave is generated to perform this function, and this function uses `math.h` for this purpose, which is quite accurate, but not always very fast.
 
@@ -257,7 +271,7 @@ It uses fixed filters so it works only on predefined sample rates, for the actua
 
 	amdemod_cf
 
-It is an AM demodulator that uses `sqrt`. On some architectures `sqrt` can be directly calculated by dedicated CPU instructions, but on others it may be slower. 
+It is an AM demodulator that uses `sqrt`. On some architectures `sqrt` can be directly calculated by dedicated CPU instructions, but on others it may be slower.
 
 	amdemod_estimator_cf
 
@@ -286,7 +300,7 @@ Other parameters were explained above at `firdes_lowpass_f`.
 
 	fir_decimate_cc <decimation_factor> [transition_bw [window]]
 
-It is a decimator that keeps one sample out of `decimation_factor` samples. 
+It is a decimator that keeps one sample out of `decimation_factor` samples.
 To avoid aliasing, it runs a filter on the signal and removes spectral components above `0.5 × nyquist_frequency × decimation_factor`.
 
 `transition_bw` and `window` are the parameters of the filter.
@@ -312,7 +326,7 @@ Parameters are described under `firdes_bandpass_c` and `firdes_lowpass_f`.
 
 	agc_ff [hang_time [reference [attack_rate [decay_rate [max_gain [attack_wait [filter_alpha]]]]]]]
 
-It is an automatic gain control function. 
+It is an automatic gain control function.
 
 - `hang_time` is the number of samples to wait before strating to increase the gain after a peak.
 - `reference` is the reference level for the AGC. It tries to keep the amplitude of the output signal close to that.
@@ -330,7 +344,7 @@ It is a faster AGC that linearly changes the gain, taking the highest amplitude 
 
 	fft_cc <fft_size> <out_of_every_n_samples> [window [--octave] [--benchmark]]
 
-It performs an FFT on the first `fft_size` samples out of `out_of_every_n_samples`, thus skipping `out_of_every_n_samples - fft_size` samples in the input. 
+It performs an FFT on the first `fft_size` samples out of `out_of_every_n_samples`, thus skipping `out_of_every_n_samples - fft_size` samples in the input.
 
 It can draw the spectrum by using `--octave`, for more information, look at the [Usage by example] section.
 
@@ -363,11 +377,45 @@ The actual number of padding samples can be determined by running `cat csdr.c | 
 
 It exchanges the first and second part of the FFT vector, to prepare it for the waterfall/spectrum display. It should operate on the data output from `logpower_cf`.
 
+	dsb_fc [q_value]
+
+It converts a real signal to a double sideband complex signal centered around DC.
+It does so by generating a complex signal:
+* the real part of which is the input real signal,
+* the imaginary part of which is `q_value` (0 by default).
+With `q_value = 0` it is an AM-DSB/SC modulator. If you want to get an AM-DSB signal, you will have to add a carrier to it.
+
+	add_dcoffset_cc
+
+It adds a DC offset to the complex signal: `i_output = 0.5 + i_input / 2, q_output = q_input / 2`
+
+	convert_f_samplerf <wait_for_this_sample>
+
+It converts a real signal to the `-mRF` input format of [https://github.com/F5OEO/rpitx](rpitx), so it allows you to generate frequency modulation. The input signal will be the modulating signal. The `<wait_for_this_sample>` parameter is the value for `rpitx` indicating the time to wait between samples. For a sampling rate of 48 ksps, this is 20833.
+
+	fmmod_fc
+
+It generates a complex FM modulated output from a real input signal.
+
+	fixed_amplitude_cc <new_amplitude>
+
+It changes the amplitude of every complex input sample to a fixed value. It does not change the phase information of the samples.
+
+	mono2stereo_s16
+
+It doubles every input sample.
+
 	setbuf <buffer_size>
 
-If the environment variable `CSDR_DYNAMIC_BUFSIZE_ON` is set to 1, then you can use this command to set the input buffer size for the next `csdr` process in the chain.
+See the [buffer sizes](#buffer_sizes) section.
 
+	squelch_and_smeter_cc --fifo <squelch_fifo> --outfifo <smeter_fifo> <use_every_nth> <report_every_nth>
 
+This is a controllable squelch, which reads the squelch level input from `<squelch_fifo>` and writes the power level output to `<smeter_fifo>`. Both input and output are in the format of `%g\n`. While calculating the power level, it takes only every `<use_every_nth>` sample into consideration. It writes the S-meter value for every `<report_every_nth>` buffer to `<smeter_fifo>`. If the squelch level is set to 0, it it forces the squelch to be open. If the squelch is closed, it fills the output with zero.
+
+	fifo <buffer_size> <number_of_buffers>
+
+It is similar to `clone`, but internally it uses a circular buffer. It reads as much as possible from the input. It discards input samples if the input buffer is full.
 
 #### Control via pipes
 
@@ -388,8 +436,58 @@ Processing will only start after the first control command has been received by 
 By writing to the given FIFO file with the syntax below, you can control the shift rate:
 
 	<low_cut> <high_cut>\n
-	
+
 E.g. you can send `-0.05 0.02\n`
+
+#### Buffer sizes
+
+*csdr* has three modes of determining the buffer sizes, which can be chosen by the appropriate environment variables:
+* *default:* 16k or 1k buffer is chosen based on function,
+* *dynamic buffer size determination:* input buffer size is recommended by the previous process, output buffer size is determined by the process,
+* *fixed buffer sizes*.
+
+*csdr* can choose from two different buffer sizes by **default**.
+* For operations handling the full-bandwidth I/Q data from the receiver, a buffer size of 16384 samples is used (see `env_csdr_fixed_big_bufsize` in the code).
+* For operations handling only a selected channel, a buffer size of 1024 samples is used (see `env_csdr_fixed_bufsize` in the code).
+
+*csdr* now has an experimental feature called **dynamic buffer size determination**, which is switched on by issuing `export CSDR_DYNAMIC_BUFSIZE_ON=1` in the shell before running `csdr`. If it is enabled:
+* All `csdr` processes in a DSP chain acquire their recommended input buffer size from the previous `csdr` process. This information is in the first 8 bytes of the input stream.
+* Each process can decide whether to use this or choose another input buffer size (if that's more practical).
+* Every process sends out its output buffer size to the next process. Then it startss processing data.
+* The DSP chain should start with a `csdr setbuf <buffer_size>` process, which only copies data from the input to the output, but also sends out the given buffer size information to the next process.
+* The 8 bytes of information included in the beginning of the stream is:
+  * a preamble of the bytes 'c','s','d','r' (4 bytes),
+  * the buffer size stored as `int` (4 bytes).
+* This size always counts as samples, as we expect that the user takes care of connecting the functions with right data types to each other.
+
+> I added this feature while researching how to decrease the latency of a DSP chain consisting of several multirate algorithms.<br />
+> For example, a `csdr fir_decimate_cc 10` would use an input buffer of 10240, and an output buffer of 1024. The next process in the chain, `csdr bandpass_fir_fft_cc` would automatically adjust to it, using a buffer of 1024 for both input and output.<br />
+> In contrast to original expectations, using dynamic buffer sizes didn't decrease the latency much.
+
+If dynamic buffer size determination is disabled, you can still set a **fixed buffer size** with `export CSDR_FIXED_BUFSIZE=<buffer_size>`.
+
+For debug purposes, buffer sizes of all processes can be printed using `export CSDR_PRINT_BUFSIZES=1`.
+
+If you add your own functions to `csdr`, you have to initialize the buffers before doing the processing. Buffer size will be stored in the global variable `the_bufsize`.
+
+Example of initialization if the process generates N output samples for N input samples:
+
+    if(!sendbufsize(initialize_buffers())) return -2;
+
+Example of initalization if the process generates N/D output samples for N input samples:
+
+    if(!initialize_buffers()) return -2;
+    sendbufsize(the_bufsize/D);
+
+Example of initialization if the process allocates memory for itself, and it doesn't want to use the global buffers:
+
+    getbufsize(); //dummy
+    sendbufsize(my_own_bufsize);
+
+Example of initialization if the process always works with a fixed output size, regardless of the input:
+
+    if(!initialize_buffers()) return -2;
+    sendbufsize(fft_size);
 
 #### Testbench
 
