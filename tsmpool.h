@@ -7,9 +7,7 @@
 #include <pthread.h>
 
 #define TSM_DEBUG 0
-#if TSM_DEBUG == 1
- #include <stdio.h>
-#endif
+#include <stdio.h>
 
 using namespace std;
 
