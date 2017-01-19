@@ -2,4 +2,6 @@ csdr
 nmux
 ddcd
 *.o
+*.so
 tags
+dumpvect.*.vect
