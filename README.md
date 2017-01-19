@@ -515,6 +515,15 @@ To remove *sdr.js* and the compiled dependencies:
 
 	make emcc-clean
 
+## [nmux] (#nmux)
+
+The repo also contains a command line tool called `nmux`, which is a TCP stream multiplexer. It reads data from the standard input, and sends it to each client connected through TCP sockets. Available command line options are:
+* `--port (-p), --address (-a):` TCP port and address to listen.
+* `--bufsize (-b), --bufcnt (-n)`: Internal buffer size and count.
+* `--help (-h)`: Show help message.
+
+`nmux` was originally written for use in OpenWebRX.
+
 ## [Licensing] (#licensing)
 
 Most of the code of `libcsdr` is under BSD license.  
