@@ -759,7 +759,7 @@ void fractional_decimator_ff(float* input, float* output, int input_size, fracti
 		output[oi++]=acc;
 	}
 	d->input_processed = FD_INDEX_LOW + d->xifirst;
-	d->where -= d->input_processed + d->xifirst + 1;
+	d->where -= d->input_processed;
 	d->output_size = oi;
 }
 

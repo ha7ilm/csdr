@@ -1345,7 +1345,7 @@ int main(int argc, char *argv[])
 		//for(int=0;i<taps_length; i++) fprintf(stderr,"%g ",taps[i]);
 
 		fprintf(stderr,"fractional_decimator_ff: not using taps\n");
-		fractional_decimator_ff_t d = fractional_decimator_ff_init(rate, 4, NULL, 0); 
+		fractional_decimator_ff_t d = fractional_decimator_ff_init(rate, 6, NULL, 0); 
 		for(;;)
 		{
 			FEOF_CHECK;
