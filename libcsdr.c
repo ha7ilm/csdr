@@ -729,6 +729,7 @@ void fractional_decimator_ff(float* input, float* output, int input_size, fracti
 	//The pre-filter can be switched off by applying taps=NULL.
 	//fprintf(stderr, "drate=%f\n", d->rate);
 	if(DEBUG_ASSERT) assert(d->rate > 1.0); 
+	if(DEBUG_ASSERT) assert(d->where >= -d->xifirst);
 	int oi=0; //output index
 	int index_high; 
 #define FD_INDEX_LOW (index_high-1)
@@ -757,10 +758,9 @@ void fractional_decimator_ff(float* input, float* output, int input_size, fracti
 		}
 		output[oi++]=acc;
 	}
-	d->input_processed=FD_INDEX_LOW + d->xifirst;
-	d->where-=d->input_processed;
-	if(DEBUG_ASSERT) assert(d->where >= -d->xifirst);
-	d->output_size=oi;
+	d->input_processed = FD_INDEX_LOW + d->xifirst;
+	d->where -= d->input_processed + d->xifirst + 1;
+	d->output_size = oi;
 }
 
 /*
