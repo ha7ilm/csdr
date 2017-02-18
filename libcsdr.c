@@ -736,6 +736,7 @@ void fractional_decimator_ff(float* input, float* output, int input_size, fracti
 	//we optimize to calculate ceilf(where) only once every iteration, so we do it here:
 	for(;(index_high=ceilf(d->where))+d->num_poly_points+d->taps_length<input_size;d->where+=d->rate) //@fractional_decimator_ff
 	{
+		//d->num_poly_points above is theoretically more than we could have here, but this makes the spectrum look good
 		int sxifirst = FD_INDEX_LOW + d->xifirst; 
 		int sxilast = FD_INDEX_LOW + d->xilast; 
 		if(d->taps) for(int wi=0;wi<d->num_poly_points;wi++) d->filtered_buf[wi] = fir_one_pass_ff(input+FD_INDEX_LOW+wi, d->taps, d->taps_length);
