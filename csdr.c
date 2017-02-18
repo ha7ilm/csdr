@@ -97,6 +97,7 @@ char usage[]=
 "    agc_ff [hang_time [reference [attack_rate [decay_rate [max_gain [attack_wait [filter_alpha]]]]]]]\n"
 "    fastagc_ff [block_size [reference]]\n"
 "    rational_resampler_ff <interpolation> <decimation> [transition_bw [window]]\n"
+"    old_fractional_decimator_ff <decimation_rate> [transition_bw [window]]\n"
 "    fractional_decimator_ff <decimation_rate> [transition_bw [window]]\n"
 "    fft_cc <fft_size> <out_of_every_n_samples> [window [--octave] [--benchmark]]\n"
 "    logpower_cf [add_db]\n"
@@ -1343,14 +1344,57 @@ int main(int argc, char *argv[])
 		firdes_lowpass_f(taps, taps_length, 0.59*0.5/(rate-transition_bw), window); //0.6 const to compensate rolloff
 		//for(int=0;i<taps_length; i++) fprintf(stderr,"%g ",taps[i]);
 
-		static fractional_decimator_ff_t d; //in .bss => initialized to zero
+		fprintf(stderr,"fractional_decimator_ff: not using taps\n");
+		fractional_decimator_ff_t d = fractional_decimator_ff_init(rate, 4, NULL, 0); 
 		for(;;)
 		{
 			FEOF_CHECK;
 			if(d.input_processed==0) d.input_processed=the_bufsize;
 			else memcpy(input_buffer, input_buffer+d.input_processed, sizeof(float)*(the_bufsize-d.input_processed));
 			fread(input_buffer+(the_bufsize-d.input_processed), sizeof(float), d.input_processed, stdin);
-			d = fractional_decimator_ff(input_buffer, output_buffer, the_bufsize, rate, taps, taps_length, d);
+			fractional_decimator_ff(input_buffer, output_buffer, the_bufsize, &d);
+			fwrite(output_buffer, sizeof(float), d.output_size, stdout);
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"old_fractional_decimator_ff"))
+	{
+		//Process the params
+		if(argc<=2) return badsyntax("need required parameters (rate)");
+		float rate;
+		sscanf(argv[2],"%g",&rate);
+
+		float transition_bw=0.03;
+		if(argc>=4) sscanf(argv[3],"%g",&transition_bw);
+
+		window_t window = WINDOW_DEFAULT;
+		if(argc>=5)
+		{
+			window = firdes_get_window_from_string(argv[4]);
+		}
+		else fprintf(stderr,"old_fractional_decimator_ff: window = %s\n",firdes_get_string_from_window(window));
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize / rate);
+
+		if(rate==1) clone_(the_bufsize); //copy input to output in this special case (and stick in this function).
+
+		//Generate filter taps
+		int taps_length = firdes_filter_len(transition_bw);
+		fprintf(stderr,"old_fractional_decimator_ff: taps_length = %d\n",taps_length);
+		float* taps = (float*)malloc(sizeof(float)*taps_length);
+		firdes_lowpass_f(taps, taps_length, 0.59*0.5/(rate-transition_bw), window); //0.6 const to compensate rolloff
+		//for(int=0;i<taps_length; i++) fprintf(stderr,"%g ",taps[i]);
+
+		static old_fractional_decimator_ff_t d; //in .bss => initialized to zero
+		for(;;)
+		{
+			FEOF_CHECK;
+			if(d.input_processed==0) d.input_processed=the_bufsize;
+			else memcpy(input_buffer, input_buffer+d.input_processed, sizeof(float)*(the_bufsize-d.input_processed));
+			fread(input_buffer+(the_bufsize-d.input_processed), sizeof(float), d.input_processed, stdin);
+			d = old_fractional_decimator_ff(input_buffer, output_buffer, the_bufsize, rate, taps, taps_length, d);
 			fwrite(output_buffer, sizeof(float), d.output_size, stdout);
 			TRY_YIELD;
 		}
