@@ -650,7 +650,7 @@
     </param>
     <param>
       <key>y_divs</key>
-      <value>10</value>
+      <value>16</value>
     </param>
     <param>
       <key>y_per_div</key>
@@ -753,7 +753,7 @@
     </param>
     <param>
       <key>y_divs</key>
-      <value>10</value>
+      <value>16</value>
     </param>
     <param>
       <key>y_per_div</key>
