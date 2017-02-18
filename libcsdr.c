@@ -734,7 +734,7 @@ void fractional_decimator_ff(float* input, float* output, int input_size, fracti
 	int index_high; 
 #define FD_INDEX_LOW (index_high-1)
 	//we optimize to calculate ceilf(where) only once every iteration, so we do it here:
-	for(;(index_high=ceilf(d->where))+d->xilast+d->taps_length<input_size;d->where+=d->rate) //@fractional_decimator_ff
+	for(;(index_high=ceilf(d->where))+d->xilast+1+d->taps_length<input_size;d->where+=d->rate) //@fractional_decimator_ff
 	{
 		int sxifirst = FD_INDEX_LOW + d->xifirst; 
 		int sxilast = FD_INDEX_LOW + d->xilast; 
