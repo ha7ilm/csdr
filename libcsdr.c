@@ -379,6 +379,24 @@ int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decim
 }
 */
 
+int fir_interpolate_cc(complexf *input, complexf *output, int input_size, int interpolation, float *taps, int taps_length)
+{
+	int oi=0;
+	for(int i=0; i<input_size*interpolation; i++) //@fir_decimate_cc: outer loop
+	{
+		if(i+taps_length>input_size) break;
+		float acci=0;
+		for(int ti=0; ti<taps_length; ti++) acci += (iof(input,i+ti)) * taps[ti]; //@fir_interpolate_cc: i loop
+		float accq=0;
+		for(int ti=0; ti<taps_length; ti++) accq += (qof(input,i+ti)) * taps[ti]; //@fir_interpolate_cc: q loop
+		iof(output,oi)=acci;
+		qof(output,oi)=accq;
+		oi++;
+	}
+	return oi;
+}
+
+
 rational_resampler_ff_t rational_resampler_ff(float *input, float *output, int input_size, int interpolation, int decimation, float *taps, int taps_length, int last_taps_delay)
 {
 

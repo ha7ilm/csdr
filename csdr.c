@@ -848,6 +848,62 @@ int main(int argc, char *argv[])
 			//fprintf(stderr,"iskip=%d output_size=%d start=%x target=%x skipcount=%x \n",input_skip,output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-input_skip),(BIG_BUFSIZE-input_skip));
 		}
 	}
+
+	if(!strcmp(argv[1],"fir_interpolate_cc"))
+	{
+		bigbufs=1;
+
+		if(argc<=2) return badsyntax("need required parameter (interpolation factor)");
+
+		int factor;
+		sscanf(argv[2],"%d",&factor);
+
+		float transition_bw = 0.05;
+		if(argc>=4) sscanf(argv[3],"%g",&transition_bw);
+
+		window_t window = WINDOW_DEFAULT;
+		if(argc>=5)
+		{
+			window=firdes_get_window_from_string(argv[4]);
+		}
+		else fprintf(stderr,"fir_interpolate_cc: window = %s\n",firdes_get_string_from_window(window));
+
+		int taps_length=firdes_filter_len(transition_bw);
+		fprintf(stderr,"fir_interpolate_cc: taps_length = %d\n",taps_length);
+
+		while (env_csdr_fixed_big_bufsize < taps_length*2) env_csdr_fixed_big_bufsize*=2; //temporary fix for buffer size if [transition_bw] is low
+		//fprintf(stderr, "env_csdr_fixed_big_bufsize = %d\n", env_csdr_fixed_big_bufsize);
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize/factor);
+
+
+		float *taps;
+		taps=(float*)malloc(taps_length*sizeof(float));
+
+		firdes_lowpass_f(taps,taps_length,0.5/(float)factor,window);
+
+		int input_skip=0;
+		int output_size=0;
+		FREAD_C;
+		for(;;)
+		{
+			FEOF_CHECK;
+			output_size=fir_interpolate_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, factor, taps, taps_length);
+			//fprintf(stderr, "os %d\n",output_size);
+			fwrite(output_buffer, sizeof(complexf), output_size, stdout);
+			fflush(stdout);
+			TRY_YIELD;
+			input_skip=factor*output_size;
+			memmove((complexf*)input_buffer,((complexf*)input_buffer)+input_skip,(the_bufsize-input_skip)*sizeof(complexf)); //memmove lets the source and destination overlap
+			fread(((complexf*)input_buffer)+(the_bufsize-input_skip), sizeof(complexf), input_skip, stdin);
+			//fprintf(stderr,"iskip=%d output_size=%d start=%x target=%x skipcount=%x \n",input_skip,output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-input_skip),(BIG_BUFSIZE-input_skip));
+		}
+	}
+
+
+
+
 	/*if(!strcmp(argv[1],"ejw_test"))
 	{
 		printf("ejqd=[");
