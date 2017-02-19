@@ -88,6 +88,7 @@ char usage[]=
 "    amdemod_cf\n"
 "    amdemod_estimator_cf\n"
 "    fir_decimate_cc <decimation_factor> [transition_bw [window]]\n"
+"    fir_interpolate_cc <interpolation_factor> [transition_bw [window]]\n"
 "    firdes_lowpass_f <cutoff_rate> <length> [window [--octave]]\n"
 "    firdes_bandpass_c <low_cut> <high_cut> <length> [window [--octave]]\n"
 "    agc_ff [hang_time [reference [attack_rate [decay_rate [max_gain [attack_wait [filter_alpha]]]]]]]\n"
@@ -860,7 +861,7 @@ int main(int argc, char *argv[])
 		sscanf(argv[2],"%d",&factor);
 		assert(factor >= 1);
 
-		float transition_bw = 0.01;
+		float transition_bw = 0.05;
 		if(argc>=4) sscanf(argv[3],"%g",&transition_bw);
 		assert(transition_bw >= 0 && transition_bw < 1.);
 
