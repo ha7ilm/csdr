@@ -860,7 +860,7 @@ int main(int argc, char *argv[])
 		sscanf(argv[2],"%d",&factor);
 		assert(factor >= 1);
 
-		float transition_bw = 0.05;
+		float transition_bw = 0.01;
 		if(argc>=4) sscanf(argv[3],"%g",&transition_bw);
 		assert(transition_bw >= 0 && transition_bw < 1.);
 

@@ -394,8 +394,10 @@ int fir_interpolate_cc(complexf *input, complexf *output, int input_size, int in
 		{
 			float acci=0;
 			float accq=0;
-			for(int ti=ip, si=0; ti<taps_length; ti+=interpolation, si++) acci += (iof(input,i+si)) * taps[ti]; //@fir_interpolate_cc: i loop
-			for(int ti=ip, si=0; ti<taps_length; ti+=interpolation, si++) accq += (qof(input,i+si)) * taps[ti]; //@fir_interpolate_cc: q loop
+			//int tistart = (interpolation-ip)%interpolation; 
+			int tistart = (interpolation-ip); //why does this work? why don't we need the % part?
+			for(int ti=tistart, si=0; ti<taps_length; ti+=interpolation, si++) acci += (iof(input,i+si)) * taps[ti]; //@fir_interpolate_cc: i loop
+			for(int ti=tistart, si=0; ti<taps_length; ti+=interpolation, si++) accq += (qof(input,i+si)) * taps[ti]; //@fir_interpolate_cc: q loop
 			iof(output,oi)=acci;
 			qof(output,oi)=accq;
 			oi++;
