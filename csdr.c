@@ -48,6 +48,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ima_adpcm.h"
 #include <sched.h>
 #include <math.h>
+#include <assert.h>
 
 char usage[]=
 "csdr - a simple commandline tool for Software Defined Radio receiver DSP.\n\n"
@@ -857,9 +858,11 @@ int main(int argc, char *argv[])
 
 		int factor;
 		sscanf(argv[2],"%d",&factor);
+		assert(factor >= 1);
 
 		float transition_bw = 0.05;
 		if(argc>=4) sscanf(argv[3],"%g",&transition_bw);
+		assert(transition_bw >= 0 && transition_bw < 1.);
 
 		window_t window = WINDOW_DEFAULT;
 		if(argc>=5)
@@ -870,31 +873,33 @@ int main(int argc, char *argv[])
 
 		int taps_length=firdes_filter_len(transition_bw);
 		fprintf(stderr,"fir_interpolate_cc: taps_length = %d\n",taps_length);
+		assert(taps_length > 0);
 
 		while (env_csdr_fixed_big_bufsize < taps_length*2) env_csdr_fixed_big_bufsize*=2; //temporary fix for buffer size if [transition_bw] is low
 		//fprintf(stderr, "env_csdr_fixed_big_bufsize = %d\n", env_csdr_fixed_big_bufsize);
 
 		if(!initialize_buffers()) return -2;
-		sendbufsize(the_bufsize/factor);
-
+		sendbufsize(the_bufsize*factor);
+		assert(the_bufsize > 0);
 
 		float *taps;
 		taps=(float*)malloc(taps_length*sizeof(float));
+		assert(taps);
 
 		firdes_lowpass_f(taps,taps_length,0.5/(float)factor,window);
 
 		int input_skip=0;
 		int output_size=0;
-		FREAD_C;
+		float* interp_output_buffer = (float*)malloc(sizeof(float)*2*the_bufsize*factor);
 		for(;;)
 		{
 			FEOF_CHECK;
-			output_size=fir_interpolate_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, factor, taps, taps_length);
+			output_size=fir_interpolate_cc((complexf*)input_buffer, (complexf*)interp_output_buffer, the_bufsize, factor, taps, taps_length);
 			//fprintf(stderr, "os %d\n",output_size);
-			fwrite(output_buffer, sizeof(complexf), output_size, stdout);
+			fwrite(interp_output_buffer, sizeof(complexf), output_size, stdout);
 			fflush(stdout);
 			TRY_YIELD;
-			input_skip=factor*output_size;
+			input_skip=output_size/factor;
 			memmove((complexf*)input_buffer,((complexf*)input_buffer)+input_skip,(the_bufsize-input_skip)*sizeof(complexf)); //memmove lets the source and destination overlap
 			fread(((complexf*)input_buffer)+(the_bufsize-input_skip), sizeof(complexf), input_skip, stdin);
 			//fprintf(stderr,"iskip=%d output_size=%d start=%x target=%x skipcount=%x \n",input_skip,output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-input_skip),(BIG_BUFSIZE-input_skip));
