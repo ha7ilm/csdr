@@ -312,11 +312,16 @@ The output sample rate will be `interpolation / decimation × input_sample_rate`
 
 `transition_bw` and `window` are the parameters of the filter.
 
-	fractional_decimator_ff <decimation_rate> [transition_bw [window]]
+	fractional_decimator_ff <decimation_rate> [num_poly_points ( [transition_bw [window]] | --prefilter )]
 
 It can decimate by a floating point ratio.
 
-`transition_bw` and `window` are the parameters of the filter.
+It uses Lagrance interpolation, where `num_poly_points` (12 by default) input samples are taken into consideration while calculating one output sample. 
+
+It can use an additional FIR filter before applying the Lagrange interpolation. This filter can be activated by:
+
+* passing only the `transition_bw`, or both the `transition_bw` and the `window` parameters of the filter,
+* using the `--prefilter` switch after `num_poly_points` to switch this filter on with the default parameters.
 
 	bandpass_fir_fft_cc <low_cut> <high_cut> <transition_bw> [window]
 

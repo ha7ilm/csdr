@@ -739,8 +739,10 @@ void fractional_decimator_ff(float* input, float* output, int input_size, fracti
 		//d->num_poly_points above is theoretically more than we could have here, but this makes the spectrum look good
 		int sxifirst = FD_INDEX_LOW + d->xifirst; 
 		int sxilast = FD_INDEX_LOW + d->xilast; 
-		if(d->taps) for(int wi=0;wi<d->num_poly_points;wi++) d->filtered_buf[wi] = fir_one_pass_ff(input+FD_INDEX_LOW+wi, d->taps, d->taps_length);
-		else for(int wi=0;wi<d->num_poly_points;wi++) d->filtered_buf[wi] = *(input+FD_INDEX_LOW+wi);
+		if(d->taps) 
+			for(int wi=0;wi<d->num_poly_points;wi++) d->filtered_buf[wi] = fir_one_pass_ff(input+FD_INDEX_LOW+wi, d->taps, d->taps_length);
+		else
+			for(int wi=0;wi<d->num_poly_points;wi++) d->filtered_buf[wi] = *(input+FD_INDEX_LOW+wi);
 		int id=0;
 		float xwhere = d->where - FD_INDEX_LOW;
 		for(int xi=d->xifirst;xi<=d->xilast;xi++)
