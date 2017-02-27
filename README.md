@@ -205,7 +205,7 @@ Internally, a sine and cosine wave is generated to perform this function, and th
 
 	shift_addition_cc <rate>
 
-Operation is the same as with `shift_math_cc`.
+Operation is the same as for `shift_math_cc`.
 
 Internally, this function uses trigonometric addition formulas to generate sine and cosine, which is a bit faster. (About 4 times on the machine I have tested it on.)
 
@@ -218,6 +218,20 @@ This function was used to test the accuracy of the method above.
 Operation is the same as with `shift_math_cc`.
 Internally, this function uses a look-up table (LUT) to recall the values of the sine function (for the first quadrant).
 The higher the table size is, the smaller the phase error is.
+
+	shift_addfast_cc <rate>
+
+Operation is the same as for `shift_math_cc`.
+
+Internally, this function uses a NEON-accelerated algorithm on capable systems, so it is advised to use this one on ARM boards.
+
+	shift_unroll_cc <rate>
+
+Operation is the same as for `shift_math_cc`.
+
+This uses a modified algoritm that first stores a vector of sine and cosine values for given phase differences.
+
+The loop in this function unrolls quite well if compiled on a PC. It was the fastest one on an i7 CPU during the tests.
 
 	decimating_shift_addition_cc <rate> [decimation]
 
@@ -500,6 +514,15 @@ You can test *sdr.js* by opening *sdr.html*. It contains a test for *firdes_lowp
 To remove *sdr.js* and the compiled dependencies:
 
 	make emcc-clean
+
+## [nmux] (#nmux)
+
+The repo also contains a command line tool called `nmux`, which is a TCP stream multiplexer. It reads data from the standard input, and sends it to each client connected through TCP sockets. Available command line options are:
+* `--port (-p), --address (-a):` TCP port and address to listen.
+* `--bufsize (-b), --bufcnt (-n)`: Internal buffer size and count.
+* `--help (-h)`: Show help message.
+
+`nmux` was originally written for use in OpenWebRX.
 
 ## [Licensing] (#licensing)
 

@@ -48,7 +48,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "ima_adpcm.h"
 #include <sched.h>
 #include <math.h>
+#include <strings.h>
 #include <errno.h>
+#include "fastddc.h"
 
 char usage[]=
 "csdr - a simple commandline tool for Software Defined Radio receiver DSP.\n\n"
@@ -61,6 +63,8 @@ char usage[]=
 "    convert_f_s8\n"
 "    convert_f_s16\n"
 "    convert_s16_f\n"
+"    convert_f_s24 [--bigendian]\n"
+"    convert_s24_f [--bigendian]\n"
 "    realpart_cf\n"
 "    clipdetect_ff\n"
 "    limit_ff [max_amplitude]\n"
@@ -186,6 +190,22 @@ int init_fifo(int argc, char *argv[])
 		{
 			fprintf(stderr,"csdr: fifo control mode on\n");
 			int fd = open(argv[3], O_RDONLY);
+			int flags = fcntl(fd, F_GETFL, 0);
+			fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+			return fd;
+		}
+		else if(!strcmp(argv[2],"--fd"))  
+		{
+			//to use this:
+			//1. Create a pipe(pipedesc) in your process.
+			//2. fork() and execl() your process to run csdr, and give pipedesc[0] as parameter after --fd 
+			//  Note: when forking, the child process will get a copy of the file descriptor table! That's why this 
+			//  works at all, as file descriptor indexes are normally not transferable between processes, except for a *NIX socket way which is quite complicated... 
+			//3. From your parent process, write into pipedesc[1].
+			//This is implemented in ddcd, check there to see how to do it!
+			int fd;
+			if(sscanf(argv[3], "%d",&fd)<=0) return 0;
+			fprintf(stderr,"csdr: fd control mode on, fd=%d\n", fd);
 			int flags = fcntl(fd, F_GETFL, 0);
 			fcntl(fd, F_SETFL, flags | O_NONBLOCK);
 			return fd;
@@ -493,7 +513,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if((!strcmp(argv[1],"convert_i16_f")) || (!strcmp(argv[1],"convert_s16_f"))) //not tested
+	if((!strcmp(argv[1],"convert_i16_f")) || (!strcmp(argv[1],"convert_s16_f")))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -501,6 +521,34 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			fread(buffer_i16, sizeof(short), the_bufsize, stdin);
 			convert_i16_f(buffer_i16, output_buffer, the_bufsize);
+			FWRITE_R;
+			TRY_YIELD;
+		}
+	}
+	if(!strcmp(argv[1],"convert_f_s24"))
+	{
+		int bigendian = (argc>2) && (!strcmp(argv[2],"--bigendian"));
+		unsigned char* s24buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*3);
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_R;
+			convert_f_s24(input_buffer, s24buffer, the_bufsize, bigendian);
+			fwrite(s24buffer, sizeof(unsigned char)*3, the_bufsize, stdout);
+			TRY_YIELD;
+		}
+	}
+	if(!strcmp(argv[1],"convert_s24_f"))
+	{
+		int bigendian = (argc>2) && (!strcmp(argv[2],"--bigendian"));
+		unsigned char* s24buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*3);
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(s24buffer, sizeof(unsigned char)*3, the_bufsize, stdin);
+			convert_s24_f(s24buffer, output_buffer, the_bufsize, bigendian);
 			FWRITE_R;
 			TRY_YIELD;
 		}
@@ -585,6 +633,7 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			if(!FREAD_C) break;
+			starting_phase=shift_math_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, rate, starting_phase);
 			FWRITE_C;
 			TRY_YIELD;
 		}
@@ -614,6 +663,105 @@ int main(int argc, char *argv[])
 			starting_phase=shift_table_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, rate, table_data, starting_phase);
 			FWRITE_C;
 			TRY_YIELD;
+		}
+		return 0;
+	}
+
+	if(!strcmp(argv[1],"shift_addfast_cc"))
+	{
+		bigbufs=1;
+
+		float starting_phase=0;
+		float rate;
+
+		int fd;
+		if(fd=init_fifo(argc,argv))
+		{
+			while(!read_fifo_ctl(fd,"%g\n",&rate)) usleep(10000);
+		}
+		else
+		{
+			if(argc<=2) return badsyntax("need required parameter (rate)"); 
+			sscanf(argv[2],"%g",&rate);
+		}
+
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			shift_addfast_data_t data=shift_addfast_init(rate);
+			fprintf(stderr,"shift_addfast_cc: reinitialized to %g\n",rate);
+			int remain, current_size;
+			float* ibufptr;
+			float* obufptr;
+			for(;;)
+			{
+				FEOF_CHECK;
+				if(!FREAD_C) break;
+				remain=the_bufsize;
+				ibufptr=input_buffer;
+				obufptr=output_buffer;
+				while(remain)
+				{
+					current_size=(remain>1024)?1024:remain;
+					starting_phase=shift_addfast_cc((complexf*)ibufptr, (complexf*)obufptr, current_size, &data, starting_phase);
+					ibufptr+=current_size*2;
+					obufptr+=current_size*2;
+					remain-=current_size;
+				}
+				FWRITE_C;
+				if(read_fifo_ctl(fd,"%g\n",&rate)) break;
+				TRY_YIELD;
+			}
+		}
+		return 0;
+	}
+
+
+	if(!strcmp(argv[1],"shift_unroll_cc"))
+	{
+		bigbufs=1;
+
+		float starting_phase=0;
+		float rate;
+
+		int fd;
+		if(fd=init_fifo(argc,argv))
+		{
+			while(!read_fifo_ctl(fd,"%g\n",&rate)) usleep(10000);
+		}
+		else
+		{
+			if(argc<=2) return badsyntax("need required parameter (rate)"); 
+			sscanf(argv[2],"%g",&rate);
+		}
+
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			shift_unroll_data_t data=shift_unroll_init(rate, 1024);
+			fprintf(stderr,"shift_unroll_cc: reinitialized to %g\n",rate);
+			int remain, current_size;
+			float* ibufptr;
+			float* obufptr;
+			for(;;)
+			{
+				FEOF_CHECK;
+				if(!FREAD_C) break;
+				remain=the_bufsize;
+				ibufptr=input_buffer;
+				obufptr=output_buffer;
+				while(remain)
+				{
+					current_size=(remain>1024)?1024:remain;
+					starting_phase=shift_unroll_cc((complexf*)ibufptr, (complexf*)obufptr, current_size, &data, starting_phase);
+					ibufptr+=current_size*2;
+					obufptr+=current_size*2;
+					remain-=current_size;
+				}
+				FWRITE_C;
+				if(read_fifo_ctl(fd,"%g\n",&rate)) break;
+				TRY_YIELD;
+			}
 		}
 		return 0;
 	}
@@ -830,7 +978,7 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			FREAD_R;
-			for(int i=0; i<the_bufsize;i++) fprintf(stderr, "%g ",input_buffer[i]);
+			for(int i=0; i<the_bufsize;i++) printf("%g ",input_buffer[i]);
 			TRY_YIELD;
 		}
 
@@ -1252,6 +1400,8 @@ int main(int argc, char *argv[])
 		FFT_PLAN_T* plan=make_fft_c2c(fft_size, windowed, output, 1, benchmark);
 		if(benchmark) fprintf(stderr," done\n");
 		if(octave) printf("setenv(\"GNUTERM\",\"X11 noraise\");y=zeros(1,%d);semilogy(y,\"ydatasource\",\"y\");\n",fft_size);
+		float *windowt;
+		windowt = precalculate_window(fft_size, window);
 		for(;;)
 		{
 			FEOF_CHECK;
@@ -1270,7 +1420,8 @@ int main(int argc, char *argv[])
 				for(int i=0;i<fft_size-every_n_samples;i++) input[i]=input[i+every_n_samples];
 				fread(input+fft_size-every_n_samples, sizeof(complexf), every_n_samples, stdin);
 			}
-			apply_window_c(input,windowed,fft_size,window);
+			//apply_window_c(input,windowed,fft_size,window);
+			apply_precalculated_window_c(input,windowed,fft_size,windowt);
 			fft_execute(plan);
 			if(octave)
 			{
@@ -1304,6 +1455,40 @@ int main(int argc, char *argv[])
 			fwrite(output_buffer, sizeof(float), the_bufsize, stdout);
 			TRY_YIELD;
 		}
+	}
+
+	if(!strcmp(argv[1],"logaveragepower_cf"))
+	{
+		bigbufs=1;
+		if(argc<=4) return badsyntax("need required parameters (add_db, table_size, avgnumber)"); 
+		float add_db=0;
+		int avgnumber=0;
+		int fft_size=0;
+		
+		sscanf(argv[2],"%g",&add_db);
+		sscanf(argv[3],"%d",&fft_size);
+		sscanf(argv[4],"%d",&avgnumber);
+		
+		float *input = malloc(sizeof(float)*2 * fft_size);
+		float *output = malloc(sizeof(float) * fft_size);
+
+		add_db -= 10.0*log10(avgnumber);
+		for(;;)
+		{
+			int i,n;
+			for(i = 0; i < fft_size; i++) {
+				output[i] = 0;
+			}
+			FEOF_CHECK;
+			for(n = 0; n < avgnumber; n++) {
+				fread (input, sizeof(float)*2, fft_size, stdin);
+				accumulate_power_cf((complexf*)input, output, fft_size);
+			}
+			log_ff(output, output, fft_size, add_db);
+			fwrite (output, sizeof(float), fft_size, stdout);
+			TRY_YIELD;
+		}
+		return 0;
 	}
 
 	if(!strcmp(argv[1],"fft_exchange_sides_ff"))
@@ -1361,8 +1546,6 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-#define TIME_TAKEN(start,end) ((end.tv_sec-start.tv_sec)+(end.tv_nsec-start.tv_nsec)/1e9)
-
 	if(!strcmp(argv[1],"fft_benchmark"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (fft_size, fft_cycles)");
@@ -1408,8 +1591,6 @@ int main(int argc, char *argv[])
 		float high_cut;
 		float transition_bw;
 		window_t window = WINDOW_DEFAULT;
-		char window_string[256]; //TODO: nice buffer overflow opportunity
-
 		int fd;
 		if(fd=init_fifo(argc,argv))
 		{
@@ -1433,7 +1614,7 @@ int main(int argc, char *argv[])
 		if (fft_size-taps_length<200) fft_size<<=1;
 		int input_size = fft_size - taps_length + 1;
 		int overlap_length = taps_length - 1;
-		fprintf(stderr,"bandpass_fir_fft_cc: (fft_size = %d) = (taps_length = %d) + (input_size = %d) - 1\n(overlap_length = %d) = taps_length - 1\n", fft_size, taps_length, input_size, overlap_length);
+		fprintf(stderr,"bandpass_fir_fft_cc: (fft_size = %d) = (taps_length = %d) + (input_size = %d) - 1\n(overlap_length = %d) = taps_length - 1\n", fft_size, taps_length, input_size, overlap_length );
 		if (fft_size<=2) return badsyntax("FFT size error.");
 
 		if(!sendbufsize(getbufsize())) return -2;
@@ -1839,6 +2020,179 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	/*
+	  ______        _   _____  _____   _____ 
+	 |  ____|      | | |  __ \|  __ \ / ____|
+	 | |__ __ _ ___| |_| |  | | |  | | |     
+	 |  __/ _` / __| __| |  | | |  | | |     
+	 | | | (_| \__ \ |_| |__| | |__| | |____ 
+	 |_|  \__,_|___/\__|_____/|_____/ \_____|
+
+	*/                                         
+                                         
+	if( !strcmp(argv[1],"fastddc_fwd_cc") ) //<decimation> [transition_bw [window]]
+	{	
+		
+		int decimation;
+		if(argc<=2) return badsyntax("need required parameter (decimation)");
+		sscanf(argv[2],"%d",&decimation);
+		
+		float transition_bw = 0.05;
+		if(argc>3) sscanf(argv[3],"%g",&transition_bw);
+
+		window_t window = WINDOW_DEFAULT;
+		if(argc>4)	window=firdes_get_window_from_string(argv[4]);
+		else fprintf(stderr,"fastddc_fwd_cc: window = %s\n",firdes_get_string_from_window(window));
+
+		fastddc_t ddc; 
+		if(fastddc_init(&ddc, transition_bw, decimation, 0)) { badsyntax("error in fastddc_init()"); return 1; }
+		fastddc_print(&ddc,"fastddc_fwd_cc");
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(ddc.fft_size);
+
+		//make FFT plan
+		complexf* input = 	 (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
+		complexf* windowed = (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
+		complexf* output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
+
+		for(int i=0;i<ddc.fft_size;i++) iof(input,i)=qof(input,i)=0; //null the input buffer
+
+		int benchmark = 1; 
+		if(benchmark) fprintf(stderr,"fastddc_fwd_cc: benchmarking FFT...");
+		FFT_PLAN_T* plan=make_fft_c2c(ddc.fft_size, windowed, output, 1, benchmark);
+		if(benchmark) fprintf(stderr," done\n");
+
+		for(;;)
+		{
+			FEOF_CHECK;
+			//overlapped FFT
+			for(int i=0;i<ddc.overlap_length;i++) input[i]=input[i+ddc.input_size];
+			fread(input+ddc.overlap_length, sizeof(complexf), ddc.input_size, stdin);
+			//apply_window_c(input,windowed,ddc.fft_size,window);
+			memcpy(windowed, input, ddc.fft_size*sizeof(complexf)); //we can switch off windows; TODO: it is likely that we shouldn't apply a window to both the FFT and the filter.
+			fft_execute(plan);
+			fwrite(output, sizeof(complexf), ddc.fft_size, stdout);
+			TRY_YIELD;
+		}
+	}
+
+	if( !strcmp(argv[1],"fastddc_inv_cc") ) //<shift_rate> <decimation> [transition_bw [window]]
+	{	
+		float shift_rate;
+		int plusarg=0;
+
+		int fd;
+		if(fd=init_fifo(argc,argv))
+		{
+			while(!read_fifo_ctl(fd,"%g\n",&shift_rate)) usleep(10000);
+			plusarg=1;
+		}
+		else
+		{
+			if(argc<=2) return badsyntax("need required parameter (rate)"); 
+			sscanf(argv[2],"%g",&shift_rate);
+		}
+
+		int decimation;
+		if(argc<=3+plusarg) return badsyntax("need required parameter (decimation)");
+		sscanf(argv[3+plusarg],"%d",&decimation);
+		//fprintf(stderr, "dec=%d %d\n", decimation);
+
+		float transition_bw = 0.05;
+		if(argc>4+plusarg) sscanf(argv[4+plusarg],"%g",&transition_bw);
+
+		window_t window = WINDOW_DEFAULT;
+		if(argc>5+plusarg)	window=firdes_get_window_from_string(argv[5+plusarg]);
+		else fprintf(stderr,"fastddc_apply_cc: window = %s\n",firdes_get_string_from_window(window));
+
+		for(;;)
+		{
+
+		fastddc_t ddc; 
+		if(fastddc_init(&ddc, transition_bw, decimation, shift_rate)) { badsyntax("error in fastddc_init()"); return 1; }
+		fastddc_print(&ddc,"fastddc_inv_cc");
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(ddc.post_input_size/ddc.post_decimation); //TODO not exactly correct
+
+		//prepare making the filter and doing FFT on it
+		complexf* taps=(complexf*)calloc(sizeof(complexf),ddc.fft_size); //initialize to zero
+		complexf* taps_fft=(complexf*)malloc(sizeof(complexf)*ddc.fft_size);
+		FFT_PLAN_T* plan_taps = make_fft_c2c(ddc.fft_size, taps, taps_fft, 1, 0); //forward, don't benchmark (we need this only once)
+
+		//make the filter
+		float filter_half_bw = 0.5/decimation;
+		fprintf(stderr, "fastddc_inv_cc: preparing a bandpass filter of [%g, %g] cutoff rates. Real transition bandwidth is: %g\n", (-shift_rate)-filter_half_bw, (-shift_rate)+filter_half_bw, 4.0/ddc.taps_length);
+		firdes_bandpass_c(taps, ddc.taps_length, (-shift_rate)-filter_half_bw, (-shift_rate)+filter_half_bw, window);
+		fft_execute(plan_taps);
+		fft_swap_sides(taps_fft,ddc.fft_size);
+
+		//make FFT plan
+		complexf* inv_input = 	 (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_inv_size);
+		complexf* inv_output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_inv_size);
+		fprintf(stderr,"fastddc_inv_cc: benchmarking FFT...");
+		FFT_PLAN_T* plan_inverse = make_fft_c2c(ddc.fft_inv_size, inv_input, inv_output, 0, 1); //inverse, do benchmark
+		fprintf(stderr," done\n");
+		
+		//alloc. buffers
+		complexf* input = 	 (complexf*)fft_malloc(sizeof(complexf)*ddc.fft_size);
+		complexf* output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.post_input_size);
+
+		decimating_shift_addition_status_t shift_stat;
+		bzero(&shift_stat, sizeof(shift_stat));
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(input, sizeof(complexf), ddc.fft_size, stdin);
+			shift_stat = fastddc_inv_cc(input, output, &ddc, plan_inverse, taps_fft, shift_stat);
+			fwrite(output, sizeof(complexf), shift_stat.output_size, stdout);
+			//fprintf(stderr, "ss os = %d\n", shift_stat.output_size);
+			TRY_YIELD;
+			if(read_fifo_ctl(fd,"%g\n",&shift_rate)) break;
+		}
+
+		}
+	}
+
+	if( !strcmp(argv[1], "_fft2octave") ) 
+	{
+		int fft_size;
+		if(argc<=2) return badsyntax("need required parameter (fft_size)");
+		sscanf(argv[2],"%d",&fft_size);
+
+		complexf* fft_input=(complexf*)malloc(sizeof(complexf)*fft_size);
+		initialize_buffers();
+		if(!sendbufsize(fft_size)) return -2;
+
+		printf("setenv(\"GNUTERM\",\"X11 noraise\");y=zeros(1,%d);semilogy(y,\"ydatasource\",\"y\");\n",fft_size);
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(fft_input, sizeof(complexf), fft_size, stdin);
+			printf("fftdata=[");
+			//we have to swap the two parts of the array to get a valid spectrum
+			for(int i=fft_size/2;i<fft_size;i++) printf("(%g)+(%g)*i ",iof(fft_input,i),qof(fft_input,i));
+			for(int i=0;i<fft_size/2;i++) printf("(%g)+(%g)*i ",iof(fft_input,i),qof(fft_input,i)); 
+			printf(
+				"];\n"
+				"y=abs(fftdata);\n"
+				"refreshdata;\n"
+			);
+		}
+	}
+
+	/*
+	  _____  _       _ _        _                       _           
+	 |  __ \(_)     (_) |      | |                     | |          
+	 | |  | |_  __ _ _| |_ __ _| |  _ __ ___   ___   __| | ___  ___ 
+	 | |  | | |/ _` | | __/ _` | | | '_ ` _ \ / _ \ / _` |/ _ \/ __|
+	 | |__| | | (_| | | || (_| | | | | | | | | (_) | (_| |  __/\__ \
+	 |_____/|_|\__, |_|\__\__,_|_| |_| |_| |_|\___/ \__,_|\___||___/
+				__/ |                                               
+			   |___/                                                
+	*/
+
 	if(!strcmp(argv[1],"bpsk31_varicode2ascii_sy_u8"))
 	{
 		unsigned long long status_shr = 0;
@@ -2002,6 +2356,5 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	fprintf(stderr, "csdr: function name \"%s\" given in argument 1 does not exist. Possible causes:\n- You mistyped the commandline.\n- You need to update csdr to a newer version (if available).", argv[1]);
-	return -1;
+	fprintf(stderr,"csdr: function name given in argument 1 (%s) does not exist. Possible causes:\n- You mistyped the commandline.\n- You need to update csdr to a newer version (if available).", argv[1]); return -1;
 }
