@@ -329,6 +329,10 @@ It performs a bandpass FIR filter on complex samples, using FFT and the overlap-
 
 Parameters are described under `firdes_bandpass_c` and `firdes_lowpass_f`.
 
+	old_fractional_decimator_ff <decimation_rate> [num_poly_points [transition_bw [window]]]
+
+This is the deprecated, old version of `fractional_decimator_ff` (only uses linear interpolation, its filter cuts at 59% of the passband).
+
 	agc_ff [hang_time [reference [attack_rate [decay_rate [max_gain [attack_wait [filter_alpha]]]]]]]
 
 It is an automatic gain control function.

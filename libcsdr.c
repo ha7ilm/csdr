@@ -767,6 +767,7 @@ void fractional_decimator_ff(float* input, float* output, int input_size, fracti
 }
 
 /*
+ * Some notes to myself on the circular buffer I wanted to implement here:
 		int last_input_samplewhere_shouldbe = (index_high-1)+xifirst;
 		int last_input_offset = last_input_samplewhere_shouldbe - d->last_input_samplewhere;
 		if(last_input_offset < num_poly_points)
@@ -781,6 +782,7 @@ void fractional_decimator_ff(float* input, float* output, int input_size, fracti
 			}
 			d->last_input_samplewhere = d->las
 		}
+	However, I think I should just rather do a continuous big buffer.
 */
 
 void apply_fir_fft_cc(FFT_PLAN_T* plan, FFT_PLAN_T* plan_inverse, complexf* taps_fft, complexf* last_overlap, int overlap_size)
