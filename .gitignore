@@ -6,3 +6,4 @@ ddcd
 tags
 dumpvect.*.vect
 grc_tests/top_block.py
+*.swp
