@@ -2348,6 +2348,7 @@ int main(int argc, char *argv[])
 			fwrite(output_buffer, sizeof(complexf), the_bufsize, stdout);
 			//fprintf(stderr, "| o");
 			TRY_YIELD;
+		}
 	}
 
 	if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q]
@@ -2373,13 +2374,13 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			timing_recovery((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
-			//fprintf(stderr, "os %d\n",state->output_size);
-			fwrite(output_buffer, sizeof(complexf), state->output_size, stdout);
+			//fprintf(stderr, "os %d\n",state.output_size);
+			fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
 			fflush(stdout);
 			TRY_YIELD;
-			memmove((complexf*)input_buffer,((complexf*)input_buffer)+state->input_processed,(the_bufsize-state->input_processed)*sizeof(complexf)); //memmove lets the source and destination overlap
-			fread(((complexf*)input_buffer)+(the_bufsize-state->input_processed), sizeof(complexf), state->input_processed, stdin);
-			//fprintf(stderr,"iskip=%d state->output_size=%d start=%x target=%x skipcount=%x \n",state->input_processed,state->output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-state->input_processed),(BIG_BUFSIZE-state->input_processed));
+			memmove((complexf*)input_buffer,((complexf*)input_buffer)+state.input_processed,(the_bufsize-state.input_processed)*sizeof(complexf)); //memmove lets the source and destination overlap
+			fread(((complexf*)input_buffer)+(the_bufsize-state.input_processed), sizeof(complexf), state.input_processed, stdin);
+			//fprintf(stderr,"iskip=%d state.output_size=%d start=%x target=%x skipcount=%x \n",state.input_processed,state.output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-state.input_processed),(BIG_BUFSIZE-state.input_processed));
 		}
 	}
 

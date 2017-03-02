@@ -1707,7 +1707,7 @@ int timing_recovery(complexf* input, complexf* output, int input_size, timing_re
 				current_bitstart_index += num_samples_halfbit * 2 + num_samples_halfbit * (-error/2);
 		}
 		state->input_processed = current_bitstart_index;
-		state->output_i = si;
+		state->output_size = si;
 	}
 }
 
