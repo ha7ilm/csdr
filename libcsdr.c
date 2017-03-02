@@ -1572,6 +1572,17 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 	for(int i=0;i<input_size;i++) output[i] = input[i] > 0;
 }
 
+/*
+   _____                _                      _______ _           _                _____                                    
+  / ____|              (_)             ___    |__   __(_)         (_)              |  __ \                                   
+ | |     __ _ _ __ _ __ _  ___ _ __   ( _ )      | |   _ _ __ ___  _ _ __   __ _   | |__) |___  ___ _____   _____ _ __ _   _ 
+ | |    / _` | '__| '__| |/ _ \ '__|  / _ \/\    | |  | | '_ ` _ \| | '_ \ / _` |  |  _  // _ \/ __/ _ \ \ / / _ \ '__| | | |
+ | |___| (_| | |  | |  | |  __/ |    | (_>  <    | |  | | | | | | | | | | | (_| |  | | \ \  __/ (_| (_) \ V /  __/ |  | |_| |
+  \_____\__,_|_|  |_|  |_|\___|_|     \___/\/    |_|  |_|_| |_| |_|_|_| |_|\__, |  |_|  \_\___|\___\___/ \_/ \___|_|   \__, |
+                                                                            __/ |                                       __/ |
+                                                                           |___/                                       |___/ 
+*/
+
 void pll_cc_init_pi_controller(pll_t* p, float bandwidth, float ko, float kd, float damping_factor)
 {
 	//kd: detector gain
@@ -1620,7 +1631,7 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 			p->dphase = new_dphase * p->alpha + p->iir_temp;
 			p->iir_temp += new_dphase * p->beta;
 
-			while(p->dphase>PI) p->dphase-=2*PI; //ez nem fog kelleni
+			while(p->dphase>PI) p->dphase-=2*PI; //won't need this one
 			while(p->dphase<-PI) p->dphase+=2*PI;
 		}
 		else if(p->pll_type == PLL_P_CONTROLLER)
@@ -1632,6 +1643,116 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 		//if(output_dphase) output_dphase[i] = new_dphase/10;
 	}
 }
+
+timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q)
+{
+	timing_recovery_state_t to_return;
+	to_return.algorithm = algorithm;
+	to_return.decimation_rate = decimation_rate;
+	to_return.use_q = use_q;
+	return to_return;
+}
+
+int timing_recovery(complexf* input, complexf* output, int input_size, timing_recovery_state_t* state)
+{
+	//We always assume that the input starts at center of the first symbol cross before the first symbol. 
+	//Last time we consumed that much from the input samples that it is there.
+	int current_bitstart_index = 0;
+	int num_samples_bit = state->decimation_rate;
+	int num_samples_halfbit = state->decimation_rate / 2;
+	int num_samples_quarterbit = state->decimation_rate / 4;
+	float error;
+	int si;
+	if(state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER)
+	{
+		for(si=0;;si++)
+		{
+			if(current_bitstart_index + num_samples_halfbit * 3 >= input_size) break;
+			output[si++] = input[current_bitstart_index + num_samples_halfbit];
+			error = ( 
+				iof(input, current_bitstart_index + num_samples_halfbit * 3) - iof(input, current_bitstart_index + num_samples_halfbit) 
+				) * iof(input, current_bitstart_index + num_samples_halfbit * 2);
+			if(state->use_q) 
+			{
+				error += ( 
+				qof(input, current_bitstart_index + num_samples_halfbit * 3) - qof(input, current_bitstart_index + num_samples_halfbit) 
+				) * qof(input, current_bitstart_index + num_samples_halfbit * 2);
+				error /= 2;
+			}
+			current_bitstart_index += num_samples_halfbit * 2 + (error)?((error>0)?1:-1):0; 
+			
+		}
+		state->input_processed = current_bitstart_index;
+		state->output_size = si;
+	}
+	else if(state->algorithm == TIMING_RECOVERY_ALGORITHM_EARLYLATE)
+	{
+		for(si=0;;si++)
+		{
+			if(current_bitstart_index + num_samples_bit >= input_size) break;
+			output[si++] = input[current_bitstart_index + num_samples_halfbit];
+			error = ( 
+				iof(input, current_bitstart_index + num_samples_quarterbit * 3) - iof(input, current_bitstart_index + num_samples_quarterbit) 
+				); //* iof(input, current_bitstart_index + num_samples_halfbit); //I don't think we need the end of the Nutaq formula
+			if(state->use_q) 
+			{
+				error += qof(input, current_bitstart_index + num_samples_quarterbit * 3) - qof(input, current_bitstart_index + num_samples_quarterbit);
+				error /= 2;
+			}
+			//Correction method #1: this version can only move a single sample in any direction
+				//current_bitstart_index += num_samples_halfbit * 2 + (error)?((error<0)?1:-1):0; 
+			//Correction method #2: this can move in proportional to the error
+				if(error>2) error=2;
+				if(error<-2) error=-2;
+				current_bitstart_index += num_samples_halfbit * 2 + num_samples_halfbit * (-error/2);
+		}
+		state->input_processed = current_bitstart_index;
+		state->output_i = si;
+	}
+}
+
+#define MTIMINGR_GAS(NAME) \
+	if(!strcmp( #NAME , input )) return TIMING_RECOVERY_ALGORITHM_ ## NAME;
+
+timing_recovery_algorithm_t timing_recovery_get_algorithm_from_string(char* input)
+{
+	MTIMINGR_GAS(GARDNER);
+	MTIMINGR_GAS(EARLYLATE);
+	return TIMING_RECOVERY_ALGORITHM_DEFAULT;
+}
+
+#define MTIMINGR_GSA(NAME) \
+	if(algorithm == TIMING_RECOVERY_ALGORITHM_ ## NAME) return #NAME;
+
+char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algorithm)
+{
+	MTIMINGR_GSA(GARDNER);
+	MTIMINGR_GSA(EARLYLATE);
+	return "INVALID";
+}
+
+/*
+in struct:
+	char* debug_string;
+	char* debug_string_end;
+	int debug_string_length;
+	int debug_mode;
+	int debug_first_n_symbols;
+func:
+void timing_recovery_write_debug_string
+(
+		int input, 
+		int input_length, 
+		int current_bitstart_index, 
+		int current_output_index, 
+		int current_p1_index, 
+		int current_p2_index, 
+		timing_recovery_state_t* state
+)
+{
+	if(state->debug_string_end==state->debug_string+debug_string_length) return;
+}*/
+
 
 /*
   _____        _                                            _

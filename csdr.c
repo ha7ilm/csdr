@@ -2348,6 +2348,38 @@ int main(int argc, char *argv[])
 			fwrite(output_buffer, sizeof(complexf), the_bufsize, stdout);
 			//fprintf(stderr, "| o");
 			TRY_YIELD;
+	}
+
+	if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q]
+	{
+		if(argc<=2) return badsyntax("need required parameter (algorithm)");
+		timing_recovery_algorithm_t algorithm = timing_recovery_get_algorithm_from_string(argv[2]);
+		/* if(algorithm == TIMING_RECOVERY_ALGORITHM_DEFAULT) */
+		fprintf(stderr,"timing_recovery_cc: algorithm = %s\n",timing_recovery_get_string_from_algorithm(algorithm));
+		if(argc<=3) return badsyntax("need required parameter (decimation factor)");
+		int decimation;
+		sscanf(argv[3],"%d",&decimation);
+		if(decimation<=4 || decimation&3) badsyntax("decimation factor should be a positive integer divisible by 4");
+
+		int add_q = (argc>=5 && !strcmp(argv[4], "--add_q"));
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize/decimation);
+
+		timing_recovery_state_t state =	timing_recovery_init(algorithm, decimation, add_q);
+
+		FREAD_C;
+		for(;;)
+		{
+			FEOF_CHECK;
+			timing_recovery((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
+			//fprintf(stderr, "os %d\n",state->output_size);
+			fwrite(output_buffer, sizeof(complexf), state->output_size, stdout);
+			fflush(stdout);
+			TRY_YIELD;
+			memmove((complexf*)input_buffer,((complexf*)input_buffer)+state->input_processed,(the_bufsize-state->input_processed)*sizeof(complexf)); //memmove lets the source and destination overlap
+			fread(((complexf*)input_buffer)+(the_bufsize-state->input_processed), sizeof(complexf), state->input_processed, stdin);
+			//fprintf(stderr,"iskip=%d state->output_size=%d start=%x target=%x skipcount=%x \n",state->input_processed,state->output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-state->input_processed),(BIG_BUFSIZE-state->input_processed));
 		}
 	}
 

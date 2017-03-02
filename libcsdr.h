@@ -287,3 +287,25 @@ typedef struct pll_s
 void pll_cc_init_pi_controller(pll_t* p, float bandwidth, float ko, float kd, float damping_factor);
 void pll_cc_init_p_controller(pll_t* p, float alpha);
 void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nco, int input_size);
+
+typedef enum timing_recovery_algorithm_e
+{
+	TIMING_RECOVERY_ALGORITHM_GARDNER, 
+	TIMING_RECOVERY_ALGORITHM_EARLYLATE 
+} timing_recovery_algorithm_t;
+
+#define TIMING_RECOVERY_ALGORITHM_DEFAULT TIMING_RECOVERY_ALGORITHM_GARDNER
+
+typedef struct timing_recovery_state_s
+{
+	timing_recovery_algorithm_t algorithm;
+	int decimation_rate; // = input_rate / output_rate. We should get an input signal that is N times oversampled. 
+	int output_size;
+	int input_processed;
+	int use_q; //use both I and Q for calculating the error
+} timing_recovery_state_t;
+
+timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q);
+int timing_recovery(complexf* input, complexf* output, int input_length, timing_recovery_state_t* state);
+timing_recovery_algorithm_t timing_recovery_get_algorithm_from_string(char* input);
+char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algorithm);
