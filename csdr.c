@@ -2373,7 +2373,7 @@ int main(int argc, char *argv[])
 		for(;;)
 		{
 			FEOF_CHECK;
-			timing_recovery((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
+			timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
 			//fprintf(stderr, "os %d\n",state.output_size);
 			fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
 			fflush(stdout);

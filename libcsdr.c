@@ -1653,7 +1653,7 @@ timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorit
 	return to_return;
 }
 
-int timing_recovery(complexf* input, complexf* output, int input_size, timing_recovery_state_t* state)
+void timing_recovery_cc(complexf* input, complexf* output, int input_size, timing_recovery_state_t* state)
 {
 	//We always assume that the input starts at center of the first symbol cross before the first symbol. 
 	//Last time we consumed that much from the input samples that it is there.
