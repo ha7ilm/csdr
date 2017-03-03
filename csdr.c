@@ -2353,7 +2353,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q]
+	if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q [--octave <debug_n>]] 
 	{
 		if(argc<=2) return badsyntax("need required parameter (algorithm)");
 		timing_recovery_algorithm_t algorithm = timing_recovery_get_algorithm_from_string(argv[2]);
@@ -2368,6 +2368,7 @@ int main(int argc, char *argv[])
 
 		int debug_n = 0;
 		if(argc>=7 && !strcmp(argv[5], "--octave")) debug_n = atoi(argv[6]);
+		if(debug_n<0) badsyntax("debug_n should be >= 0");
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize/decimation);
@@ -2379,8 +2380,8 @@ int main(int argc, char *argv[])
 		for(;;)
 		{
 			FEOF_CHECK;
+			if(debug_n && ++debug_i%debug_n==0) timing_recovery_trigger_debug(&state, 3);
 			timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
-			if(++debug_i%debug_n==0) timing_recovery_trigger_debug(&state, 3);
 			//fprintf(stderr, "os %d\n",state.output_size);
 			fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
 			fflush(stdout);

@@ -304,6 +304,7 @@ typedef struct timing_recovery_state_s
 	int input_processed;
 	int use_q; //use both I and Q for calculating the error
 	int debug_phase;
+	int debug_count;
 } timing_recovery_state_t;
 
 timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q);

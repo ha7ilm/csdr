@@ -1673,6 +1673,7 @@ timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorit
 	to_return.decimation_rate = decimation_rate;
 	to_return.use_q = use_q;
 	to_return.debug_phase = -1;
+	to_return.debug_count = 3;
 	return to_return;
 }
 
@@ -1681,6 +1682,7 @@ void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_pha
 	state->debug_phase=debug_phase;
 }
 
+#define MTIMINGR_HDEBUG 1
 
 void timing_recovery_cc(complexf* input, complexf* output, int input_size, timing_recovery_state_t* state)
 {
@@ -1690,8 +1692,10 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 	int num_samples_bit = state->decimation_rate;
 	int num_samples_halfbit = state->decimation_rate / 2;
 	int num_samples_quarterbit = state->decimation_rate / 4;
+	int debug_i = state->debug_count;
 	float error;
 	int si;
+	if(MTIMINGR_HDEBUG) fprintf(stderr, "timing_recovery_cci started, nsb = %d, nshb = %d, nsqb = %d\n", num_samples_bit, num_samples_halfbit, num_samples_quarterbit);
 	if(state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER)
 	{
 		for(si=0;;si++)
@@ -1708,16 +1712,19 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				) * qof(input, current_bitstart_index + num_samples_halfbit * 2);
 				error /= 2;
 			}
-			if(state->debug_phase == si)
+			if(state->debug_phase >= si && debug_i)
 			{
-				state->debug_phase = -1;
+				debug_i--;
+				if(!debug_i) state->debug_phase = -1;
 				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2,
 					num_samples_halfbit * 1, 'r',
 					num_samples_halfbit * 2, 'r',
 					num_samples_halfbit * 3, 'r',
 					0); //last argument is dummy, for the comma
 			}
-			current_bitstart_index += num_samples_halfbit * 2 + (error)?((error>0)?1:-1):0;
+			if(MTIMINGR_HDEBUG) fprintf(stderr, "current_bitstart_index = %d, error = %g\n", current_bitstart_index, error);
+			current_bitstart_index += num_samples_halfbit * 2 + ((error)?((error>0)?1:-1):0);
+			if(MTIMINGR_HDEBUG) fprintf(stderr, "new current_bitstart_index = %d\n", current_bitstart_index);
 		}
 		state->input_processed = current_bitstart_index;
 		state->output_size = si;
