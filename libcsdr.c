@@ -38,6 +38,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "libcsdr.h"
 #include "predefined.h"
 #include <assert.h>
+#include <stdarg.h>
 
 /*
            _           _                   __                  _   _
@@ -276,11 +277,11 @@ shift_unroll_data_t shift_unroll_init(float rate, int size)
 	{
 		myphase += output.phase_increment;
 		while(myphase>PI) myphase-=2*PI;
-		while(myphase<-PI) myphase+=2*PI;		
+		while(myphase<-PI) myphase+=2*PI;
 		output.dsin[i]=sin(myphase);
 		output.dcos[i]=cos(myphase);
 	}
-	return output;	
+	return output;
 }
 
 float shift_unroll_cc(complexf *input, complexf* output, int input_size, shift_unroll_data_t* d, float starting_phase)
@@ -323,7 +324,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 	//input_size should be multiple of 4
 	float cos_start[4], sin_start[4];
 	float cos_vals[4], sin_vals[4];
-	for(int i=0;i<4;i++) 
+	for(int i=0;i<4;i++)
 	{
 		cos_start[i] = cos(starting_phase);
 		sin_start[i] = sin(starting_phase);
@@ -343,7 +344,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 	#define RCOSV "q4" //cos_vals, sin_vals
 	#define RSINV "q5"
 	#define ROUTI "q6" //output_i, output_q
-	#define ROUTQ "q7" 
+	#define ROUTQ "q7"
 	#define RINPI "q8" //input_i, input_q
 	#define RINPQ "q9"
 	#define R3(x,y,z) x ", " y ", " z "\n\t"
@@ -353,7 +354,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 		"		vld1.32	{" RDSIN "}, [%[pdsin]]\n\t"
 		"		vld1.32	{" RCOSST "}, [%[cos_start]]\n\t"
 		"		vld1.32	{" RSINST "}, [%[sin_start]]\n\t"
-		"for_addfast: vld2.32 {" RINPI "-" RINPQ "}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in RINPI and the Q samples in RINPQ), also increment the memory address in pinput (hence the "!" mark) 
+		"for_addfast: vld2.32 {" RINPI "-" RINPQ "}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in RINPI and the Q samples in RINPQ), also increment the memory address in pinput (hence the "!" mark)
 
 		//C version:
 		//cos_vals[j] = cos_start * d->dcos[j] - sin_start * d->dsin[j];
@@ -366,7 +367,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 
 		//C version:
 		//iof(output,4*i+j)=cos_vals[j]*iof(input,4*i+j)-sin_vals[j]*qof(input,4*i+j);
-		//qof(output,4*i+j)=sin_vals[j]*iof(input,4*i+j)+cos_vals[j]*qof(input,4*i+j);	
+		//qof(output,4*i+j)=sin_vals[j]*iof(input,4*i+j)+cos_vals[j]*qof(input,4*i+j);
 		"		vmul.f32 " R3(ROUTI, RCOSV, RINPI) //output_i =  cos_vals * input_i
 		"		vmls.f32 " R3(ROUTI, RSINV, RINPQ) //output_i -= sin_vals * input_q
 		"		vmul.f32 " R3(ROUTQ, RSINV, RINPI) //output_q =  sin_vals * input_i
@@ -383,7 +384,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 		[pinput]"+r"(pinput), [poutput]"+r"(poutput) //output operand list -> C variables that we will change from ASM
 	:
 		[pinput_end]"r"(pinput_end), [pdcos]"r"(pdcos), [pdsin]"r"(pdsin), [sin_start]"r"(sin_start), [cos_start]"r"(cos_start) //input operand list
-	: 
+	:
 		"memory", "q0", "q1", "q2", "q4", "q5", "q6", "q7", "q8", "q9", "cc" //clobber list
 	);
 	starting_phase+=input_size*d->phase_increment;
@@ -409,7 +410,7 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 	float cos_start=cos(starting_phase);
 	float sin_start=sin(starting_phase);
 	float register cos_vals_0, cos_vals_1, cos_vals_2, cos_vals_3,
-		sin_vals_0, sin_vals_1, sin_vals_2, sin_vals_3, 
+		sin_vals_0, sin_vals_1, sin_vals_2, sin_vals_3,
 		dsin_0 = d->dsin[0], dsin_1 = d->dsin[1], dsin_2 = d->dsin[2], dsin_3 = d->dsin[3],
 		dcos_0 = d->dcos[0], dcos_1 = d->dcos[1], dcos_2 = d->dcos[2], dcos_3 = d->dcos[3];
 
@@ -970,7 +971,7 @@ float deemphasis_wfm_ff (float* input, float* output, int input_size, float tau,
 	output[0]=alpha*input[0]+(1-alpha)*last_output;
 	for (int i=1;i<input_size;i++) //@deemphasis_wfm_ff
        output[i]=alpha*input[i]+(1-alpha)*output[i-1]; //this is the simplest IIR LPF
-   	return output[input_size-1];
+	return output[input_size-1];
 }
 
 #define DNFMFF_ADD_ARRAY(x) if(sample_rate==x) { taps=deemphasis_nfm_predefined_fir_##x; taps_length=sizeof(deemphasis_nfm_predefined_fir_##x)/sizeof(float); }
@@ -1020,31 +1021,31 @@ void gain_ff(float* input, float* output, int input_size, float gain)
 
 float get_power_f(float* input, int input_size, int decimation)
 {
-  float acc = 0;
-  for(int i=0;i<input_size;i+=decimation)
-  {
-    acc += (input[i]*input[i])/input_size;
-  }
-  return acc;
+	float acc = 0;
+	for(int i=0;i<input_size;i+=decimation)
+	{
+		acc += (input[i]*input[i])/input_size;
+	}
+	return acc;
 }
 
 float get_power_c(complexf* input, int input_size, int decimation)
 {
-  float acc = 0;
-  for(int i=0;i<input_size;i+=decimation)
-  {
-    acc += (iof(input,i)*iof(input,i)+qof(input,i)*qof(input,i))/input_size;
-  }
-  return acc;
+	float acc = 0;
+	for(int i=0;i<input_size;i+=decimation)
+	{
+		acc += (iof(input,i)*iof(input,i)+qof(input,i)*qof(input,i))/input_size;
+	}
+	return acc;
 }
 
 /*
-  __  __           _       _       _
- |  \/  |         | |     | |     | |
- | \  / | ___   __| |_   _| | __ _| |_ ___  _ __ ___
- | |\/| |/ _ \ / _` | | | | |/ _` | __/ _ \| '__/ __|
- | |  | | (_) | (_| | |_| | | (_| | || (_) | |  \__ \
- |_|  |_|\___/ \__,_|\__,_|_|\__,_|\__\___/|_|  |___/
+  __  __           _       _       _ 
+ |  \/  |         | |     | |     |  |
+ | \  / | ___   __| |_   _| | __ _|  |_ ___  _ __ ___
+ | |\/| |/ _ \ / _` | | | | |/ _` |  __/ _ \| '__/ __|
+ | |  | | (_) | (_| | |_| | | (_| |  || (_) | |  \__ \
+ |_|  |_|\___/ \__,_|\__,_|_|\__,_|\ __\___/|_|  |___/
 
 */
 
@@ -1175,7 +1176,6 @@ void logpower_cf(complexf* input, float* output, int size, float add_db)
 void accumulate_power_cf(complexf* input, float* output, int size)
 {
 	for(int i=0;i<size;i++) output[i] += iof(input,i)*iof(input,i) + qof(input,i)*qof(input,i); //@logpower_cf: pass 1
-	
 }
 
 void log_ff(float* input, float* output, int size, float add_db) {
@@ -1573,14 +1573,14 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 }
 
 /*
-   _____                _                      _______ _           _                _____                                    
-  / ____|              (_)             ___    |__   __(_)         (_)              |  __ \                                   
- | |     __ _ _ __ _ __ _  ___ _ __   ( _ )      | |   _ _ __ ___  _ _ __   __ _   | |__) |___  ___ _____   _____ _ __ _   _ 
+   _____                _                      _______ _           _                _____
+  / ____|              (_)             ___    |__   __(_)         (_)              |  __ \
+ | |     __ _ _ __ _ __ _  ___ _ __   ( _ )      | |   _ _ __ ___  _ _ __   __ _   | |__) |___  ___ _____   _____ _ __ _   _
  | |    / _` | '__| '__| |/ _ \ '__|  / _ \/\    | |  | | '_ ` _ \| | '_ \ / _` |  |  _  // _ \/ __/ _ \ \ / / _ \ '__| | | |
  | |___| (_| | |  | |  | |  __/ |    | (_>  <    | |  | | | | | | | | | | | (_| |  | | \ \  __/ (_| (_) \ V /  __/ |  | |_| |
   \_____\__,_|_|  |_|  |_|\___|_|     \___/\/    |_|  |_|_| |_| |_|_|_| |_|\__, |  |_|  \_\___|\___\___/ \_/ \___|_|   \__, |
                                                                             __/ |                                       __/ |
-                                                                           |___/                                       |___/ 
+                                                                           |___/                                       |___/
 */
 
 void pll_cc_init_pi_controller(pll_t* p, float bandwidth, float ko, float kd, float damping_factor)
@@ -1644,18 +1644,47 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 	}
 }
 
+void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, int points_size, ...)
+{
+	fprintf(stderr, "N = %d\nisig = [", signal_size);
+	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", iof(signal,i));
+	fprintf(stderr, "]\nqsig = [");
+	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", qof(signal,i));
+	fprintf(stderr, "]\nzsig = [0:N-1]\nplot3(isig,zsig,qsig,\"b-\",");
+	int point_z;
+	char point_color;
+	va_list vl;
+	va_start(vl,points_size);
+	for(int i=0;i<points_size;i++)
+	{
+		point_z = va_arg(vl, int);
+		point_color = va_arg(vl, int);
+		fprintf(stderr, "[%f],[%d],[%f],\"%c.\"%c", iof(signal, point_z), point_z, qof(signal, point_z), point_color, (i<points_size-1)?',':' ');
+	}
+	va_end(vl);
+	fprintf(stderr, ")");
+
+}
+
 timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q)
 {
 	timing_recovery_state_t to_return;
 	to_return.algorithm = algorithm;
 	to_return.decimation_rate = decimation_rate;
 	to_return.use_q = use_q;
+	to_return.debug_phase = -1;
 	return to_return;
 }
 
+void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_phase)
+{
+	state->debug_phase=debug_phase;
+}
+
+
 void timing_recovery_cc(complexf* input, complexf* output, int input_size, timing_recovery_state_t* state)
 {
-	//We always assume that the input starts at center of the first symbol cross before the first symbol. 
+	//We always assume that the input starts at center of the first symbol cross before the first symbol.
 	//Last time we consumed that much from the input samples that it is there.
 	int current_bitstart_index = 0;
 	int num_samples_bit = state->decimation_rate;
@@ -1669,18 +1698,26 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 		{
 			if(current_bitstart_index + num_samples_halfbit * 3 >= input_size) break;
 			output[si++] = input[current_bitstart_index + num_samples_halfbit];
-			error = ( 
-				iof(input, current_bitstart_index + num_samples_halfbit * 3) - iof(input, current_bitstart_index + num_samples_halfbit) 
+			error = (
+				iof(input, current_bitstart_index + num_samples_halfbit * 3) - iof(input, current_bitstart_index + num_samples_halfbit)
 				) * iof(input, current_bitstart_index + num_samples_halfbit * 2);
-			if(state->use_q) 
+			if(state->use_q)
 			{
-				error += ( 
-				qof(input, current_bitstart_index + num_samples_halfbit * 3) - qof(input, current_bitstart_index + num_samples_halfbit) 
+				error += (
+				qof(input, current_bitstart_index + num_samples_halfbit * 3) - qof(input, current_bitstart_index + num_samples_halfbit)
 				) * qof(input, current_bitstart_index + num_samples_halfbit * 2);
 				error /= 2;
 			}
-			current_bitstart_index += num_samples_halfbit * 2 + (error)?((error>0)?1:-1):0; 
-			
+			if(state->debug_phase == si)
+			{
+				state->debug_phase = -1;
+				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2,
+					num_samples_halfbit * 1, 'r',
+					num_samples_halfbit * 2, 'r',
+					num_samples_halfbit * 3, 'r',
+					0); //last argument is dummy, for the comma
+			}
+			current_bitstart_index += num_samples_halfbit * 2 + (error)?((error>0)?1:-1):0;
 		}
 		state->input_processed = current_bitstart_index;
 		state->output_size = si;
@@ -1691,19 +1728,28 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 		{
 			if(current_bitstart_index + num_samples_bit >= input_size) break;
 			output[si++] = input[current_bitstart_index + num_samples_halfbit];
-			error = ( 
-				iof(input, current_bitstart_index + num_samples_quarterbit * 3) - iof(input, current_bitstart_index + num_samples_quarterbit) 
+			error = (
+				iof(input, current_bitstart_index + num_samples_quarterbit * 3) - iof(input, current_bitstart_index + num_samples_quarterbit)
 				); //* iof(input, current_bitstart_index + num_samples_halfbit); //I don't think we need the end of the Nutaq formula
-			if(state->use_q) 
+			if(state->use_q)
 			{
 				error += qof(input, current_bitstart_index + num_samples_quarterbit * 3) - qof(input, current_bitstart_index + num_samples_quarterbit);
 				error /= 2;
 			}
 			//Correction method #1: this version can only move a single sample in any direction
-				//current_bitstart_index += num_samples_halfbit * 2 + (error)?((error<0)?1:-1):0; 
+				//current_bitstart_index += num_samples_halfbit * 2 + (error)?((error<0)?1:-1):0;
 			//Correction method #2: this can move in proportional to the error
 				if(error>2) error=2;
 				if(error<-2) error=-2;
+			if(state->debug_phase == si)
+			{
+				state->debug_phase = -1;
+				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2,
+					num_samples_quarterbit * 1, 'r',
+					num_samples_quarterbit * 2, 'r',
+					num_samples_quarterbit * 3, 'r',
+					0);
+			}
 				current_bitstart_index += num_samples_halfbit * 2 + num_samples_halfbit * (-error/2);
 		}
 		state->input_processed = current_bitstart_index;
@@ -1730,28 +1776,6 @@ char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algo
 	MTIMINGR_GSA(EARLYLATE);
 	return "INVALID";
 }
-
-/*
-in struct:
-	char* debug_string;
-	char* debug_string_end;
-	int debug_string_length;
-	int debug_mode;
-	int debug_first_n_symbols;
-func:
-void timing_recovery_write_debug_string
-(
-		int input, 
-		int input_length, 
-		int current_bitstart_index, 
-		int current_output_index, 
-		int current_p1_index, 
-		int current_p2_index, 
-		timing_recovery_state_t* state
-)
-{
-	if(state->debug_string_end==state->debug_string+debug_string_length) return;
-}*/
 
 
 /*

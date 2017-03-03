@@ -122,6 +122,8 @@ char usage[]=
 "    rtty_line_decoder_sy_u8\n"
 "    rtty_baudot2ascii_u8_u8\n"
 "    serial_line_decoder_sy_u8\n"
+"    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
+"    timing_recovery_cc <algorithm> <decimation> [--add_q]\n"
 "    \n"
 ;
 
@@ -2364,16 +2366,21 @@ int main(int argc, char *argv[])
 
 		int add_q = (argc>=5 && !strcmp(argv[4], "--add_q"));
 
+		int debug_n = 0;
+		if(argc>=7 && !strcmp(argv[5], "--octave")) debug_n = atoi(argv[6]);
+
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize/decimation);
 
 		timing_recovery_state_t state =	timing_recovery_init(algorithm, decimation, add_q);
 
+		int debug_i=0;
 		FREAD_C;
 		for(;;)
 		{
 			FEOF_CHECK;
 			timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
+			if(++debug_i%debug_n==0) timing_recovery_trigger_debug(&state, 3);
 			//fprintf(stderr, "os %d\n",state.output_size);
 			fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
 			fflush(stdout);
@@ -2384,10 +2391,52 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if(!strcmp(argv[1],"octave_complex_c"))
+	{
+		if(argc<=2) return badsyntax("need required parameter (samples_to_plot)");
+		int samples_to_plot = 0;
+		sscanf(argv[2], "%d", &samples_to_plot);
+		if(samples_to_plot<=0) badsyntax("Number of samples to plot should be > 0");
+		if(argc<=3) return badsyntax("need required parameter (out_of_n_samples)");
+		int out_of_n_samples = 0;
+		sscanf(argv[3], "%d", &out_of_n_samples);
+		if(out_of_n_samples<samples_to_plot) badsyntax("out_of_n_samples should be < samples_to_plot");
+		complexf* read_buf = (complexf*)malloc(sizeof(complexf)*the_bufsize);
+
+		if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			fread(read_buf, sizeof(complexf), samples_to_plot, stdin); 			
+			printf("N = %d;\nisig = [", samples_to_plot);
+			for(int i=0;i<samples_to_plot;i++) printf("%f ", iof(read_buf, i));
+			printf("];\nqsig = [");
+			for(int i=0;i<samples_to_plot;i++) printf("%f ", qof(read_buf, i));
+			printf("];\nzsig = [0:N-1];\nplot3(isig,zsig,qsig);\n");
+			//printf("xlim([-1 1]);\nzlim([-1 1]);\n");
+			fflush(stdout);
+			//if(fseek(stdin, (out_of_n_samples - samples_to_plot)*sizeof(complexf), SEEK_CUR)<0) { perror("fseek error"); return -3; } //this cannot be used on stdin
+			for(int seek_remain=out_of_n_samples-samples_to_plot;seek_remain>0;seek_remain-=samples_to_plot)
+			{
+				fread(read_buf, sizeof(complexf), MIN_M(samples_to_plot,seek_remain), stdin);
+			}
+			FEOF_CHECK;
+			TRY_YIELD;
+		}
+	}
+
 	if(!strcmp(argv[1],"none"))
 	{
 		return 0;
 	}
 
-	fprintf(stderr,"csdr: function name given in argument 1 (%s) does not exist. Possible causes:\n- You mistyped the commandline.\n- You need to update csdr to a newer version (if available).", argv[1]); return -1;
+	if(argv[1][0]=='?')
+	{
+		char buffer[100];
+		snprintf(buffer, 100-1, "csdr 2>&1 | grep %s", argv[1]+1);
+		fprintf(stderr, "csdr ?: %s\n", buffer);
+		system(buffer);
+		return 0;
+	}
+
+	fprintf(stderr,"csdr: function name given in argument 1 (%s) does not exist. Possible causes:\n- You mistyped the commandline.\n- You need to update csdr to a newer version (if available).\n", argv[1]); return -1;
 }
