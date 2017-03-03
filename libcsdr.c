@@ -1652,17 +1652,18 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, int points_
 	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", qof(signal,i));
 	fprintf(stderr, "]\nzsig = [0:N-1]\nplot3(isig,zsig,qsig,\"b-\",");
 	int point_z;
-	char point_color;
+	int point_color;
 	va_list vl;
 	va_start(vl,points_size);
 	for(int i=0;i<points_size;i++)
 	{
 		point_z = va_arg(vl, int);
 		point_color = va_arg(vl, int);
-		fprintf(stderr, "[%f],[%d],[%f],\"%c.\"%c", iof(signal, point_z), point_z, qof(signal, point_z), point_color, (i<points_size-1)?',':' ');
+		fprintf(stderr, "[%f],[%d],[%f],\"%c.\"%c", iof(signal, point_z), point_z, qof(signal, point_z), (char)point_color&0xff, (i<points_size-1)?',':' ');
 	}
 	va_end(vl);
-	fprintf(stderr, ")");
+	fprintf(stderr, ")\n");
+	fflush(stderr);
 
 }
 
@@ -1682,7 +1683,7 @@ void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_pha
 	state->debug_phase=debug_phase;
 }
 
-#define MTIMINGR_HDEBUG 1
+#define MTIMINGR_HDEBUG 0
 
 void timing_recovery_cc(complexf* input, complexf* output, int input_size, timing_recovery_state_t* state)
 {
@@ -1717,6 +1718,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				debug_i--;
 				if(!debug_i) state->debug_phase = -1;
 				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2,
+					3,
 					num_samples_halfbit * 1, 'r',
 					num_samples_halfbit * 2, 'r',
 					num_samples_halfbit * 3, 'r',
