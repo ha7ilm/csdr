@@ -1644,24 +1644,40 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 	}
 }
 
-void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, int points_size, ...)
+void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int points_size, ...)
 {
-	fprintf(stderr, "N = %d;\nisig = [", signal_size);
-	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", iof(signal,i));
-	fprintf(stderr, "];\nqsig = [");
-	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", qof(signal,i));
-	fprintf(stderr, "];\nzsig = [0:N-1];\nplot3(isig,zsig,qsig,\"b-\",");
-	int point_z;
-	int point_color;
+	int* points_z = (int*)malloc(sizeof(int)*points_size);
+	int* points_color = (int*)malloc(sizeof(int)*points_size);
 	va_list vl;
 	va_start(vl,points_size);
 	for(int i=0;i<points_size;i++)
 	{
-		point_z = va_arg(vl, int);
-		point_color = va_arg(vl, int);
-		fprintf(stderr, "[%f],[%d],[%f],\"%c.\"%c", iof(signal, point_z), point_z, qof(signal, point_z), (char)point_color&0xff, (i<points_size-1)?',':' ');
+		points_z[i] = va_arg(vl, int);
+		points_color[i] = va_arg(vl, int);
 	}
+	fprintf(stderr, "N = %d;\nisig = [", signal_size);
+	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", iof(signal,i));
+	fprintf(stderr, "];\nqsig = [");
+	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", qof(signal,i));
+	fprintf(stderr, "];\nzsig = [0:N-1];\nsubplot(2,2,[2 4]);\nplot3(isig,zsig,qsig,\"b-\",");
+	for(int i=0;i<points_size;i++)
+		fprintf(stderr, "[%f],[%d],[%f],\"%c.\"%c", 
+			iof(signal, points_z[i]), points_z[i], qof(signal, points_z[i]), 
+			(char)points_color[i]&0xff, (i<points_size-1)?',':' '
+		);
 	va_end(vl);
+	fprintf(stderr, ");\ntitle(\"error = %f\");\nsubplot(2,2,1);\nplot(zsig, isig,\"b-\",", error);
+	for(int i=0;i<points_size;i++)
+		fprintf(stderr, "[%d],[%f],\"%c.\"%c", 
+			points_z[i], iof(signal, points_z[i]),
+			(char)points_color[i]&0xff, (i<points_size-1)?',':' '
+		);
+	fprintf(stderr, ");\nsubplot(2,2,3);\nplot(zsig, qsig,\"b-\",");
+	for(int i=0;i<points_size;i++)
+		fprintf(stderr, "[%d],[%f],\"%c.\"%c", 
+			points_z[i], qof(signal, points_z[i]),
+			(char)points_color[i]&0xff, (i<points_size-1)?',':' '
+		);
 	fprintf(stderr, ");\n");
 	fflush(stderr);
 
@@ -1675,6 +1691,7 @@ timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorit
 	to_return.use_q = use_q;
 	to_return.debug_phase = -1;
 	to_return.debug_count = 3;
+	to_return.debug_force = 0;
 	return to_return;
 }
 
@@ -1713,11 +1730,11 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				) * qof(input, current_bitstart_index + num_samples_halfbit * 2);
 				error /= 2;
 			}
-			if(state->debug_phase >= si && debug_i)
+			if( state->debug_force || (state->debug_phase >= si && debug_i) )
 			{
 				debug_i--;
 				if(!debug_i) state->debug_phase = -1;
-				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2,
+				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, error, 
 					3,
 					num_samples_halfbit * 1, 'r',
 					num_samples_halfbit * 2, 'r',
@@ -1753,7 +1770,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 			if(state->debug_phase == si)
 			{
 				state->debug_phase = -1;
-				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2,
+				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, error, 
 					num_samples_quarterbit * 1, 'r',
 					num_samples_quarterbit * 2, 'r',
 					num_samples_quarterbit * 3, 'r',
