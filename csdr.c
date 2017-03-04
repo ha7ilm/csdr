@@ -2357,8 +2357,8 @@ int main(int argc, char *argv[])
 	{
 		if(argc<=2) return badsyntax("need required parameter (algorithm)");
 		timing_recovery_algorithm_t algorithm = timing_recovery_get_algorithm_from_string(argv[2]);
-		/* if(algorithm == TIMING_RECOVERY_ALGORITHM_DEFAULT) */
-		fprintf(stderr,"timing_recovery_cc: algorithm = %s\n",timing_recovery_get_string_from_algorithm(algorithm));
+		if(algorithm == TIMING_RECOVERY_ALGORITHM_DEFAULT) 
+			fprintf(stderr,"#timing_recovery_cc: algorithm = %s\n",timing_recovery_get_string_from_algorithm(algorithm));
 		if(argc<=3) return badsyntax("need required parameter (decimation factor)");
 		int decimation;
 		sscanf(argv[3],"%d",&decimation);

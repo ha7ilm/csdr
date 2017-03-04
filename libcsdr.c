@@ -1646,11 +1646,11 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 
 void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, int points_size, ...)
 {
-	fprintf(stderr, "N = %d\nisig = [", signal_size);
+	fprintf(stderr, "N = %d;\nisig = [", signal_size);
 	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", iof(signal,i));
-	fprintf(stderr, "]\nqsig = [");
+	fprintf(stderr, "];\nqsig = [");
 	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", qof(signal,i));
-	fprintf(stderr, "]\nzsig = [0:N-1]\nplot3(isig,zsig,qsig,\"b-\",");
+	fprintf(stderr, "];\nzsig = [0:N-1];\nplot3(isig,zsig,qsig,\"b-\",");
 	int point_z;
 	int point_color;
 	va_list vl;
@@ -1662,7 +1662,7 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, int points_
 		fprintf(stderr, "[%f],[%d],[%f],\"%c.\"%c", iof(signal, point_z), point_z, qof(signal, point_z), (char)point_color&0xff, (i<points_size-1)?',':' ');
 	}
 	va_end(vl);
-	fprintf(stderr, ")\n");
+	fprintf(stderr, ");\n");
 	fflush(stderr);
 
 }
