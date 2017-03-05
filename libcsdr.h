@@ -313,4 +313,4 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_length, tim
 timing_recovery_algorithm_t timing_recovery_get_algorithm_from_string(char* input);
 char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algorithm);
 void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_phase);
-void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int points_size, ...);
+void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int points_size, ...);

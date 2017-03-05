@@ -1644,7 +1644,7 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 	}
 }
 
-void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int points_size, ...)
+void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int points_size, ...)
 {
 	int* points_z = (int*)malloc(sizeof(int)*points_size);
 	int* points_color = (int*)malloc(sizeof(int)*points_size);
@@ -1666,7 +1666,7 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error
 			(char)points_color[i]&0xff, (i<points_size-1)?',':' '
 		);
 	va_end(vl);
-	fprintf(stderr, ");\ntitle(\"error = %f\");\nsubplot(2,2,1);\nplot(zsig, isig,\"b-\",", error);
+	fprintf(stderr, ");\ntitle(\"index = %d, error = %f\");\nsubplot(2,2,1);\nplot(zsig, isig,\"b-\",", index, error);
 	for(int i=0;i<points_size;i++)
 		fprintf(stderr, "[%d],[%f],\"%c.\"%c", 
 			points_z[i], iof(signal, points_z[i]),
@@ -1680,7 +1680,8 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error
 		);
 	fprintf(stderr, ");\n");
 	fflush(stderr);
-
+	free(points_z);
+	free(points_color);
 }
 
 timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q)
@@ -1700,7 +1701,7 @@ void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_pha
 	state->debug_phase=debug_phase;
 }
 
-#define MTIMINGR_HDEBUG 0
+#define MTIMINGR_HDEBUG 1
 
 void timing_recovery_cc(complexf* input, complexf* output, int input_size, timing_recovery_state_t* state)
 {
@@ -1713,6 +1714,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 	int debug_i = state->debug_count;
 	float error;
 	int si;
+	if(state->debug_force) fprintf(stderr, "disp(\"begin timing_recovery_cc\");\n");
 	if(MTIMINGR_HDEBUG) fprintf(stderr, "timing_recovery_cci started, nsb = %d, nshb = %d, nsqb = %d\n", num_samples_bit, num_samples_halfbit, num_samples_quarterbit);
 	if(state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER)
 	{
@@ -1734,16 +1736,19 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 			{
 				debug_i--;
 				if(!debug_i) state->debug_phase = -1;
-				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, error, 
-					3,
+				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, 
+					error, 
+					current_bitstart_index, 
+					3, //number of points to draw below:
 					num_samples_halfbit * 1, 'r',
 					num_samples_halfbit * 2, 'r',
 					num_samples_halfbit * 3, 'r',
 					0); //last argument is dummy, for the comma
 			}
 			if(MTIMINGR_HDEBUG) fprintf(stderr, "current_bitstart_index = %d, error = %g\n", current_bitstart_index, error);
-			current_bitstart_index += num_samples_halfbit * 2 + ((error)?((error>0)?1:-1):0);
+			current_bitstart_index += num_samples_bit + ((error)?((error>0)?1:-1):0);
 			if(MTIMINGR_HDEBUG) fprintf(stderr, "new current_bitstart_index = %d\n", current_bitstart_index);
+			if(si>=input_size) { break; }
 		}
 		state->input_processed = current_bitstart_index;
 		state->output_size = si;
@@ -1753,6 +1758,8 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 		for(si=0;;si++)
 		{
 			if(current_bitstart_index + num_samples_bit >= input_size) break;
+			if(MTIMINGR_HDEBUG) fprintf(stderr, "current_bitstart_index = %d, input_size = %d\n", 
+					current_bitstart_index, input_size);
 			output[si++] = input[current_bitstart_index + num_samples_halfbit];
 			error = (
 				iof(input, current_bitstart_index + num_samples_quarterbit * 3) - iof(input, current_bitstart_index + num_samples_quarterbit)
@@ -1767,16 +1774,25 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 			//Correction method #2: this can move in proportional to the error
 				if(error>2) error=2;
 				if(error<-2) error=-2;
-			if(state->debug_phase == si)
+			if( state->debug_force || (state->debug_phase >= si && debug_i) )
 			{
-				state->debug_phase = -1;
-				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, error, 
+				debug_i--;
+				if(!debug_i) state->debug_phase = -1;
+				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, 
+					error, 
+					current_bitstart_index, 
+					3,
 					num_samples_quarterbit * 1, 'r',
 					num_samples_quarterbit * 2, 'r',
 					num_samples_quarterbit * 3, 'r',
 					0);
 			}
-				current_bitstart_index += num_samples_halfbit * 2 + num_samples_halfbit * (-error/2);
+			current_bitstart_index += num_samples_bit + num_samples_halfbit * (-error/2);
+			if(si>=input_size) 
+			{ 
+				if(MTIMINGR_HDEBUG) fprintf(stderr, "oops_out_of_si!\n"); 
+				break; 
+			}
 		}
 		state->input_processed = current_bitstart_index;
 		state->output_size = si;
