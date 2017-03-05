@@ -1697,6 +1697,7 @@ timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorit
 	to_return.debug_count = 3;
 	to_return.debug_force = 0;
 	to_return.debug_writefiles = 0;
+	//to_return.last_phase_offset = 0;
 	return to_return;
 }
 
@@ -1705,7 +1706,7 @@ void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_pha
 	state->debug_phase=debug_phase;
 }
 
-#define MTIMINGR_HDEBUG 1
+#define MTIMINGR_HDEBUG 0
 
 void timing_recovery_cc(complexf* input, complexf* output, int input_size, timing_recovery_state_t* state)
 {
@@ -1719,7 +1720,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 	float error;
 	int si;
 	if(state->debug_force) fprintf(stderr, "disp(\"begin timing_recovery_cc\");\n");
-	if(MTIMINGR_HDEBUG) fprintf(stderr, "timing_recovery_cci started, nsb = %d, nshb = %d, nsqb = %d\n", num_samples_bit, num_samples_halfbit, num_samples_quarterbit);
+	if(MTIMINGR_HDEBUG) fprintf(stderr, "timing_recovery_cc started, nsb = %d, nshb = %d, nsqb = %d\n", num_samples_bit, num_samples_halfbit, num_samples_quarterbit);
 	if(state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER)
 	{
 		for(si=0;;si++)
@@ -1760,18 +1761,21 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 	}
 	else if(state->algorithm == TIMING_RECOVERY_ALGORITHM_EARLYLATE)
 	{
+		//bitstart index should be at symbol maximum effect point
 		for(si=0;;si++)
 		{
-			if(current_bitstart_index + num_samples_bit >= input_size) break;
+			if(current_bitstart_index + num_samples_halfbit * 3 >= input_size) break;
 			if(MTIMINGR_HDEBUG) fprintf(stderr, "current_bitstart_index = %d, input_size = %d\n", 
 					current_bitstart_index, input_size);
-			output[si++] = input[current_bitstart_index + num_samples_halfbit];
+			output[si++] = input[current_bitstart_index];
 			error = (
 				iof(input, current_bitstart_index + num_samples_quarterbit * 3) - iof(input, current_bitstart_index + num_samples_quarterbit)
-				); //* iof(input, current_bitstart_index + num_samples_halfbit); //I don't think we need the end of the Nutaq formula
+				) * iof(input, current_bitstart_index + num_samples_halfbit); 
 			if(state->use_q)
 			{
-				error += qof(input, current_bitstart_index + num_samples_quarterbit * 3) - qof(input, current_bitstart_index + num_samples_quarterbit);
+				error += (
+					qof(input, current_bitstart_index + num_samples_quarterbit * 3) - qof(input, current_bitstart_index + num_samples_quarterbit)
+				) * qof(input, current_bitstart_index + num_samples_halfbit); 
 				error /= 2;
 			}
 			//Correction method #1: this version can only move a single sample in any direction
@@ -1791,6 +1795,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 					num_samples_quarterbit * 1, 'r',
 					num_samples_quarterbit * 2, 'r',
 					num_samples_quarterbit * 3, 'r',
+					0 , 'b',
 					0);
 			}
 			current_bitstart_index += num_samples_bit + num_samples_halfbit * (-error/2);
