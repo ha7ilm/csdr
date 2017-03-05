@@ -1644,7 +1644,7 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 	}
 }
 
-void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int writefiles, int points_size, ...)
+void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int correction_offset, int writefiles, int points_size, ...)
 {
 	static int figure_output_counter = 0;
 	int* points_z = (int*)malloc(sizeof(int)*points_size);
@@ -1668,7 +1668,7 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error
 			(char)points_color[i]&0xff, (i<points_size-1)?',':' '
 		);
 	va_end(vl);
-	fprintf(stderr, ");\ntitle(\"index = %d, error = %f\");\nsubplot(2,2,1);\nplot(zsig, isig,\"b-\",", index, error);
+	fprintf(stderr, ");\ntitle(\"index = %d, error = %f, cxoffs = %d\");\nsubplot(2,2,1);\nplot(zsig, isig,\"b-\",", index, error, correction_offset);
 	for(int i=0;i<points_size;i++)
 		fprintf(stderr, "[%d],[%f],\"%c.\"%c", 
 			points_z[i], iof(signal, points_z[i]),
@@ -1697,7 +1697,7 @@ timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorit
 	to_return.debug_count = 3;
 	to_return.debug_force = 0;
 	to_return.debug_writefiles = 0;
-	//to_return.last_phase_offset = 0;
+	to_return.last_correction_offset = 0;
 	return to_return;
 }
 
@@ -1712,6 +1712,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 {
 	//We always assume that the input starts at center of the first symbol cross before the first symbol.
 	//Last time we consumed that much from the input samples that it is there.
+	int correction_offset = state->last_correction_offset;
 	int current_bitstart_index = 0;
 	int num_samples_bit = state->decimation_rate;
 	int num_samples_halfbit = state->decimation_rate / 2;
@@ -1744,6 +1745,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, 
 					error, 
 					current_bitstart_index, 
+					correction_offset,
 					state->debug_writefiles,
 					3, //number of points to draw below:
 					num_samples_halfbit * 1, 'r',
@@ -1756,33 +1758,40 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 			if(MTIMINGR_HDEBUG) fprintf(stderr, "new current_bitstart_index = %d\n", current_bitstart_index);
 			if(si>=input_size) { break; }
 		}
-		state->input_processed = current_bitstart_index;
-		state->output_size = si;
 	}
 	else if(state->algorithm == TIMING_RECOVERY_ALGORITHM_EARLYLATE)
 	{
 		//bitstart index should be at symbol maximum effect point
 		for(si=0;;si++)
 		{
+			//the MathWorks style algorithm has correction_offset.
+			//correction_offset = 0;			
 			if(current_bitstart_index + num_samples_halfbit * 3 >= input_size) break;
-			if(MTIMINGR_HDEBUG) fprintf(stderr, "current_bitstart_index = %d, input_size = %d\n", 
-					current_bitstart_index, input_size);
+			if(MTIMINGR_HDEBUG) fprintf(stderr, "current_bitstart_index = %d, input_size = %d, correction_offset(prev) = %d\n", 
+					current_bitstart_index, input_size, correction_offset);
+			
+			if(correction_offset<=-num_samples_quarterbit*0.9 || correction_offset>=0.9*num_samples_quarterbit)
+			{
+				if(MTIMINGR_HDEBUG) fprintf(stderr, "correction_offset = %d, reset to 0!\n", correction_offset); 
+				correction_offset = 0;
+			}
 			output[si++] = input[current_bitstart_index];
-			error = (
-				iof(input, current_bitstart_index + num_samples_quarterbit * 3) - iof(input, current_bitstart_index + num_samples_quarterbit)
-				) * iof(input, current_bitstart_index + num_samples_halfbit); 
+			int el_point_left_index  = current_bitstart_index + num_samples_quarterbit * 3;
+			int el_point_right_index = current_bitstart_index + num_samples_quarterbit * 1 - correction_offset;
+			int el_point_mid_index   = current_bitstart_index + num_samples_halfbit;
+
+			error = ( iof(input, el_point_left_index) - iof(input, el_point_right_index)) * iof(input, el_point_mid_index); 
 			if(state->use_q)
 			{
-				error += (
-					qof(input, current_bitstart_index + num_samples_quarterbit * 3) - qof(input, current_bitstart_index + num_samples_quarterbit)
-				) * qof(input, current_bitstart_index + num_samples_halfbit); 
+				error += ( qof(input, el_point_left_index) - qof(input, el_point_right_index)) * qof(input, el_point_mid_index); 
 				error /= 2;
 			}
 			//Correction method #1: this version can only move a single sample in any direction
-				//current_bitstart_index += num_samples_halfbit * 2 + (error)?((error<0)?1:-1):0;
+			//current_bitstart_index += num_samples_halfbit * 2 + (error)?((error<0)?1:-1):0;
+			
 			//Correction method #2: this can move in proportional to the error
-				if(error>2) error=2;
-				if(error<-2) error=-2;
+			if(error>2) error=2;
+			if(error<-2) error=-2;
 			if( state->debug_force || (state->debug_phase >= si && debug_i) )
 			{
 				debug_i--;
@@ -1790,24 +1799,27 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, 
 					error, 
 					current_bitstart_index, 
+					correction_offset,
 					state->debug_writefiles,
-					3,
+					4,
+					0 , 'b',
 					num_samples_quarterbit * 1, 'r',
 					num_samples_quarterbit * 2, 'r',
 					num_samples_quarterbit * 3, 'r',
-					0 , 'b',
 					0);
 			}
-			current_bitstart_index += num_samples_bit + num_samples_halfbit * (-error/2);
+			correction_offset = num_samples_halfbit * (-error/2);
+			current_bitstart_index += num_samples_bit + correction_offset;
 			if(si>=input_size) 
 			{ 
 				if(MTIMINGR_HDEBUG) fprintf(stderr, "oops_out_of_si!\n"); 
 				break; 
 			}
 		}
-		state->input_processed = current_bitstart_index;
-		state->output_size = si;
 	}
+	state->input_processed = current_bitstart_index;
+	state->output_size = si;
+	state->last_correction_offset = correction_offset;
 }
 
 #define MTIMINGR_GAS(NAME) \

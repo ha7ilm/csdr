@@ -307,6 +307,7 @@ typedef struct timing_recovery_state_s
 	int debug_count;
 	int debug_force;
 	int debug_writefiles;
+	int last_correction_offset;
 } timing_recovery_state_t;
 
 timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q);
@@ -314,4 +315,4 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_length, tim
 timing_recovery_algorithm_t timing_recovery_get_algorithm_from_string(char* input);
 char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algorithm);
 void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_phase);
-void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int writefiles, int points_size, ...);
+void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int correction_offset, int writefiles, int points_size, ...);
