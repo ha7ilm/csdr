@@ -480,11 +480,7 @@ int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decim
 	for(int i=0; i<input_size; i+=decimation) //@fir_decimate_cc: outer loop
 	{
 		if(i+taps_length>input_size) break;
-		register float acci=0;
-		register float accq=0;
-
-		register int ti=0;
-		register float* pinput=(float*)&(input[i+ti]);
+		register float* pinput=(float*)&(input[i]);
 		register float* ptaps=taps;
 		register float* ptaps_end=taps+taps_length;
 		float quad_acciq [8];
@@ -497,8 +493,8 @@ q4, q5: accumulator for I branch and Q branch (will be the output)
 */
 
 		asm volatile(
-			"		vmov.f32 q4, #0.0\n\t" //another way to null the accumulators
-			"		vmov.f32 q5, #0.0\n\t"
+			"		veor q4, q4\n\t"
+			"		veor q5, q5\n\t"
 			"for_fdccasm: vld2.32	{q0-q1}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in q0 and the Q samples in q1), also increment the memory address in pinput (hence the "!" mark) //http://community.arm.com/groups/processors/blog/2010/03/17/coding-for-neon--part-1-load-and-stores
 			"		vld1.32	{q2}, [%[ptaps]]!\n\t"
 			"		vmla.f32 q4, q0, q2\n\t" //quad_acc_i += quad_input_i * quad_taps_1 //http://stackoverflow.com/questions/3240440/how-to-use-the-multiply-and-accumulate-intrinsics-in-arm-cortex-a8 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489e/CIHEJBIE.html

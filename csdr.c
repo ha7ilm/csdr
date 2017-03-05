@@ -1059,7 +1059,7 @@ int main(int argc, char *argv[])
 		padded_taps_length = taps_length+(NEON_ALIGNMENT/4)-1 - ((taps_length+(NEON_ALIGNMENT/4)-1)%(NEON_ALIGNMENT/4));
 		fprintf(stderr,"padded_taps_length = %d\n", padded_taps_length);
 
-		taps = (float*) (float*)malloc(padded_taps_length+NEON_ALIGNMENT);
+		taps = (float*) (float*)malloc((padded_taps_length+NEON_ALIGNMENT)*sizeof(float));
 		fprintf(stderr,"taps = %x\n", taps);
 		taps =  (float*)((((unsigned)taps)+NEON_ALIGNMENT-1) & ~(NEON_ALIGNMENT-1));
 		fprintf(stderr,"taps = %x\n", taps);
