@@ -1644,8 +1644,9 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 	}
 }
 
-void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int points_size, ...)
+void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int writefiles, int points_size, ...)
 {
+	static int figure_output_counter = 0;
 	int* points_z = (int*)malloc(sizeof(int)*points_size);
 	int* points_color = (int*)malloc(sizeof(int)*points_size);
 	va_list vl;
@@ -1655,6 +1656,7 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error
 		points_z[i] = va_arg(vl, int);
 		points_color[i] = va_arg(vl, int);
 	}
+	if(writefiles && !figure_output_counter) fprintf(stderr, "cf=figure();\n");
 	fprintf(stderr, "N = %d;\nisig = [", signal_size);
 	for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", iof(signal,i));
 	fprintf(stderr, "];\nqsig = [");
@@ -1679,6 +1681,7 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error
 			(char)points_color[i]&0xff, (i<points_size-1)?',':' '
 		);
 	fprintf(stderr, ");\n");
+	if(writefiles) fprintf(stderr, "print(cf, \"figs/%05d.png\", \"-S1024,1024\");\n", figure_output_counter++); 
 	fflush(stderr);
 	free(points_z);
 	free(points_color);
@@ -1693,6 +1696,7 @@ timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorit
 	to_return.debug_phase = -1;
 	to_return.debug_count = 3;
 	to_return.debug_force = 0;
+	to_return.debug_writefiles = 0;
 	return to_return;
 }
 
@@ -1739,6 +1743,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, 
 					error, 
 					current_bitstart_index, 
+					state->debug_writefiles,
 					3, //number of points to draw below:
 					num_samples_halfbit * 1, 'r',
 					num_samples_halfbit * 2, 'r',
@@ -1781,6 +1786,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, 
 					error, 
 					current_bitstart_index, 
+					state->debug_writefiles,
 					3,
 					num_samples_quarterbit * 1, 'r',
 					num_samples_quarterbit * 2, 'r',
