@@ -1780,12 +1780,12 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 					correction_offset,
 					state->debug_writefiles,
 					3,
-					num_samples_quarterbit, 'r',
-					num_samples_quarterbit * 2, 'r',
-					num_samples_quarterbit * 3, 'r',
-					//el_point_left_index - current_bitstart_index,  'r',
-					//el_point_right_index - current_bitstart_index, 'r',
-					//el_point_mid_index - current_bitstart_index,   'r',
+					//num_samples_quarterbit, 'r',
+					//num_samples_quarterbit * 2, 'r',
+					//num_samples_quarterbit * 3, 'r',
+					el_point_left_index - current_bitstart_index,  'r',
+					el_point_right_index - current_bitstart_index, 'r',
+					el_point_mid_index - current_bitstart_index,   'r',
 					0);
 			}
 			int error_sign = (state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER) ? -1 : 1;
