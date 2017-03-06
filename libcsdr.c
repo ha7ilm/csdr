@@ -1698,6 +1698,7 @@ timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorit
 	to_return.debug_force = 0;
 	to_return.debug_writefiles = 0;
 	to_return.last_correction_offset = 0;
+	to_return.earlylate_ratio = 0.25; //0..0.5
 	return to_return;
 }
 
@@ -1717,58 +1718,14 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 	int num_samples_bit = state->decimation_rate;
 	int num_samples_halfbit = state->decimation_rate / 2;
 	int num_samples_quarterbit = state->decimation_rate / 4;
+	int num_samples_earlylate_wing = num_samples_bit * state->earlylate_ratio;
 	int debug_i = state->debug_count;
 	float error;
+	int el_point_left_index, el_point_right_index, el_point_mid_index;
 	int si;
 	if(state->debug_force) fprintf(stderr, "disp(\"begin timing_recovery_cc\");\n");
 	if(MTIMINGR_HDEBUG) fprintf(stderr, "timing_recovery_cc started, nsb = %d, nshb = %d, nsqb = %d\n", num_samples_bit, num_samples_halfbit, num_samples_quarterbit);
-	if(state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER)
 	{
-		for(si=0;;si++)
-		{
-			if(current_bitstart_index + num_samples_halfbit * 3 >= input_size) break;
-
-			int el_point_left_index  = current_bitstart_index + num_samples_quarterbit * 3;
-			int el_point_right_index = current_bitstart_index + num_samples_quarterbit * 1 - correction_offset;
-			int el_point_mid_index   = current_bitstart_index + num_samples_halfbit;
-			output[si++] = input[current_bitstart_index + num_samples_halfbit];
-			error = (
-				iof(input, current_bitstart_index + num_samples_halfbit * 3) - iof(input, current_bitstart_index + num_samples_halfbit)
-				) * iof(input, current_bitstart_index + num_samples_halfbit * 2);
-			if(state->use_q)
-			{
-				error += (
-				qof(input, current_bitstart_index + num_samples_halfbit * 3) - qof(input, current_bitstart_index + num_samples_halfbit)
-				) * qof(input, current_bitstart_index + num_samples_halfbit * 2);
-				error /= 2;
-			}
-			if( state->debug_force || (state->debug_phase >= si && debug_i) )
-			{
-				debug_i--;
-				if(!debug_i) state->debug_phase = -1;
-				octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, 
-					error, 
-					current_bitstart_index, 
-					correction_offset,
-					state->debug_writefiles,
-					3, //number of points to draw below:
-					num_samples_halfbit * 1, 'r',
-					num_samples_halfbit * 2, 'r',
-					num_samples_halfbit * 3, 'r',
-					0); //last argument is dummy, for the comma
-			}
-			if(MTIMINGR_HDEBUG) fprintf(stderr, "current_bitstart_index = %d, error = %g\n", current_bitstart_index, error);
-			//hey, this should be fixed here:
-			correction_offset = num_samples_halfbit * (-error/2);
-			current_bitstart_index += num_samples_bit + correction_offset;
-			//current_bitstart_index += num_samples_bit + ((error)?((error>0)?1:-1):0);
-			if(MTIMINGR_HDEBUG) fprintf(stderr, "new current_bitstart_index = %d\n", current_bitstart_index);
-			if(si>=input_size) { break; }
-		}
-	}
-	else if(state->algorithm == TIMING_RECOVERY_ALGORITHM_EARLYLATE)
-	{
-		//bitstart index should be at symbol edge, maximum effect point is at current_bitstart_index + num_samples_halfbit
 		for(si=0;;si++)
 		{
 			//the MathWorks style algorithm has correction_offset.
@@ -1782,23 +1739,35 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				if(MTIMINGR_HDEBUG) fprintf(stderr, "correction_offset = %d, reset to 0!\n", correction_offset); 
 				correction_offset = 0;
 			}
-				//should check if the sign of the correction_offset (or disabling it) has an effect on the EVM.
-				//it is also a possibility to disable multiplying with the magnitude
-			int el_point_left_index  = current_bitstart_index + num_samples_quarterbit * 3;
-			int el_point_right_index = current_bitstart_index + num_samples_quarterbit * 1 - correction_offset;
-			int el_point_mid_index   = current_bitstart_index + num_samples_halfbit;
-			output[si++] = input[current_bitstart_index + el_point_mid_index];
+			//should check if the sign of the correction_offset (or disabling it) has an effect on the EVM.
+			//it is also a possibility to disable multiplying with the magnitude
+			if(state->algorithm == TIMING_RECOVERY_ALGORITHM_EARLYLATE)
+			{
+				//bitstart index should be at symbol edge, maximum effect point is at current_bitstart_index + num_samples_halfbit
+				el_point_right_index  = current_bitstart_index + num_samples_earlylate_wing * 3;
+				el_point_left_index   = current_bitstart_index + num_samples_earlylate_wing * 1 - correction_offset;
+				el_point_mid_index    = current_bitstart_index + num_samples_halfbit;
+				output[si++] = input[current_bitstart_index + el_point_mid_index];
+			}
+			else if(state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER)
+			{
+				//maximum effect point is at current_bitstart_index
+				el_point_right_index  = current_bitstart_index + num_samples_halfbit * 3;
+				el_point_left_index   = current_bitstart_index + num_samples_halfbit * 1;
+				el_point_mid_index    = current_bitstart_index + num_samples_halfbit * 2;
+				output[si++] = input[current_bitstart_index + num_samples_halfbit * 1];
+			}
+			else break;
 
-			error = ( iof(input, el_point_left_index) - iof(input, el_point_right_index)) * iof(input, el_point_mid_index); 
+			error = ( iof(input, el_point_right_index) - iof(input, el_point_left_index)) * iof(input, el_point_mid_index); 
 			if(state->use_q)
 			{
-				error += ( qof(input, el_point_left_index) - qof(input, el_point_right_index)) * qof(input, el_point_mid_index); 
+				error += ( qof(input, el_point_right_index) - qof(input, el_point_left_index)) * qof(input, el_point_mid_index); 
 				error /= 2;
 			}
-			//Correction method #1: this version can only move a single sample in any direction
+			//Original correction method: this version can only move a single sample in any direction
 			//current_bitstart_index += num_samples_halfbit * 2 + (error)?((error<0)?1:-1):0;
 			
-			//Correction method #2: this can move in proportional to the error
 			if(error>2) error=2;
 			if(error<-2) error=-2;
 			if( state->debug_force || (state->debug_phase >= si && debug_i) )
@@ -1811,12 +1780,16 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 					correction_offset,
 					state->debug_writefiles,
 					3,
-					num_samples_quarterbit * 1, 'r',
+					num_samples_quarterbit, 'r',
 					num_samples_quarterbit * 2, 'r',
 					num_samples_quarterbit * 3, 'r',
+					//el_point_left_index - current_bitstart_index,  'r',
+					//el_point_right_index - current_bitstart_index, 'r',
+					//el_point_mid_index - current_bitstart_index,   'r',
 					0);
 			}
-			correction_offset = num_samples_halfbit * (error/2);
+			int error_sign = (state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER) ? -1 : 1;
+			correction_offset = num_samples_halfbit * error_sign * (error/2);
 			current_bitstart_index += num_samples_bit + correction_offset;
 			if(si>=input_size) 
 			{ 

@@ -2376,7 +2376,7 @@ int main(int argc, char *argv[])
 		timing_recovery_state_t state =	timing_recovery_init(algorithm, decimation, add_q);
 
 		int debug_i=0;
-		state.debug_writefiles = 1;
+		state.debug_writefiles = 0;
 		state.debug_force = !!debug_n; //should remove that later
 		FREAD_C;
 		for(;;)

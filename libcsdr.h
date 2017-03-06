@@ -308,6 +308,7 @@ typedef struct timing_recovery_state_s
 	int debug_force;
 	int debug_writefiles;
 	int last_correction_offset;
+	float earlylate_ratio;
 } timing_recovery_state_t;
 
 timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q);
