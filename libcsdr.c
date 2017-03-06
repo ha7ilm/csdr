@@ -1727,6 +1727,10 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 		for(si=0;;si++)
 		{
 			if(current_bitstart_index + num_samples_halfbit * 3 >= input_size) break;
+
+			int el_point_left_index  = current_bitstart_index + num_samples_quarterbit * 3;
+			int el_point_right_index = current_bitstart_index + num_samples_quarterbit * 1 - correction_offset;
+			int el_point_mid_index   = current_bitstart_index + num_samples_halfbit;
 			output[si++] = input[current_bitstart_index + num_samples_halfbit];
 			error = (
 				iof(input, current_bitstart_index + num_samples_halfbit * 3) - iof(input, current_bitstart_index + num_samples_halfbit)
@@ -1754,14 +1758,17 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 					0); //last argument is dummy, for the comma
 			}
 			if(MTIMINGR_HDEBUG) fprintf(stderr, "current_bitstart_index = %d, error = %g\n", current_bitstart_index, error);
-			current_bitstart_index += num_samples_bit + ((error)?((error>0)?1:-1):0);
+			//hey, this should be fixed here:
+			correction_offset = num_samples_halfbit * (-error/2);
+			current_bitstart_index += num_samples_bit + correction_offset;
+			//current_bitstart_index += num_samples_bit + ((error)?((error>0)?1:-1):0);
 			if(MTIMINGR_HDEBUG) fprintf(stderr, "new current_bitstart_index = %d\n", current_bitstart_index);
 			if(si>=input_size) { break; }
 		}
 	}
 	else if(state->algorithm == TIMING_RECOVERY_ALGORITHM_EARLYLATE)
 	{
-		//bitstart index should be at symbol maximum effect point
+		//bitstart index should be at symbol edge, maximum effect point is at current_bitstart_index + num_samples_halfbit
 		for(si=0;;si++)
 		{
 			//the MathWorks style algorithm has correction_offset.
@@ -1775,10 +1782,12 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				if(MTIMINGR_HDEBUG) fprintf(stderr, "correction_offset = %d, reset to 0!\n", correction_offset); 
 				correction_offset = 0;
 			}
-			output[si++] = input[current_bitstart_index];
+				//should check if the sign of the correction_offset (or disabling it) has an effect on the EVM.
+				//it is also a possibility to disable multiplying with the magnitude
 			int el_point_left_index  = current_bitstart_index + num_samples_quarterbit * 3;
 			int el_point_right_index = current_bitstart_index + num_samples_quarterbit * 1 - correction_offset;
 			int el_point_mid_index   = current_bitstart_index + num_samples_halfbit;
+			output[si++] = input[current_bitstart_index + el_point_mid_index];
 
 			error = ( iof(input, el_point_left_index) - iof(input, el_point_right_index)) * iof(input, el_point_mid_index); 
 			if(state->use_q)
@@ -1801,14 +1810,13 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 					current_bitstart_index, 
 					correction_offset,
 					state->debug_writefiles,
-					4,
-					0 , 'b',
+					3,
 					num_samples_quarterbit * 1, 'r',
 					num_samples_quarterbit * 2, 'r',
 					num_samples_quarterbit * 3, 'r',
 					0);
 			}
-			correction_offset = num_samples_halfbit * (-error/2);
+			correction_offset = num_samples_halfbit * (error/2);
 			current_bitstart_index += num_samples_bit + correction_offset;
 			if(si>=input_size) 
 			{ 
