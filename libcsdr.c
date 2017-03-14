@@ -1820,6 +1820,41 @@ char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algo
 	return "INVALID";
 }
 
+typedef struct bpsk_costas_loop_state_s
+{
+	float pll_alpha;
+	float pll_beta;
+	float pll_iir_temp;
+	float pll_phase;
+} bpsk_costas_loop_state_t;
+
+void init_bpsk_carrier_recovery_cc(bpsk_costas_loop_state_t* state) 
+{ 
+	state->pll_alpha = state->pll_beta = 0; //TODO  <--
+	state->pll_phase = 0;
+	state->pll_iir_temp = 0;
+}
+
+void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* state)
+{
+	complexf ejphi; //downconvert with that
+	for(int i=0;i<input_size;i++)
+	{
+		e_powj(&ejphi, -state->pll_phase);
+		cmult(&output[i], &input[i], &ejphi);
+
+		float error = iof(output,i) * qof(output, i);
+		if(error>2) error=2;
+		if(error<-2) error=-2;
+
+		state->pll_phase = error * state->pll_alpha + state->pll_iir_temp;
+		state->pll_iir_temp += error * state->pll_beta;
+
+		while(state->pll_phase>PI) state->pll_phase-=2*PI;
+		while(state->pll_phase<-PI) state->pll_phase+=2*PI;
+	}
+}
+
 
 /*
   _____        _                                            _
