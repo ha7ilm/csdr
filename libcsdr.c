@@ -1413,6 +1413,29 @@ char psk31_varicode_decoder_push(unsigned long long* status_shr, unsigned char s
 	return 0;
 }
 
+void psk31_varicode_encoder_u8_u8(unsigned char* input, unsigned char* output, int input_size, int output_max_size, int* input_processed, int* output_size)
+{
+	*output_size=0;
+	for(*input_processed=0; *input_processed<input_size; *input_processed++)
+	{
+		for(int ci=0; ci<n_psk31_varicode_items; ci++) //ci: character index
+		{
+			psk31_varicode_item_t current_varicode = psk31_varicode_items[ci].ascii;
+			if(input[*input_processed]==current_varicode.ascii)
+			{
+				if(output_max_size<current_varicode.bitcount) return;
+				for(int bi=0; bi<current_varicode.bitcount; bi++) //bi: bit index
+				{
+					output[*output_size]=(psk31_varicode_items[ci]>>(current_varicode.bitcount-bi-1))&1;
+					*output_size++;
+					output_max_size--;
+				}
+				break;
+			}
+		}
+	}
+}
+
 rtty_baudot_item_t rtty_baudot_items[] =
 {
 	{ .code = 0b00000, .ascii_letter=0,		.ascii_figure=0 },
@@ -1571,6 +1594,47 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 {
 	for(int i=0;i<input_size;i++) output[i] = input[i] > 0;
 }
+
+void psk_modulator_u8_c(unsigned char* input, complexf* output, int input_size, int npsk)
+{
+	//outputs one complex sample per input symbol
+	for(int i=0;i<input_size;i++)
+	{
+		float out_phase=((2*M_PI)/npsk)*input[i];
+		iof(output,i)=cos(out_phase);
+		qof(output,i)=sin(out_phase);
+	}
+}
+
+void duplicate_samples_ntimes_u8_u8(unsigned char* input, unsigned char* output, int input_size_bytes, int sample_size_bytes, int ntimes)
+{
+	int l=0;
+	for(int i=0;i<input_size_bytes;i+=sample_size_bytes)
+		for(int k=0;k<ntimes;k++)
+			for(int j=0;j<sample_size_bytes;j++)
+				output[l++]=input[i+j];
+}
+
+complexf psk31_interpolate_sine_cc(complexf* input, complexf* output, int input_size, int interpolation, complexf last_input)
+{
+	for(int i=0;i<input_size;i++)
+		for(int j=0; j<interpolation; j++)
+		{
+			float rate = (1+sin(-(M_PI/2)+M_PI*((j+1)/(float)interpolation)))/2;
+			iof(output,i)=iof(input,i) * rate + last_input * (1-rate);
+			qof(output,i)=qof(input,i) * rate + last_input * (1-rate);
+			last_input = output[i];
+		}
+	return last_input;
+}
+
+void pack_bits_8to1_u8_u8(unsigned char* input, unsigned char* output, int input_size)
+{ //output size should be input_size × 8
+	for(int i=0; i<input_size; i++)
+		for(int bi=0; bi<8; bi++) //bi: bit index
+			*(output++)=(input[i]>>bi)&1;
+}
+
 
 /*
    _____                _                      _______ _           _                _____
