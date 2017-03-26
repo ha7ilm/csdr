@@ -973,7 +973,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"floatdump_f"))
+	if(!strcmp(argv[1],"floatdump_f") || !strcmp(argv[1],"dump_f"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -2424,6 +2424,120 @@ int main(int argc, char *argv[])
 				fread(read_buf, sizeof(complexf), MIN_M(samples_to_plot,seek_remain), stdin);
 			}
 			FEOF_CHECK;
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"psk_modulator_u8_c")) //<n_psk>
+	{
+		int n_psk;
+		if(argc<=2) return badsyntax("need required parameter (n_psk)");
+		sscanf(argv[2],"%d",&n_psk);
+		if(n_psk<=0 || n_psk>256) badsyntax("n_psk should be between 1 and 256");
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize);
+
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread((unsigned char*)input_buffer, sizeof(unsigned char), the_bufsize, stdin);
+			psk_modulator_u8_c((unsigned char*)input_buffer, (complexf*)output_buffer, the_bufsize, n_psk);
+			FWRITE_C;
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"duplicate_samples_ntimes_u8_u8")) //<sample_size_bytes> <ntimes>
+	{
+		int sample_size_bytes, ntimes;
+		if(argc<=2) return badsyntax("need required parameter (sample_size_bytes)");
+		sscanf(argv[2],"%d",&sample_size_bytes);	
+		if(argc<=3) return badsyntax("need required parameter (ntimes)");
+		sscanf(argv[3],"%d",&ntimes);	
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize*ntimes);
+		unsigned char* local_input_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*sample_size_bytes);
+		unsigned char* local_output_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*sample_size_bytes*ntimes);
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread((void*)local_input_buffer, sizeof(unsigned char), the_bufsize*sample_size_bytes, stdin);
+			duplicate_samples_ntimes_u8_u8(local_input_buffer, local_input_buffer, the_bufsize*sample_size_bytes, sample_size_bytes, ntimes);
+			fwrite((void*)local_output_buffer, sizeof(unsigned char), the_bufsize*sample_size_bytes*ntimes, stdout);
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"psk31_interpolate_sine_cc")) //<interpolation>
+	{
+		int interpolation;
+		if(argc<=2) return badsyntax("need required parameter (interpolation)");
+		sscanf(argv[2],"%d",&interpolation);	
+		if(interpolation<=0) badsyntax("interpolation should be >0"); 
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize*interpolation);
+		complexf* local_output_buffer = (complexf*)malloc(sizeof(complexf)*the_bufsize*interpolation);
+		complexf last_input;
+		iof(&last_input,0) = 0;
+		qof(&last_input,0) = 0;
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_C;
+			last_input = psk31_interpolate_sine_cc((complexf*)input_buffer, local_output_buffer, the_bufsize, interpolation, last_input);
+			fwrite((void*)local_output_buffer, sizeof(complexf), the_bufsize*interpolation, stdout);
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"pack_bits_8to1_u8_u8")) 
+	{
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize*8);
+		unsigned char* local_input_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize);
+		unsigned char* local_output_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*8);
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread((void*)local_input_buffer, sizeof(unsigned char), the_bufsize, stdin);
+			pack_bits_8to1_u8_u8(local_input_buffer, local_output_buffer, the_bufsize);
+			fwrite((void*)local_output_buffer, sizeof(unsigned char), the_bufsize*8, stdout);
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"psk31_varicode_encoder_u8_u8")) 
+	{
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize*8);
+		int output_max_size=the_bufsize*30;
+		int output_size;
+		int input_processed;
+		unsigned char* local_input_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize);
+		unsigned char* local_output_buffer = (unsigned char*)malloc(sizeof(unsigned char)*output_max_size);
+		fread((void*)local_input_buffer, sizeof(unsigned char), the_bufsize, stdin);
+		for(;;)
+		{
+			psk31_varicode_encoder_u8_u8(local_input_buffer, local_output_buffer, the_bufsize, output_max_size, &input_processed, &output_size);
+			fwrite((void*)local_output_buffer, sizeof(unsigned char), output_size, stdout);
+			FEOF_CHECK;
+			memmove(local_input_buffer, local_input_buffer+input_processed, the_bufsize-input_processed); 
+			fread(input_buffer+the_bufsize-input_processed, sizeof(unsigned char), input_processed, stdin);
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"dump_u8")) 
+	{
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize*3);
+		unsigned char* local_input_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize);
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread((void*)local_input_buffer, sizeof(unsigned char), the_bufsize, stdin);
+			for(int i=0;i<the_bufsize;i++) printf("%02x ", local_input_buffer[i]);
 			TRY_YIELD;
 		}
 	}

@@ -317,3 +317,8 @@ timing_recovery_algorithm_t timing_recovery_get_algorithm_from_string(char* inpu
 char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algorithm);
 void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_phase);
 void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int correction_offset, int writefiles, int points_size, ...);
+void psk_modulator_u8_c(unsigned char* input, complexf* output, int input_size, int n_psk);
+void duplicate_samples_ntimes_u8_u8(unsigned char* input, unsigned char* output, int input_size_bytes, int sample_size_bytes, int ntimes);
+complexf psk31_interpolate_sine_cc(complexf* input, complexf* output, int input_size, int interpolation, complexf last_input);
+void pack_bits_8to1_u8_u8(unsigned char* input, unsigned char* output, int input_size);
+void psk31_varicode_encoder_u8_u8(unsigned char* input, unsigned char* output, int input_size, int output_max_size, int* input_processed, int* output_size);
