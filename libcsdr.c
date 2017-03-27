@@ -1415,19 +1415,22 @@ char psk31_varicode_decoder_push(unsigned long long* status_shr, unsigned char s
 
 void psk31_varicode_encoder_u8_u8(unsigned char* input, unsigned char* output, int input_size, int output_max_size, int* input_processed, int* output_size)
 {
-	*output_size=0;
-	for(*input_processed=0; *input_processed<input_size; *input_processed++)
+	(*output_size)=0;
+	for((*input_processed)=0; (*input_processed)<input_size; (*input_processed)++)
 	{
+		//fprintf(stderr, "ii = %d, input_size = %d, output_max_size = %d\n", *input_processed, input_size, output_max_size);
 		for(int ci=0; ci<n_psk31_varicode_items; ci++) //ci: character index
 		{
 			psk31_varicode_item_t current_varicode = psk31_varicode_items[ci];
 			if(input[*input_processed]==current_varicode.ascii)
 			{
-				if(output_max_size<current_varicode.bitcount) return;
-				for(int bi=0; bi<current_varicode.bitcount; bi++) //bi: bit index
+				//fprintf(stderr, "ci = %d\n", ci);
+				if(output_max_size<current_varicode.bitcount+2) return;
+				for(int bi=0; bi<current_varicode.bitcount+2; bi++) //bi: bit index
 				{
-					output[*output_size]=(psk31_varicode_items[ci].code>>(current_varicode.bitcount-bi-1))&1;
-					*output_size++;
+					//fprintf(stderr, "bi = %d\n", bi);
+					output[*output_size] = (bi<current_varicode.bitcount) ? (psk31_varicode_items[ci].code>>(current_varicode.bitcount-bi-1))&1 : 0;
+					(*output_size)++;
 					output_max_size--;
 				}
 				break;
@@ -1598,9 +1601,10 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 void psk_modulator_u8_c(unsigned char* input, complexf* output, int input_size, int n_psk)
 {
 	//outputs one complex sample per input symbol
+	float phase_increment = (2*M_PI)/n_psk;
 	for(int i=0;i<input_size;i++)
 	{
-		float out_phase=((2*M_PI)/n_psk)*input[i];
+		float out_phase=phase_increment*input[i];
 		iof(output,i)=cos(out_phase);
 		qof(output,i)=sin(out_phase);
 	}
@@ -1617,14 +1621,18 @@ void duplicate_samples_ntimes_u8_u8(unsigned char* input, unsigned char* output,
 
 complexf psk31_interpolate_sine_cc(complexf* input, complexf* output, int input_size, int interpolation, complexf last_input)
 {
+	int oi=0; //output index
 	for(int i=0;i<input_size;i++)
+	{
 		for(int j=0; j<interpolation; j++)
 		{
 			float rate = (1+sin(-(M_PI/2)+M_PI*((j+1)/(float)interpolation)))/2;
-			iof(output,i)=iof(input,i) * rate + iof(&last_input,0) * (1-rate);
-			qof(output,i)=qof(input,i) * rate + qof(&last_input,0) * (1-rate);
-			last_input = output[i];
+			iof(output,oi)=iof(input,i) * rate + iof(&last_input,0) * (1-rate);
+			qof(output,oi)=qof(input,i) * rate + qof(&last_input,0) * (1-rate);
+			oi++;
 		}
+		last_input = input[i];
+	}
 	return last_input;
 }
 
@@ -1635,6 +1643,21 @@ void pack_bits_8to1_u8_u8(unsigned char* input, unsigned char* output, int input
 			*(output++)=(input[i]>>bi)&1;
 }
 
+unsigned char differential_codec(unsigned char* input, unsigned char* output, int input_size, int encode, unsigned char state)
+{
+	if(!encode)
+		for(int i=0;i<input_size;i++) 
+		{
+			output[i] = input[i] == state;
+			state = input[i];
+		}
+	else
+		for(int i=0;i<input_size;i++) 
+		{
+			if(!input[i]) state=!state;
+			output[i] = state;
+		}
+}
 
 /*
    _____                _                      _______ _           _                _____

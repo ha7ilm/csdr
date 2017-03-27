@@ -322,3 +322,4 @@ void duplicate_samples_ntimes_u8_u8(unsigned char* input, unsigned char* output,
 complexf psk31_interpolate_sine_cc(complexf* input, complexf* output, int input_size, int interpolation, complexf last_input);
 void pack_bits_8to1_u8_u8(unsigned char* input, unsigned char* output, int input_size);
 void psk31_varicode_encoder_u8_u8(unsigned char* input, unsigned char* output, int input_size, int output_max_size, int* input_processed, int* output_size);
+unsigned char differential_codec(unsigned char* input, unsigned char* output, int input_size, int encode, unsigned char state);

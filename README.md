@@ -185,20 +185,34 @@ Else, after outputing `buf_times` number of buffers (the size of which is stated
 
 Along with copying its input samples to the output, it prints a warning message to *stderr* if it finds any IEEE floating point NaN values among the samples.
 
-	floatdump_f
+	dump_f
 
-It prints any floating point input samples.
+It prints all floating point input samples as text.
+
 The format string used is `"%g "`.
+
+You can also use it to print complex float values, then you will see the I and Q samples interleaved, like: `I Q I Q I Q ...`
+
+Alternatively, you can use the `od` command (built into most Linux distributions). To display a list of floating point values with their addresses as well, you can use: `od -vf`
+
+	dump_u8
+
+It prints all input bytes as text, in hexadecimal form. 
+
+Alternatively, you can use the `xxd` command (built into most Linux distributions). To display a hexadecimal dump of the standard input (with addresses at the beginning of rows), you can use: `xxd -g1`
 
 	flowcontrol <data_rate> <reads_per_second>
 
 It limits the data rate of a stream to a given `data_rate` number of bytes per second.
+
 It copies `data_rate / reads_per_second` bytes from the input to the output, doing it `reads_per_second` times every second.
 
 	shift_math_cc <rate>
 
 It shifts the signal in the frequency domain by `rate`.
+
 `rate` is a floating point number between -0.5 and 0.5.
+
 `rate` is relative to the sampling rate.
 
 Internally, a sine and cosine wave is generated to perform this function, and this function uses `math.h` for this purpose, which is quite accurate, but not always very fast.
@@ -416,6 +430,22 @@ This is a controllable squelch, which reads the squelch level input from `<squel
 	fifo <buffer_size> <number_of_buffers>
 
 It is similar to `clone`, but internally it uses a circular buffer. It reads as much as possible from the input. It discards input samples if the input buffer is full.
+
+	psk31_varicode_encoder_u8_u8
+
+It encodes ASCII characters into varicode for PSK31 transmission. It puts a `00` sequence between the varicode characters (which acts as a separator). 
+
+For the Varicode character set, see: http://www.arrl.org/psk31-spec
+
+For example, `aaa` means the bit sequence `101100101100101100`. 
+
+For this input, the output of `psk31_varicode_encoder_u8_u8` will be the following bytes (in hexadecimal):
+
+```
+01 00 01 01 00 00 01 00 
+01 01 00 00 01 00 01 01
+00 00
+```
 
 #### Control via pipes
 

@@ -73,7 +73,7 @@ char usage[]=
 "    none\n"
 "    yes_f <to_repeat> [buf_times]\n"
 "    detect_nan_ff\n"
-"    floatdump_f\n"
+"    dump_f\n"
 "    flowcontrol <data_rate> <reads_per_second> [prebuffer_sec] [thrust]\n"
 "    shift_math_cc <rate>\n"
 "    shift_math_cc --fifo <fifo_path>\n"
@@ -124,6 +124,14 @@ char usage[]=
 "    serial_line_decoder_sy_u8\n"
 "    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
 "    timing_recovery_cc <algorithm> <decimation> [--add_q]\n"
+"    psk31_varicode_encoder_u8_u8\n"
+"    differential_encoder_u8_u8\n"
+"    differential_decoder_u8_u8\n"
+"    dump_u8\n"
+"    psk_modulator_u8_c <n_psk>\n"
+"    psk31_interpolate_sine_cc\n"
+"    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
+"    ?<search_the_function_list>\n"
 "    \n"
 ;
 
@@ -2405,6 +2413,8 @@ int main(int argc, char *argv[])
 		int out_of_n_samples = 0;
 		sscanf(argv[3], "%d", &out_of_n_samples);
 		if(out_of_n_samples<samples_to_plot) badsyntax("out_of_n_samples should be < samples_to_plot");
+		int mode2d = 0;
+		if(argc>4) mode2d = !strcmp(argv[4], "--2d"); 
 		complexf* read_buf = (complexf*)malloc(sizeof(complexf)*the_bufsize);
 
 		if(!sendbufsize(initialize_buffers())) return -2;
@@ -2415,7 +2425,9 @@ int main(int argc, char *argv[])
 			for(int i=0;i<samples_to_plot;i++) printf("%f ", iof(read_buf, i));
 			printf("];\nqsig = [");
 			for(int i=0;i<samples_to_plot;i++) printf("%f ", qof(read_buf, i));
-			printf("];\nzsig = [0:N-1];\nplot3(isig,zsig,qsig);\n");
+			printf("];\nzsig = [0:N-1];\n");
+			if(mode2d) printf("subplot(2,1,1);\nplot(zsig,isig);\nsubplot(2,1,2);\nplot(zsig,qsig);\n");
+			else printf("plot3(isig,zsig,qsig);\n");
 			//printf("xlim([-1 1]);\nzlim([-1 1]);\n");
 			fflush(stdout);
 			//if(fseek(stdin, (out_of_n_samples - samples_to_plot)*sizeof(complexf), SEEK_CUR)<0) { perror("fseek error"); return -3; } //this cannot be used on stdin
@@ -2450,11 +2462,13 @@ int main(int argc, char *argv[])
 
 	if(!strcmp(argv[1],"duplicate_samples_ntimes_u8_u8")) //<sample_size_bytes> <ntimes>
 	{
-		int sample_size_bytes, ntimes;
+		int sample_size_bytes = 0, ntimes = 0;
 		if(argc<=2) return badsyntax("need required parameter (sample_size_bytes)");
 		sscanf(argv[2],"%d",&sample_size_bytes);	
+		if(sample_size_bytes<=0) badsyntax("sample_size_bytes should be >0");
 		if(argc<=3) return badsyntax("need required parameter (ntimes)");
 		sscanf(argv[3],"%d",&ntimes);	
+		if(ntimes<=0) badsyntax("ntimes should be >0");
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize*ntimes);
 		unsigned char* local_input_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*sample_size_bytes);
@@ -2463,7 +2477,7 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			fread((void*)local_input_buffer, sizeof(unsigned char), the_bufsize*sample_size_bytes, stdin);
-			duplicate_samples_ntimes_u8_u8(local_input_buffer, local_input_buffer, the_bufsize*sample_size_bytes, sample_size_bytes, ntimes);
+			duplicate_samples_ntimes_u8_u8(local_input_buffer, local_output_buffer, the_bufsize*sample_size_bytes, sample_size_bytes, ntimes);
 			fwrite((void*)local_output_buffer, sizeof(unsigned char), the_bufsize*sample_size_bytes*ntimes, stdout);
 			TRY_YIELD;
 		}
@@ -2520,6 +2534,7 @@ int main(int argc, char *argv[])
 		for(;;)
 		{
 			psk31_varicode_encoder_u8_u8(local_input_buffer, local_output_buffer, the_bufsize, output_max_size, &input_processed, &output_size);
+			//fprintf(stderr, "os = %d\n", output_size);
 			fwrite((void*)local_output_buffer, sizeof(unsigned char), output_size, stdout);
 			FEOF_CHECK;
 			memmove(local_input_buffer, local_input_buffer+input_processed, the_bufsize-input_processed); 
@@ -2538,6 +2553,24 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			fread((void*)local_input_buffer, sizeof(unsigned char), the_bufsize, stdin);
 			for(int i=0;i<the_bufsize;i++) printf("%02x ", local_input_buffer[i]);
+			TRY_YIELD;
+		}
+	}
+
+	int differential_codec_encode = 0;
+	if( (differential_codec_encode = !strcmp(argv[1],"differential_encoder_u8_u8")) || (!strcmp(argv[1],"differential_decoder_u8_u8")) )
+	{
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize);
+		unsigned char* local_input_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize);
+		unsigned char* local_output_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize);
+		unsigned char state = 0;
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread((void*)local_input_buffer, sizeof(unsigned char), the_bufsize, stdin);
+			state = differential_codec(local_input_buffer, local_output_buffer, the_bufsize, differential_codec_encode, state);
+			fwrite((void*)local_output_buffer, sizeof(unsigned char), the_bufsize, stdout);
 			TRY_YIELD;
 		}
 	}
