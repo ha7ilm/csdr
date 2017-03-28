@@ -5,3 +5,4 @@ ddcd
 *.so
 tags
 dumpvect.*.vect
+*.swp
