@@ -323,3 +323,15 @@ complexf psk31_interpolate_sine_cc(complexf* input, complexf* output, int input_
 void pack_bits_8to1_u8_u8(unsigned char* input, unsigned char* output, int input_size);
 void psk31_varicode_encoder_u8_u8(unsigned char* input, unsigned char* output, int input_size, int output_max_size, int* input_processed, int* output_size);
 unsigned char differential_codec(unsigned char* input, unsigned char* output, int input_size, int encode, unsigned char state);
+
+typedef struct bpsk_costas_loop_state_s
+{
+	float rc_filter_alpha;
+	float vco_phase_addition_multiplier;
+	float vco_phase;
+	float last_lpfi_output;
+	float last_lpfq_output;
+} bpsk_costas_loop_state_t;
+
+bpsk_costas_loop_state_t init_bpsk_costas_loop_cc(float samples_per_bits);
+void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* state);

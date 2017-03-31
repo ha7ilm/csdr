@@ -131,6 +131,7 @@ char usage[]=
 "    psk_modulator_u8_c <n_psk>\n"
 "    psk31_interpolate_sine_cc\n"
 "    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
+"    bpsk_costas_loop_cc <samples_per_bits>\n"
 "    ?<search_the_function_list>\n"
 "    \n"
 ;
@@ -2396,7 +2397,7 @@ int main(int argc, char *argv[])
 			fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
 			fflush(stdout);
 			TRY_YIELD;
-			fprintf(stderr, "state.input_processed = %d\n", state.input_processed);
+			//fprintf(stderr, "state.input_processed = %d\n", state.input_processed);
 			memmove((complexf*)input_buffer,((complexf*)input_buffer)+state.input_processed,(the_bufsize-state.input_processed)*sizeof(complexf)); //memmove lets the source and destination overlap
 			fread(((complexf*)input_buffer)+(the_bufsize-state.input_processed), sizeof(complexf), state.input_processed, stdin);
 			//fprintf(stderr,"iskip=%d state.output_size=%d start=%x target=%x skipcount=%x \n",state.input_processed,state.output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-state.input_processed),(BIG_BUFSIZE-state.input_processed));
@@ -2571,6 +2572,28 @@ int main(int argc, char *argv[])
 			fread((void*)local_input_buffer, sizeof(unsigned char), the_bufsize, stdin);
 			state = differential_codec(local_input_buffer, local_output_buffer, the_bufsize, differential_codec_encode, state);
 			fwrite((void*)local_output_buffer, sizeof(unsigned char), the_bufsize, stdout);
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"bpsk_costas_loop_cc")) //<samples_per_bits>
+	{
+		float samples_per_bits;
+		if(argc<=2) return badsyntax("need required parameter (samples_per_bits)");
+		sscanf(argv[2],"%f",&samples_per_bits);
+		if(samples_per_bits<=0) badsyntax("samples_per_bits should be >= 0");
+
+		bpsk_costas_loop_state_t state = init_bpsk_costas_loop_cc(samples_per_bits);
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize);
+
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_C;
+			bpsk_costas_loop_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
+			FWRITE_C;
 			TRY_YIELD;
 		}
 	}

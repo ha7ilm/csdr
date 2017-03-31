@@ -1907,34 +1907,35 @@ char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algo
 	return "INVALID";
 }
 
-typedef struct bpsk_costas_loop_state_s
-{
-	float rc_filter_alpha;
-	float vco_phase_addition_multiplier;
-	float vco_phase;
-	float last_lpfi_output;
-	float last_lpfq_output;
-} bpsk_costas_loop_state_t;
-
-void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* state, float samples_per_bits) 
+bpsk_costas_loop_state_t init_bpsk_costas_loop_cc(float samples_per_bits) 
 { 
-	state->vco_phase = 0;
+	bpsk_costas_loop_state_t state;
+	state.vco_phase = 0;
 	float virtual_sampling_rate = 10000;
 	float virtual_data_rate = virtual_sampling_rate / samples_per_bits;
+	fprintf(stderr, "virtual_sampling_rate = %g, virtual_data_rate = %g\n", virtual_sampling_rate, virtual_data_rate);
 	float rc_filter_cutoff = virtual_data_rate/2;
 	float rc_filter_rc = 1/(2*M_PI*rc_filter_cutoff); //as of Equation 24 in Feigin
 	float virtual_sampling_dt = 1.0/virtual_sampling_rate;
-	state->rc_filter_alpha = virtual_sampling_dt/(rc_filter_rc+virtual_sampling_dt); //https://en.wikipedia.org/wiki/Low-pass_filter
+	fprintf(stderr, "rc_filter_cutoff = %g, rc_filter_rc = %g, virtual_sampling_dt = %g\n", 
+		rc_filter_cutoff, rc_filter_rc, virtual_sampling_dt);
+	state.rc_filter_alpha = virtual_sampling_dt/(rc_filter_rc+virtual_sampling_dt); //https://en.wikipedia.org/wiki/Low-pass_filter
 	float rc_filter_omega_cutoff = 2*M_PI*rc_filter_cutoff;
-	state->vco_phase_addition_multiplier = 8*rc_filter_omega_cutoff; //as of Equation 25 in Feigin, assuming input signal amplitude of 1 (to 1V) and (state->vco_phase_addition_multiplier*<vco_input>), a value in radians, will be added to the vco_phase directly.
+	state.vco_phase_addition_multiplier = 8*rc_filter_omega_cutoff; //as of Equation 25 in Feigin, assuming input signal amplitude of 1 (to 1V) and (state.vco_phase_addition_multiplier*<vco_input>), a value in radians, will be added to the vco_phase directly.
+	fprintf(stderr, "rc_filter_alpha = %g, rc_filter_omega_cutoff = %g, vco_phase_addition_multiplier = %g\n", 
+			state.rc_filter_alpha, rc_filter_omega_cutoff, state.vco_phase_addition_multiplier);
+	return state;
 }
 
 void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* state)
 {
+	int debug = 0;
+	if(debug) fprintf(stderr, "costas:\n");
 	for(int i=0;i<input_size;i++)
 	{
 		float input_phase = atan2(input[i].q, input[i].i);
 		float input_and_vco_mixed_phase = input_phase - state->vco_phase;
+		if(debug) fprintf(stderr, "%g | %g\n", input_and_vco_mixed_phase, input_phase), debug--;
 		complexf input_and_vco_mixed_sample; 
 		e_powj(&input_and_vco_mixed_sample, input_and_vco_mixed_phase);
 		float loop_output_i = 
@@ -1947,6 +1948,8 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk
 		state->vco_phase += vco_phase_addition;
 		while(state->vco_phase>PI) state->vco_phase-=2*PI;
 		while(state->vco_phase<-PI) state->vco_phase+=2*PI;
+		output[i].i = loop_output_i;
+		output[i].q = loop_output_q;
 	}
 }
 
