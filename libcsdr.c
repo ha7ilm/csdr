@@ -580,6 +580,34 @@ int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decim
 }
 */
 
+int fir_interpolate_cc(complexf *input, complexf *output, int input_size, int interpolation, float *taps, int taps_length)
+{
+	//i:  input index
+	//oi: output index
+	//ti: tap index
+	//ti: secondary index (inside filter function)
+	//ip: interpolation phase (0 <= ip < interpolation)
+	int oi=0;
+	for(int i=0; i<input_size; i++) //@fir_interpolate_cc: outer loop
+	{
+		if(i*interpolation + (interpolation-1) + taps_length > input_size*interpolation) break;
+		for(int ip=0; ip<interpolation; ip++)
+		{
+			float acci=0;
+			float accq=0;
+			//int tistart = (interpolation-ip)%interpolation; 
+			int tistart = (interpolation-ip); //why does this work? why don't we need the % part?
+			for(int ti=tistart, si=0; ti<taps_length; (ti+=interpolation), (si++)) acci += (iof(input,i+si)) * taps[ti]; //@fir_interpolate_cc: i loop
+			for(int ti=tistart, si=0; ti<taps_length; (ti+=interpolation), (si++)) accq += (qof(input,i+si)) * taps[ti]; //@fir_interpolate_cc: q loop
+			iof(output,oi)=acci;
+			qof(output,oi)=accq;
+			oi++;
+		}
+	}
+	return oi;
+}
+
+
 rational_resampler_ff_t rational_resampler_ff(float *input, float *output, int input_size, int interpolation, int decimation, float *taps, int taps_length, int last_taps_delay)
 {
 

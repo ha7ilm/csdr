@@ -315,7 +315,12 @@ Other parameters were explained above at `firdes_lowpass_f`.
 	fir_decimate_cc <decimation_factor> [transition_bw [window]]
 
 It is a decimator that keeps one sample out of `decimation_factor` samples.
-To avoid aliasing, it runs a filter on the signal and removes spectral components above `0.5 × nyquist_frequency × decimation_factor`.
+To avoid aliasing, it runs a filter on the signal and removes spectral components above `0.5 × nyquist_frequency × decimation_factor` from the input signal.
+
+	fir_interpolate_cc <interpolation_factor> [transition_bw [window]]
+
+It is an interpolator that generates `interpolation_factor` number of output samples from one input sample.
+To avoid aliasing, it runs a filter on the signal and removes spectral components above `0.5 × nyquist_frequency / interpolation_factor` from the output signal.
 
 `transition_bw` and `window` are the parameters of the filter.
 
