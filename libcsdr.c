@@ -1837,11 +1837,11 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 	int debug_i = state->debug_count;
 	float error;
 	int el_point_left_index, el_point_right_index, el_point_mid_index;
-	int si;
+	int si = 0;
 	if(state->debug_force) fprintf(stderr, "disp(\"begin timing_recovery_cc\");\n");
 	if(MTIMINGR_HDEBUG) fprintf(stderr, "timing_recovery_cc started, nsb = %d, nshb = %d, nsqb = %d\n", num_samples_bit, num_samples_halfbit, num_samples_quarterbit);
 	{
-		for(si=0;;si++)
+		for(;;)
 		{
 			//the MathWorks style algorithm has correction_offset.
 			//correction_offset = 0;			
@@ -1862,7 +1862,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				el_point_right_index  = current_bitstart_index + num_samples_earlylate_wing * 3;
 				el_point_left_index   = current_bitstart_index + num_samples_earlylate_wing * 1 - correction_offset;
 				el_point_mid_index    = current_bitstart_index + num_samples_halfbit;
-				output[si++] = input[current_bitstart_index + el_point_mid_index];
+				output[si++] = input[el_point_mid_index];
 			}
 			else if(state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER)
 			{
@@ -1870,7 +1870,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 				el_point_right_index  = current_bitstart_index + num_samples_halfbit * 3;
 				el_point_left_index   = current_bitstart_index + num_samples_halfbit * 1;
 				el_point_mid_index    = current_bitstart_index + num_samples_halfbit * 2;
-				output[si++] = input[current_bitstart_index + num_samples_halfbit * 1];
+				output[si++] = input[el_point_left_index];
 			}
 			else break;
 

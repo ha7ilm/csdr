@@ -131,7 +131,7 @@ char usage[]=
 "    differential_decoder_u8_u8\n"
 "    dump_u8\n"
 "    psk_modulator_u8_c <n_psk>\n"
-"    psk31_interpolate_sine_cc\n"
+"    psk31_interpolate_sine_cc <interpolation>\n"
 "    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
 "    bpsk_costas_loop_cc <samples_per_bits>\n"
 "    ?<search_the_function_list>\n"
@@ -2455,7 +2455,7 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			if(debug_n && ++debug_i%debug_n==0) timing_recovery_trigger_debug(&state, 3);
 			timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
-			//fprintf(stderr, "os %d\n",state.output_size);
+			//fprintf(stderr, "trcc is=%d, os=%d, ip=%d\n",the_bufsize, state.output_size, state.input_processed);
 			fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
 			fflush(stdout);
 			TRY_YIELD;
