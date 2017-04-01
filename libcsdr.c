@@ -1942,7 +1942,8 @@ bpsk_costas_loop_state_t init_bpsk_costas_loop_cc(float samples_per_bits)
 	float virtual_sampling_rate = 10000;
 	float virtual_data_rate = virtual_sampling_rate / samples_per_bits;
 	fprintf(stderr, "virtual_sampling_rate = %g, virtual_data_rate = %g\n", virtual_sampling_rate, virtual_data_rate);
-	float rc_filter_cutoff = virtual_data_rate/2;
+	//float rc_filter_cutoff = virtual_data_rate * 2; //this is so far the best
+	float rc_filter_cutoff = virtual_data_rate * 2;
 	float rc_filter_rc = 1/(2*M_PI*rc_filter_cutoff); //as of Equation 24 in Feigin
 	float virtual_sampling_dt = 1.0/virtual_sampling_rate;
 	fprintf(stderr, "rc_filter_cutoff = %g, rc_filter_rc = %g, virtual_sampling_dt = %g\n", 
@@ -1966,18 +1967,24 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk
 		if(debug) fprintf(stderr, "%g | %g\n", input_and_vco_mixed_phase, input_phase), debug--;
 		complexf input_and_vco_mixed_sample; 
 		e_powj(&input_and_vco_mixed_sample, input_and_vco_mixed_phase);
+		
+		complexf vco_sample;
+		e_powj(&vco_sample, -state->vco_phase);
+		//cmult(&input_and_vco_mixed_sample, &input[i], &vco_sample);//if this is enabled, the real input sample is used, not the amplitude normalized 
+
 		float loop_output_i = 
 			input_and_vco_mixed_sample.i * state->rc_filter_alpha + state->last_lpfi_output * (1-state->rc_filter_alpha);
 		float loop_output_q = 
 			input_and_vco_mixed_sample.q * state->rc_filter_alpha + state->last_lpfq_output * (1-state->rc_filter_alpha);
+		//loop_output_i = input_and_vco_mixed_sample.i;
+		//loop_output_q = input_and_vco_mixed_sample.q;
 		state->last_lpfi_output = loop_output_i;
 		state->last_lpfq_output = loop_output_q;
 		float vco_phase_addition = loop_output_i * loop_output_q * state->vco_phase_addition_multiplier;
 		state->vco_phase += vco_phase_addition;
 		while(state->vco_phase>PI) state->vco_phase-=2*PI;
 		while(state->vco_phase<-PI) state->vco_phase+=2*PI;
-		output[i].i = loop_output_i;
-		output[i].q = loop_output_q;
+		cmult(&output[i], &input[i], &vco_sample);
 	}
 }
 
