@@ -517,7 +517,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(824, 427)</value>
+      <value>(976, 379)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -536,7 +536,7 @@
     </param>
     <param>
       <key>commandline</key>
-      <value>csdr bpsk_costas_loop_cc 8</value>
+      <value>csdr bpsk_costas_loop_cc 16</value>
     </param>
     <param>
       <key>comment</key>
@@ -552,7 +552,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(120, 523)</value>
+      <value>(128, 411)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -595,11 +595,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(112, 403)</value>
+      <value>(432, 411)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -745,11 +745,11 @@
     </param>
     <param>
       <key>_enabled</key>
-      <value>1</value>
+      <value>0</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(544, 371)</value>
+      <value>(824, 507)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -836,7 +836,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(536, 523)</value>
+      <value>(432, 507)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -1017,12 +1017,6 @@
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>blocks_throttle_0</source_block_id>
-    <sink_block_id>wxgui_scopesink2_0_1</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
     <source_block_id>digital_psk_mod_0</source_block_id>
     <sink_block_id>blocks_throttle_0</sink_block_id>
     <source_key>0</source_key>
@@ -1036,7 +1030,7 @@
   </connection>
   <connection>
     <source_block_id>freq_xlating_fir_filter_xxx_0</source_block_id>
-    <sink_block_id>ha5kfu_execproc_xx_0_0</sink_block_id>
+    <sink_block_id>ha5kfu_execproc_xx_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
@@ -1047,14 +1041,20 @@
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>ha5kfu_execproc_xx_0</source_block_id>
-    <sink_block_id>wxgui_scopesink2_0_0</sink_block_id>
+    <source_block_id>freq_xlating_fir_filter_xxx_0</source_block_id>
+    <sink_block_id>wxgui_scopesink2_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>ha5kfu_execproc_xx_0_0</source_block_id>
-    <sink_block_id>ha5kfu_execproc_xx_0</sink_block_id>
+    <source_block_id>ha5kfu_execproc_xx_0</source_block_id>
+    <sink_block_id>ha5kfu_execproc_xx_0_0</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>ha5kfu_execproc_xx_0</source_block_id>
+    <sink_block_id>wxgui_scopesink2_0_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
