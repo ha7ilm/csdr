@@ -714,6 +714,7 @@ fractional_decimator_ff_t fractional_decimator_ff_init(float rate, int num_poly_
 	d.rate = rate;
 	d.taps = taps;
 	d.taps_length = taps_length;
+	d.input_processed = 0;
 	return d;
 }
 

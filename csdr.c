@@ -1372,6 +1372,7 @@ int main(int argc, char *argv[])
 			fread(input_buffer+(the_bufsize-d.input_processed), sizeof(float), d.input_processed, stdin);
 			fractional_decimator_ff(input_buffer, output_buffer, the_bufsize, &d);
 			fwrite(output_buffer, sizeof(float), d.output_size, stdout);
+			//fprintf(stderr, "os = %d, ip = %d\n", d.output_size, d.input_processed);
 			TRY_YIELD;
 		}
 	}
