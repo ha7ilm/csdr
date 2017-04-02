@@ -134,6 +134,7 @@ char usage[]=
 "    psk31_interpolate_sine_cc <interpolation>\n"
 "    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
 "    bpsk_costas_loop_cc <samples_per_bits>\n"
+"    binary_slicer_f_u8\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
