@@ -1923,7 +1923,7 @@ int main(int argc, char *argv[])
 				float timetaken;
 				if(time_now_sec<(timetaken=TIME_TAKEN(start_time,end_time)))
 				{
-					fprintf( stderr, "through: %lu bytes/s %d\n", (unsigned long)floor((float)buffer_count*the_bufsize*sizeof(float)/timetaken), buffer_count );
+					fprintf( stderr, "through: %lu bytes/s, buffer #%d\n", (unsigned long)floor((float)buffer_count*the_bufsize*sizeof(float)/timetaken), buffer_count );
 					time_now_sec=ceil(timetaken);
 				}
 			}

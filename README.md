@@ -205,7 +205,7 @@ Syntax:
 
 	csdr through
 
-It copies the input to the output, while also displaying the speed of the data going through it.
+It copies the input to the output, while also displaying the data rate going through it.
 
 ----
 
@@ -231,33 +231,65 @@ If `buf_times` is not given, it never stops.
 
 Else, after outputing `buf_times` number of buffers (the size of which is stated in the `BUFSIZE` macro), it exits.
 
-	detect_nan_ff
+----
+
+### [detect_nan_ff](#detect_nan_ff)
+
+Syntax:
+
+	csdr detect_nan_ff
 
 Along with copying its input samples to the output, it prints a warning message to *stderr* if it finds any IEEE floating point NaN values among the samples.
 
-	dump_f
+----
+
+### [dump_f](#dump_f)
+
+Syntax:
+
+	csdr dump_f
 
 It prints all floating point input samples as text.
 
-The format string used is `"%g "`.
+The C format string used is `"%g "`.
 
 You can also use it to print complex float values, then you will see the I and Q samples interleaved, like: `I Q I Q I Q ...`
 
 Alternatively, you can use the `od` command (built into most Linux distributions). To display a list of floating point values with their addresses as well, you can use: `od -vf`
 
-	dump_u8
+Aliases for this function: `floatdump_f`
+
+----
+
+### [dump_u8](#dump_u8)
+
+Syntax:
+
+	csdr dump_u8
 
 It prints all input bytes as text, in hexadecimal form. 
 
 Alternatively, you can use the `xxd` command (built into most Linux distributions). To display a hexadecimal dump of the standard input (with addresses at the beginning of rows), you can use: `xxd -g1`
 
-	flowcontrol <data_rate> <reads_per_second>
+----
+
+### [flowcontrol](#flowcontrol)
+
+Syntax:
+
+	csdr flowcontrol <data_rate> <reads_per_second>
 
 It limits the data rate of a stream to a given `data_rate` number of bytes per second.
 
 It copies `data_rate / reads_per_second` bytes from the input to the output, doing it `reads_per_second` times every second.
 
-	shift_math_cc <rate>
+----
+
+### [shift_math_cc](#shift_math_cc)
+
+Syntax:
+
+	csdr shift_math_cc <rate>
 
 It shifts the signal in the frequency domain by `rate`.
 
@@ -265,31 +297,63 @@ It shifts the signal in the frequency domain by `rate`.
 
 `rate` is relative to the sampling rate.
 
-Internally, a sine and cosine wave is generated to perform this function, and this function uses `math.h` for this purpose, which is quite accurate, but not always very fast.
+Internally, a sine and cosine wave is generated, and this function uses `math.h` for this purpose, which is quite accurate, but not always very fast.
 
-	shift_addition_cc <rate>
+----
+
+### [shift_addition_cc](#shift_addition_cc)
+
+Syntax:
+
+	csdr shift_addition_cc <rate>
 
 Operation is the same as for `shift_math_cc`.
 
 Internally, this function uses trigonometric addition formulas to generate sine and cosine, which is a bit faster. (About 4 times on the machine I have tested it on.)
 
-	shift_addition_cc_test
+----
+
+### [shift_addition_cc_test](#shift_addition_cc_test)
+
+Syntax: 
+
+	csdr shift_addition_cc_test
 
 This function was used to test the accuracy of the method above.
 
-	shift_table_cc <rate> [table_size]
+----
+
+### [shift_table_cc](#shift_table_cc)
+
+Syntax: 
+
+	csdr shift_table_cc <rate> [table_size]
 
 Operation is the same as with `shift_math_cc`.
+
 Internally, this function uses a look-up table (LUT) to recall the values of the sine function (for the first quadrant).
+
 The higher the table size is, the smaller the phase error is.
 
-	shift_addfast_cc <rate>
+----
+
+### [shift_addfast_cc](#shift_addfast_cc)
+
+Syntax: 
+
+	csdr shift_addfast_cc <rate>
 
 Operation is the same as for `shift_math_cc`.
 
 Internally, this function uses a NEON-accelerated algorithm on capable systems, so it is advised to use this one on ARM boards.
 
-	shift_unroll_cc <rate>
+----
+
+### [shift_unroll_cc](#shift_unroll_cc)
+
+Syntax: 
+
+	csdr shift_unroll_cc <rate>
 
 Operation is the same as for `shift_math_cc`.
 
@@ -297,103 +361,224 @@ This uses a modified algoritm that first stores a vector of sine and cosine valu
 
 The loop in this function unrolls quite well if compiled on a PC. It was the fastest one on an i7 CPU during the tests.
 
-	decimating_shift_addition_cc <rate> [decimation]
+----
+
+### [decimating_shift_addition_cc](#decimating_shift_addition_cc)
+
+Syntax: 
+
+	csdr decimating_shift_addition_cc <rate> [decimation]
 
 It shifts the input signal in the frequency domain, and also decimates it, without filtering. It will be useful as a part of the FFT channelizer implementation (to be done).
+
 It cannot be used as a channelizer by itself, use `fir_decimate_cc` instead.
 
-	dcblock_ff
+----
+
+### [dcblock_ff](#dcblock_ff)
+
+Syntax: 
+
+	csdr dcblock_ff
 
 This is a DC blocking IIR filter.
 
-	fastdcblock_ff
+----
+
+### [fastdcblock_ff](#fastdcblock_ff)
+
+Syntax: 
+
+	csdr fastdcblock_ff
 
 This is a DC blocker that works based on the average of the buffer.
 
-	fmdemod_atan_cf
+----
+
+### [fmdemod_atan_cf](#fmdemod_atan_cf)
+
+Syntax: 
+
+	csdr fmdemod_atan_cf
 
 It is an FM demodulator that internally uses the `atan` function in `math.h`, so it is not so fast.
 
-	fmdemod_quadri_cf
+----
+
+### [fmdemod_quadri_cf](#fmdemod_quadri_cf)
+
+Syntax: 
+
+	csdr fmdemod_quadri_cf
 
 It is an FM demodulator that is based on the quadri-correlator method, and it can be effectively auto-vectorized, so it should be faster.
 
-	fmdemod_quadri_novect_cf
+----
+
+### [fmdemod_quadri_novect_cf](#fmdemod_quadri_novect_cf)
+
+Syntax: 
+
+	csdr fmdemod_quadri_novect_cf
 
 It has more easily understandable code than the previous one, but can't be auto-vectorized.
 
-	deemphasis_wfm_ff <sample_rate> <tau>
+----
+
+### [deemphasis_wfm_ff](#deemphasis_wfm_ff)
+
+Syntax: 
+
+	csdr deemphasis_wfm_ff <sample_rate> <tau>
 
 It does de-emphasis with the given RC time constant `tau`.
+
 Different parts of the world use different pre-emphasis filters for FM broadcasting.
+
 In Europe, `tau` should be chosen as `50e-6`, and in the USA, `tau` should be `75e-6`.
 
-	deemphasis_nfm_ff <one_of_the_predefined_sample_rates>
+----
+
+### [deemphasis_nfm_ff](#deemphasis_nfm_ff)
+
+Syntax: 
+
+	csdr deemphasis_nfm_ff <one_of_the_predefined_sample_rates>
 
 It does de-emphasis on narrow-band FM for communication equipment (e.g. two-way radios).
-It uses fixed filters so it works only on predefined sample rates, for the actual list of them run: `cat libcsdr.c | grep DNFMFF_ADD_ARRAY`
 
-	amdemod_cf
+It uses fixed filters so it works only on predefined sample rates, for the actual list of them run: 
+
+	cat libcsdr.c | grep DNFMFF_ADD_ARRAY
+
+----
+
+### [amdemod_cf](#amdemod_cf)
+
+Syntax: 
+
+	csdr amdemod_cf
 
 It is an AM demodulator that uses `sqrt`. On some architectures `sqrt` can be directly calculated by dedicated CPU instructions, but on others it may be slower.
 
-	amdemod_estimator_cf
+----
+
+### [amdemod_estimator_cf](#amdemod_estimator_cf)
+
+Syntax: 
+
+	csdr amdemod_estimator_cf
 
 It is an AM demodulator that uses an estimation method that is faster but less accurate than `amdemod_cf`.
 
-	firdes_lowpass_f <cutoff_rate> <length> [window [--octave]]
+----
+
+### [firdes_lowpass_f](#firdes_lowpass_f)
+
+Syntax: 
+
+	csdr firdes_lowpass_f <cutoff_rate> <length> [window [--octave]]
 
 Low-pass FIR filter design function to output real taps, with a `cutoff_rate` proportional to the sampling frequency, using the windowed sinc filter design method.
+
 `cutoff_rate` can be between 0 and 0.5.
 
 `length` is the number of filter taps to output, and should be odd.
+
 The longer the filter kernel is, the shorter the transition bandwidth is, but the more CPU time it takes to process the filter.
+
 The transition bandwidth (proportional to the sampling rate) can be calculated as: `transition_bw = 4 / length`.
+
 Some functions (below) require the `transition_bw` to be given instead of filter `length`. Try to find the best compromise between speed and accuracy by changing this parameter.
 
 `window` is the window function used to compensate finite filter length. Its typical values are: `HAMMING`, `BLACKMAN`, `BOXCAR`. For the actual list of values, run: `cpp libcsdr.c | grep window\ ==`
 
 The `--octave` parameter lets you directly view the filter response in `octave`. For more information, look at the [Usage by example] section.
 
-	firdes_bandpass_c <low_cut> <high_cut> <length> [window [--octave]]
+----
+
+### [firdes_bandpass_c](#firdes_bandpass_c)
+
+Syntax: 
+
+	csdr firdes_bandpass_c <low_cut> <high_cut> <length> [window [--octave]]
 
 Band-pass FIR filter design function to output complex taps.
+
 `low_cut` and ` high_cut` both may be between -0.5 and 0.5, and are also proportional to the sampling frequency.
 
 Other parameters were explained above at `firdes_lowpass_f`.
 
-	fir_decimate_cc <decimation_factor> [transition_bw [window]]
+----
+
+### [fir_decimate_cc](#fir_decimate_cc)
+
+Syntax: 
+
+	csdr fir_decimate_cc <decimation_factor> [transition_bw [window]]
 
 It is a decimator that keeps one sample out of `decimation_factor` samples.
+
 To avoid aliasing, it runs a filter on the signal and removes spectral components above `0.5 × nyquist_frequency × decimation_factor` from the input signal.
 
-	fir_interpolate_cc <interpolation_factor> [transition_bw [window]]
+----
+
+### [fir_interpolate_cc](#fir_interpolate_cc)
+
+Syntax: 
+
+	csdr fir_interpolate_cc <interpolation_factor> [transition_bw [window]]
 
 It is an interpolator that generates `interpolation_factor` number of output samples from one input sample.
+
 To avoid aliasing, it runs a filter on the signal and removes spectral components above `0.5 × nyquist_frequency / interpolation_factor` from the output signal.
 
 `transition_bw` and `window` are the parameters of the filter.
 
-	rational_resampler_ff <interpolation> <decimation> [transition_bw [window]]
+----
+
+### [rational_resampler_ff](#rational_resampler_ff)
+
+Syntax: 
+
+	csdr rational_resampler_ff <interpolation> <decimation> [transition_bw [window]]
 
 It is a resampler that takes integer values of `interpolation` and `decimation`.
 The output sample rate will be `interpolation / decimation × input_sample_rate`.
 
 `transition_bw` and `window` are the parameters of the filter.
 
-	fractional_decimator_ff <decimation_rate> [transition_bw [window]]
+----
+
+### [fractional_decimator_ff](#fractional_decimator_ff)
+
+Syntax: 
+
+	csdr fractional_decimator_ff <decimation_rate> [transition_bw [window]]
 
 It can decimate by a floating point ratio.
 
 `transition_bw` and `window` are the parameters of the filter.
 
-	bandpass_fir_fft_cc <low_cut> <high_cut> <transition_bw> [window]
+----
+
+### [bandpass_fir_fft_cc](#bandpass_fir_fft_cc)
+
+Syntax: 
+
+	csdr bandpass_fir_fft_cc <low_cut> <high_cut> <transition_bw> [window]
 
 It performs a bandpass FIR filter on complex samples, using FFT and the overlap-add method.
 
 Parameters are described under `firdes_bandpass_c` and `firdes_lowpass_f`.
 
-	agc_ff [hang_time [reference [attack_rate [decay_rate [max_gain [attack_wait [filter_alpha]]]]]]]
+----
+
+### [agc_ff](#agc_ff)
+
+Syntax: 
+
+	csdr agc_ff [hang_time [reference [attack_rate [decay_rate [max_gain [attack_wait [filter_alpha]]]]]]]
 
 It is an automatic gain control function.
 
@@ -407,11 +592,23 @@ It is an automatic gain control function.
 
 Its default parameters work best for an audio signal sampled at 48000 Hz.
 
-	fastagc_ff [block_size [reference]]
+----
+
+### [fastagc_ff](#fastagc_ff)
+
+Syntax: 
+
+	csdr fastagc_ff [block_size [reference]]
 
 It is a faster AGC that linearly changes the gain, taking the highest amplitude peak in the buffer into consideration. Its output will never exceed `-reference ... reference`.
 
-	fft_cc <fft_size> <out_of_every_n_samples> [window [--octave] [--benchmark]]
+----
+
+### [fft_cc](#fft_cc)
+
+Syntax: 
+
+	csdr fft_cc <fft_size> <out_of_every_n_samples> [window [--octave] [--benchmark]]
 
 It performs an FFT on the first `fft_size` samples out of `out_of_every_n_samples`, thus skipping `out_of_every_n_samples - fft_size` samples in the input.
 
@@ -419,62 +616,160 @@ It can draw the spectrum by using `--octave`, for more information, look at the 
 
 FFTW can be faster if we let it optimalize a while before starting the first transform, hence the `--benchmark` switch.
 
-	fft_benchmark <fft_size> <fft_cycles> [--benchmark]
+----
+
+### [fft_benchmark](#fft_benchmark)
+
+Syntax: 
+
+	csdr fft_benchmark <fft_size> <fft_cycles> [--benchmark]
 
 It measures the time taken to process `fft_cycles` transforms of `fft_size`.
 It lets FFTW optimalize if used with the `--benchmark` switch.
 
-	logpower_cf [add_db]
+----
+
+### [logpower_cf](#logpower_cf)
+
+Syntax: 
+
+	csdr logpower_cf [add_db]
 
 Calculates `10*log10(i^2+q^2)+add_db` for the input complex samples. It is useful for drawing power spectrum graphs.
 
-	encode_ima_adpcm_i16_u8
+----
+
+### [encode_ima_adpcm_i16_u8](#encode_ima_adpcm_i16_u8)
+
+Syntax: 
+
+----
+
+### [csdr](#csdr)
+
+Syntax: 
+
+	csdr csdr encode_ima_adpcm_i16_u8
 
 Encodes the audio stream to IMA ADPCM, which decreases the size to 25% of the original.
 
-	decode_ima_adpcm_u8_i16
+----
+
+### [decode_ima_adpcm_u8_i16](#decode_ima_adpcm_u8_i16)
+
+Syntax: 
+
+	csdr decode_ima_adpcm_u8_i16
 
 Decodes the audio stream from IMA ADPCM.
 
-	compress_fft_adpcm_f_u8 <fft_size>
+----
+
+### [compress_fft_adpcm_f_u8](#compress_fft_adpcm_f_u8)
+
+Syntax: 
+
+	csdr compress_fft_adpcm_f_u8 <fft_size>
 
 Encodes the FFT output vectors of `fft_size`. It should be used on the data output from `logpower_cf`.
-It resets the ADPCM encoder at the beginning of every vector, and to compensate it, `COMPRESS_FFT_PAD_N` samples are added at beginning (these equal to the first relevant sample).
-The actual number of padding samples can be determined by running `cat csdr.c | grep "define COMPRESS_FFT_PAD_N"`.
 
-	fft_exchange_sides_ff <fft_size>
+It resets the ADPCM encoder at the beginning of every vector, and to compensate it, `COMPRESS_FFT_PAD_N` samples are added at beginning (these equal to the first relevant sample).
+
+The actual number of padding samples can be determined by running:
+
+	cat csdr.c | grep "define COMPRESS_FFT_PAD_N"
+
+----
+
+### [fft_exchange_sides_ff](#fft_exchange_sides_ff)
+
+Syntax: 
+
+	csdr fft_exchange_sides_ff <fft_size>
 
 It exchanges the first and second part of the FFT vector, to prepare it for the waterfall/spectrum display. It should operate on the data output from `logpower_cf`.
 
-	dsb_fc [q_value]
+----
+
+### [dsb_fc](#dsb_fc)
+
+Syntax: 
+
+	csdr dsb_fc [q_value]
 
 It converts a real signal to a double sideband complex signal centered around DC.
+
 It does so by generating a complex signal:
 * the real part of which is the input real signal,
 * the imaginary part of which is `q_value` (0 by default).
+
 With `q_value = 0` it is an AM-DSB/SC modulator. If you want to get an AM-DSB signal, you will have to add a carrier to it.
 
-	add_dcoffset_cc
+----
+
+### [add_dcoffset_cc](#add_dcoffset_cc)
+
+Syntax: 
+
+	csdr add_dcoffset_cc
 
 It adds a DC offset to the complex signal: `i_output = 0.5 + i_input / 2, q_output = q_input / 2`
 
-	convert_f_samplerf <wait_for_this_sample>
+----
+
+### [convert_f_samplerf](#convert_f_samplerf)
+
+Syntax: 
+
+	csdr convert_f_samplerf <wait_for_this_sample>
 
 It converts a real signal to the `-mRF` input format of [https://github.com/F5OEO/rpitx](rpitx), so it allows you to generate frequency modulation. The input signal will be the modulating signal. The `<wait_for_this_sample>` parameter is the value for `rpitx` indicating the time to wait between samples. For a sampling rate of 48 ksps, this is 20833.
 
-	fmmod_fc
+----
+
+### [fmmod_fc](#fmmod_fc)
+
+Syntax: 
+
+	csdr fmmod_fc
 
 It generates a complex FM modulated output from a real input signal.
 
-	fixed_amplitude_cc <new_amplitude>
+----
+
+### [fixed_amplitude_cc](#fixed_amplitude_cc)
+
+Syntax: 
+
+	csdr fixed_amplitude_cc <new_amplitude>
 
 It changes the amplitude of every complex input sample to a fixed value. It does not change the phase information of the samples.
 
-	mono2stereo_s16
+----
 
-It doubles every input sample.
+### [mono2stereo_s16](#mono2stereo_s16)
 
-	setbuf <buffer_size>
+Syntax: 
+
+	csdr mono2stereo_s16
+
+It doubles every input sample. 
+
+Example: if the input samples are 16 bit signed integers: 
+
+	23 -452 3112
+
+The output will be:
+
+	23 23 -452 -452 3112 3112
+
+----
+
+### [setbuf](#setbuf)
+
+Syntax: 
+
+	csdr setbuf <buffer_size>
 
 See the [buffer sizes](#buffer_sizes) section.
 
@@ -482,11 +777,23 @@ See the [buffer sizes](#buffer_sizes) section.
 
 This is a controllable squelch, which reads the squelch level input from `<squelch_fifo>` and writes the power level output to `<smeter_fifo>`. Both input and output are in the format of `%g\n`. While calculating the power level, it takes only every `<use_every_nth>` sample into consideration. It writes the S-meter value for every `<report_every_nth>` buffer to `<smeter_fifo>`. If the squelch level is set to 0, it it forces the squelch to be open. If the squelch is closed, it fills the output with zero.
 
-	fifo <buffer_size> <number_of_buffers>
+----
+
+### [fifo](#fifo)
+
+Syntax: 
+
+	csdr fifo <buffer_size> <number_of_buffers>
 
 It is similar to `clone`, but internally it uses a circular buffer. It reads as much as possible from the input. It discards input samples if the input buffer is full.
 
-	psk31_varicode_encoder_u8_u8
+----
+
+### [psk31_varicode_encoder_u8_u8](#psk31_varicode_encoder_u8_u8)
+
+Syntax: 
+
+	csdr psk31_varicode_encoder_u8_u8
 
 It encodes ASCII characters into varicode for PSK31 transmission. It puts a `00` sequence between the varicode characters (which acts as a separator). 
 
@@ -501,6 +808,42 @@ For this input, the output of `psk31_varicode_encoder_u8_u8` will be the followi
 01 01 00 00 01 00 01 01
 00 00
 ```
+
+----
+
+### [?](#search_the_function_list)
+
+Syntax: 
+
+	csdr ?<search_the_function_list>
+
+You can search the functions available in `csdr` just as if you typed: `csdr 2>&1 | grep <search_what>`
+
+### [=](#evaluate-python-expression)
+
+Syntax:
+
+	csdr =<evaluate_python_expression>
+
+When running complicated `csdr` commands, we usually run into using `python` to calculate certain parameters. 
+
+This function can eliminate some typing and make our command clearer.
+
+Instead of having to write: 
+
+	csdr shift_addition_cc $(python -c "print 1200/2400000.") 
+
+...we can type: 
+
+	csdr shift_addition_cc $(csdr =1200/2400000.)
+
+If using parenthesis inside the expression, it needs to be escaped (as `bash` would want to parse it): 
+
+	csdr shift_addition_cc $(csdr =\(1200+300\)/2400000)
+
+Another solution is using single quotes to wrap the expression: 
+
+	csdr shift_addition_cc $(csdr '=(1200+300)/2400000.')
 
 #### Control via pipes
 
@@ -523,34 +866,6 @@ By writing to the given FIFO file with the syntax below, you can control the shi
 	<low_cut> <high_cut>\n
 
 E.g. you can send `-0.05 0.02\n`
-
-	?<search_the_function_list>
-
-You can search the functions available in `csdr` just as if you typed: `csdr 2>&1 | grep <search_what>`
-
-### [=](#evaluate-python-expression>
-
-	=<evaluate_python_expression>
-
-When running complicated `csdr` commands, we usually run into using `python` to calculate certain parameters. 
-
-This function can eliminate some typing and make our command clearer.
-
-Instead of having to write: 
-
-	csdr shift_addition_cc $(python -c "print 1200/2400000.") 
-
-...we can type: 
-
-	csdr shift_addition_cc $(csdr =1200/2400000.)
-
-If using parenthesis inside the expression, it needs to be escaped (as `bash` would want to parse it): 
-
-	csdr shift_addition_cc $(csdr =\(1200+300\)/2400000)
-
-Another solution is using single quotes to wrap the expression: 
-
-	csdr shift_addition_cc $(csdr '=(1200+300)/2400000.')
 
 #### Buffer sizes
 
