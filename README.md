@@ -147,6 +147,8 @@ You can use these commands on complex streams, too, as they are only interleaved
 Regarding `csdr`, the first command-line parameter is the name of a function, others are the parameters for the given function. Compulsory parameters are noted as `<parameter>`, optional parameters are noted as `[parameter]`.
 Optional parameters have safe defaults, for more info look at the code.
 
+----
+
 ### [realpart_cf](#realpart_cf)
 
 Syntax:
@@ -154,6 +156,8 @@ Syntax:
 	csdr realpart_cf
 
 It takes the real part of the complex signal, and throws away the imaginary part.
+
+----
 
 ### [clipdetect_ff](#clipdetect_ff)
 
@@ -163,6 +167,8 @@ Syntax:
 
 It clones the signal (the input and the output is the same), but it prints a warning on `stderr` if any sample value is out of the -1.0 ... 1.0 range.
 
+----
+
 ### [limit_ff](#limit_ff)
 
 Syntax:
@@ -170,6 +176,8 @@ Syntax:
 	csdr limit_ff [max_amplitude]
 
 The input signal amplitude will not be let out of the `-max_amplitude ... max_amplitude` range.
+
+----
 
 ### [gain_ff](#gain_ff)
 
@@ -179,6 +187,8 @@ Syntax:
 
 It multiplies all samples by `gain`.
 
+----
+
 ### [clone](#clone)
 
 Syntax:
@@ -186,6 +196,8 @@ Syntax:
 	csdr clone
 
 It copies the input to the output.
+
+----
 
 ### [through](#through)
 
@@ -195,6 +207,8 @@ Syntax:
 
 It copies the input to the output, while also displaying the speed of the data going through it.
 
+----
+
 ### [none](#none)
 
 Syntax:
@@ -202,6 +216,8 @@ Syntax:
 	csdr none
 
 The `csdr` process just exits with 0.
+
+----
 
 ### [yes_f](#yes_f)
 
