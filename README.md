@@ -140,16 +140,20 @@ You can use these commands on complex streams, too, as they are only interleaved
 
 > Note: The the functions with `i16` in their names have been renamed, but still work (e.g. `csdr convert_f_i16`).
 
-#### csdr commands
+### csdr commands
 
 `csdr` should be considered as a reference implementation on using `libcsdr`. For additional details on how to use the library, check `csdr.c` and `libcsdr.c`.
 
 Regarding `csdr`, the first command-line parameter is the name of a function, others are the parameters for the given function. Compulsory parameters are noted as `<parameter>`, optional parameters are noted as `[parameter]`.
 Optional parameters have safe defaults, for more info look at the code.
 
+### [realpart_cf](#realpart_cf)
+
 	realpart_cf
 
 It takes the real part of the complex signal, and throws away the imaginary part.
+
+### [clipdetect_ff](#clipdetect_ff)
 
 	clipdetect_ff
 
@@ -477,6 +481,8 @@ E.g. you can send `-0.05 0.02\n`
 	?<search_the_function_list>
 
 You can search the functions available in `csdr` just as if you typed: `csdr 2>&1 | grep <search_what>`
+
+### [=](#evaluate-python-expression>
 
 	=<evaluate_python_expression>
 
