@@ -149,40 +149,70 @@ Optional parameters have safe defaults, for more info look at the code.
 
 ### [realpart_cf](#realpart_cf)
 
-	realpart_cf
+Syntax:
+
+	csdr realpart_cf
 
 It takes the real part of the complex signal, and throws away the imaginary part.
 
 ### [clipdetect_ff](#clipdetect_ff)
 
-	clipdetect_ff
+Syntax:
+
+	csdr clipdetect_ff
 
 It clones the signal (the input and the output is the same), but it prints a warning on `stderr` if any sample value is out of the -1.0 ... 1.0 range.
 
-	limit_ff [max_amplitude]
+### [limit_ff](#limit_ff)
+
+Syntax:
+
+	csdr limit_ff [max_amplitude]
 
 The input signal amplitude will not be let out of the `-max_amplitude ... max_amplitude` range.
 
-	gain_ff <gain>
+### [gain_ff](#gain_ff)
+
+Syntax:
+
+	csdr gain_ff <gain>
 
 It multiplies all samples by `gain`.
 
-	clone
+### [clone](#clone)
+
+Syntax:
+
+	csdr clone
 
 It copies the input to the output.
 
-	through
+### [through](#through)
+
+Syntax:
+
+	csdr through
 
 It copies the input to the output, while also displaying the speed of the data going through it.
 
-	none
+### [none](#none)
+
+Syntax:
+
+	csdr none
 
 The `csdr` process just exits with 0.
 
-	yes_f <to_repeat> [buf_times]
+### [yes_f](#yes_f)
+
+Syntax:
+
+	csdr yes_f <to_repeat> [buf_times]
 
 It outputs continously the `to_repeat` float number.
+
 If `buf_times` is not given, it never stops.
+
 Else, after outputing `buf_times` number of buffers (the size of which is stated in the `BUFSIZE` macro), it exits.
 
 	detect_nan_ff
