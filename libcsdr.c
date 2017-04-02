@@ -1939,11 +1939,11 @@ bpsk_costas_loop_state_t init_bpsk_costas_loop_cc(float samples_per_bits)
 { 
 	bpsk_costas_loop_state_t state;
 	state.vco_phase = 0;
+	state.last_vco_phase_addition = 0;
 	float virtual_sampling_rate = 10000;
 	float virtual_data_rate = virtual_sampling_rate / samples_per_bits;
 	fprintf(stderr, "virtual_sampling_rate = %g, virtual_data_rate = %g\n", virtual_sampling_rate, virtual_data_rate);
-	//float rc_filter_cutoff = virtual_data_rate * 2; //this is so far the best
-	float rc_filter_cutoff = virtual_data_rate * 2;
+	float rc_filter_cutoff = virtual_data_rate * 2; //this is so far the best
 	float rc_filter_rc = 1/(2*M_PI*rc_filter_cutoff); //as of Equation 24 in Feigin
 	float virtual_sampling_dt = 1.0/virtual_sampling_rate;
 	fprintf(stderr, "rc_filter_cutoff = %g, rc_filter_rc = %g, virtual_sampling_dt = %g\n", 
@@ -1981,6 +1981,8 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk
 		state->last_lpfi_output = loop_output_i;
 		state->last_lpfq_output = loop_output_q;
 		float vco_phase_addition = loop_output_i * loop_output_q * state->vco_phase_addition_multiplier;
+		//vco_phase_addition = vco_phase_addition * state->rc_filter_alpha + state->last_vco_phase_addition * (1-state->rc_filter_alpha);
+		//state->last_vco_phase_addition = vco_phase_addition;
 		state->vco_phase += vco_phase_addition;
 		while(state->vco_phase>PI) state->vco_phase-=2*PI;
 		while(state->vco_phase<-PI) state->vco_phase+=2*PI;

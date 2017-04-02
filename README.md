@@ -474,6 +474,24 @@ By writing to the given FIFO file with the syntax below, you can control the shi
 
 E.g. you can send `-0.05 0.02\n`
 
+	?<search_the_function_list>
+
+You can search the functions available in `csdr` just as if you typed: `csdr 2>&1 | grep <search_what>`
+
+	=<evaluate_python_expression>
+
+When running complicated `csdr` commands, we usually run into using `python` to calculate certain parameters. 
+
+This function can eliminate some typing and make our command clearer.
+
+Instead of having to write: `csdr shift_addition_cc $(python -c "print 1200/2400000.")` 
+
+...we can type: `csdr shift_addition_cc $(csdr =1200/2400000.)` 
+
+If using parenthesis inside the expression, it needs to be escaped (as `bash` would want to parse it): `csdr shift_addition_cc $(csdr =\(1200+300\)/2400000)`
+
+Another solution is using single quotes to wrap the expression: `csdr shift_addition_cc $(csdr '=(1200+300)/2400000.')`
+
 #### Buffer sizes
 
 *csdr* has three modes of determining the buffer sizes, which can be chosen by the appropriate environment variables:

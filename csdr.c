@@ -135,6 +135,7 @@ char usage[]=
 "    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
 "    bpsk_costas_loop_cc <samples_per_bits>\n"
 "    ?<search_the_function_list>\n"
+"    =<evaluate_python_expression>\n"
 "    \n"
 ;
 
@@ -2670,6 +2671,14 @@ int main(int argc, char *argv[])
 		char buffer[100];
 		snprintf(buffer, 100-1, "csdr 2>&1 | grep %s", argv[1]+1);
 		fprintf(stderr, "csdr ?: %s\n", buffer);
+		system(buffer);
+		return 0;
+	}
+
+	if(argv[1][0]=='=')
+	{
+		char buffer[100];
+		snprintf(buffer, 100-1, "python -c \"print %s\"", argv[1]+1);
 		system(buffer);
 		return 0;
 	}

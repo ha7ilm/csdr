@@ -332,6 +332,7 @@ typedef struct bpsk_costas_loop_state_s
 	float vco_phase;
 	float last_lpfi_output;
 	float last_lpfq_output;
+	float last_vco_phase_addition;
 } bpsk_costas_loop_state_t;
 
 bpsk_costas_loop_state_t init_bpsk_costas_loop_cc(float samples_per_bits);
