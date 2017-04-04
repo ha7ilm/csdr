@@ -1,0 +1,10 @@
+typedef enum arg_type_e { ARG_INT, ARG_FLOAT, ARG_CHAR, ARG_STRING } arg_type_t;
+int argpop(int* pargc, char*** pargv, void* output, arg_type_t type);
+int argparse(char* pargvitem, void* output, arg_type_t type);
+int argfind(int* pargc, char***pargv, char* longopt, char* shortopt);
+int argfindval(int* pargc, char***pargv, char* longopt, char* shortopt, arg_type_t type);
+int gargpop(void* output, arg_type_t type);
+int gargfind(char* longopt, char* shortopt);
+int gargfindval(char* longopt, char* shortopt, arg_type_t type);
+int garginit(int argc, char** argv);
+int gargthrow(int n);

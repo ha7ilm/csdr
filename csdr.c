@@ -51,6 +51,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <strings.h>
 #include <errno.h>
 #include "fastddc.h"
+#include "args.h"
 #include <assert.h>
 
 char usage[]=
@@ -230,7 +231,6 @@ int init_fifo(int argc, char *argv[])
 }
 
 
-
 #define RFCTL_BUFSIZE 1024
 
 int read_fifo_ctl(int fd, char* format, ...)
@@ -354,18 +354,24 @@ int parse_env()
 	}
 }
 
+
+
 int main(int argc, char *argv[])
 {
 	parse_env();
 	argv_global=argv;
-	if(argc<=1) return badsyntax(0);
-	if(!strcmp(argv[1],"--help")) return badsyntax(0);
+	garginit(argc, argv);
+	if(gargfind("--help", "-h") || argc==1) return badsyntax(0);
+	char* process_name; //we first parse "csdr <function>"
+	gargpop(&process_name, ARG_STRING);
+	char* function_name;
+	gargpop(&function_name, ARG_STRING);
 
 	fcntl(STDIN_FILENO, F_SETPIPE_SZ, 65536*32);
 	fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 65536*32);
 	//fprintf(stderr, "csdr: F_SETPIPE_SZ\n");
 
-	if(!strcmp(argv[1],"setbuf"))
+	if(!strcmp(function_name,"setbuf"))
 	{
 		if(argc<=2) return badsyntax("need required parameter (buffer size)");
 		sscanf(argv[2],"%d",&the_bufsize);
@@ -374,14 +380,14 @@ int main(int argc, char *argv[])
 		clone_(the_bufsize); //After sending the buffer size out, just copy stdin to stdout
 	}
 
-	if(!strcmp(argv[1],"clone"))
+	if(!strcmp(function_name,"clone"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		clone_(the_bufsize);
 	}
 #define SET_NONBLOCK(fd) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL, 0) | O_NONBLOCK)
 
-	if(!strcmp(argv[1],"fifo"))
+	if(!strcmp(function_name,"fifo"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 
@@ -468,7 +474,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	if(!strcmp(argv[1],"convert_u8_f"))
+	if(!strcmp(function_name,"convert_u8_f"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -480,7 +486,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"convert_f_u8")) //not tested
+	if(!strcmp(function_name,"convert_f_u8")) //not tested
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -492,7 +498,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"convert_s8_f"))
+	if(!strcmp(function_name,"convert_s8_f"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -504,7 +510,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"convert_f_s8")) //not tested
+	if(!strcmp(function_name,"convert_f_s8")) //not tested
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -540,7 +546,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"convert_f_s24"))
+	if(!strcmp(function_name,"convert_f_s24"))
 	{
 		int bigendian = (argc>2) && (!strcmp(argv[2],"--bigendian"));
 		unsigned char* s24buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*3);
@@ -554,7 +560,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"convert_s24_f"))
+	if(!strcmp(function_name,"convert_s24_f"))
 	{
 		int bigendian = (argc>2) && (!strcmp(argv[2],"--bigendian"));
 		unsigned char* s24buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*3);
@@ -568,7 +574,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"realpart_cf"))
+	if(!strcmp(function_name,"realpart_cf"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -580,7 +586,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"clipdetect_ff"))
+	if(!strcmp(function_name,"clipdetect_ff"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -592,11 +598,10 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"gain_ff"))
+	if(!strcmp(function_name,"gain_ff"))
 	{
-		if(argc<=2) return badsyntax("need required parameter (gain)");
 		float gain;
-		sscanf(argv[2],"%g",&gain);
+		if(!gargpop(&gain, ARG_FLOAT)) return fflush(stderr), badsyntax("need required parameter (gain)");
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
 		{
@@ -607,7 +612,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"limit_ff"))
+	if(!strcmp(function_name,"limit_ff"))
 	{
 		float max_amplitude=1.0;
 		if(argc>=3) sscanf(argv[2],"%g",&max_amplitude);
@@ -621,7 +626,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"yes_f"))
+	if(!strcmp(function_name,"yes_f"))
 	{
 		if(argc<=2) return badsyntax("need required parameter (to_repeat)");
 		float to_repeat;
@@ -637,7 +642,7 @@ int main(int argc, char *argv[])
 		}
 		return 0;
 	}
-	if(!strcmp(argv[1],"shift_math_cc"))
+	if(!strcmp(function_name,"shift_math_cc"))
 	{
 		if(argc<=2) return badsyntax("need required parameter (rate)");
 		float starting_phase=0;
@@ -659,7 +664,7 @@ int main(int argc, char *argv[])
 	//csdr yes_f 1 1000000 | time csdr shift_addition_cc 0.2 >/dev/null
 	//csdr yes_f 1 1000000 | time csdr shift_table_cc 0.2 >/dev/null
 
-	if(!strcmp(argv[1],"shift_table_cc"))
+	if(!strcmp(function_name,"shift_table_cc"))
 	{
 		bigbufs=1;
 		if(argc<=2) return badsyntax("need required parameter (rate)");
@@ -682,7 +687,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	if(!strcmp(argv[1],"shift_addfast_cc"))
+	if(!strcmp(function_name,"shift_addfast_cc"))
 	{
 		bigbufs=1;
 
@@ -732,7 +737,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	if(!strcmp(argv[1],"shift_unroll_cc"))
+	if(!strcmp(function_name,"shift_unroll_cc"))
 	{
 		bigbufs=1;
 
@@ -782,7 +787,7 @@ int main(int argc, char *argv[])
 	}
 
 #ifdef LIBCSDR_GPL
-	if(!strcmp(argv[1],"decimating_shift_addition_cc"))
+	if(!strcmp(function_name,"decimating_shift_addition_cc"))
 	{
 		bigbufs=1;
 		if(argc<=2) return badsyntax("need required parameter (rate)");
@@ -808,7 +813,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	if(!strcmp(argv[1],"shift_addition_cc"))
+	if(!strcmp(function_name,"shift_addition_cc"))
 	{
 		bigbufs=1;
 
@@ -857,7 +862,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	if(!strcmp(argv[1],"shift_addition_cc_test"))
+	if(!strcmp(function_name,"shift_addition_cc_test"))
 	{
 		if(argc<=2) return badsyntax("need required parameter (rate)");
 		float rate;
@@ -868,7 +873,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 #endif
-	if(!strcmp(argv[1],"dcblock_ff"))
+	if(!strcmp(function_name,"dcblock_ff"))
 	{
 		static dcblock_preserve_t dcp; //will be 0 as .bss is set to 0
 		if(!sendbufsize(initialize_buffers())) return -2;
@@ -882,7 +887,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"fastdcblock_ff"))
+	if(!strcmp(function_name,"fastdcblock_ff"))
 	{
 		int dcblock_bufsize=SETBUF_DEFAULT_BUFSIZE;
 		if(argc>=3) sscanf(argv[2],"%d",&dcblock_bufsize);
@@ -900,7 +905,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"fmdemod_atan_cf"))
+	if(!strcmp(function_name,"fmdemod_atan_cf"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		float last_phase=0;
@@ -914,7 +919,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"fmdemod_quadri_cf"))
+	if(!strcmp(function_name,"fmdemod_quadri_cf"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		complexf last_sample;
@@ -929,7 +934,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"fmdemod_quadri_novect_cf"))
+	if(!strcmp(function_name,"fmdemod_quadri_novect_cf"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		complexf last_sample;
@@ -944,7 +949,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"deemphasis_wfm_ff"))
+	if(!strcmp(function_name,"deemphasis_wfm_ff"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (sample rate, tau)");
 		if(!sendbufsize(initialize_buffers())) return -2;
@@ -964,7 +969,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"detect_nan_ff"))
+	if(!strcmp(function_name,"detect_nan_ff"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -986,7 +991,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"floatdump_f") || !strcmp(argv[1],"dump_f"))
+	if(!strcmp(function_name,"floatdump_f") || !strcmp(argv[1],"dump_f"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -998,7 +1003,7 @@ int main(int argc, char *argv[])
 		}
 
 	}
-	if(!strcmp(argv[1],"deemphasis_nfm_ff"))
+	if(!strcmp(function_name,"deemphasis_nfm_ff"))
 	{
 		if(argc<=2) return badsyntax("need required parameter (sample rate)");
 		int sample_rate;
@@ -1018,7 +1023,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"amdemod_cf"))
+	if(!strcmp(function_name,"amdemod_cf"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 
@@ -1031,7 +1036,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"amdemod_estimator_cf"))
+	if(!strcmp(function_name,"amdemod_estimator_cf"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -1043,7 +1048,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
-	if(!strcmp(argv[1],"fir_decimate_cc"))
+	if(!strcmp(function_name,"fir_decimate_cc"))
 	{
 		bigbufs=1;
 
@@ -1109,7 +1114,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"fir_interpolate_cc"))
+	if(!strcmp(function_name,"fir_interpolate_cc"))
 	{
 		bigbufs=1;
 
@@ -1182,7 +1187,7 @@ int main(int argc, char *argv[])
 		printf("];");
 		return 0;
 	}*/
-	if(!strcmp(argv[1],"firdes_lowpass_f"))
+	if(!strcmp(function_name,"firdes_lowpass_f"))
 	{
 		//Process the params
 		if(argc<=3) return badsyntax("need required parameters (cutoff_rate, length)");
@@ -1219,7 +1224,7 @@ int main(int argc, char *argv[])
 		if(octave) { fflush(stdout); getchar(); }
 		return 0;
 	}
-	if(!strcmp(argv[1],"firdes_bandpass_c"))
+	if(!strcmp(function_name,"firdes_bandpass_c"))
 	{
 		//Process the params
 		if(argc<=4) return badsyntax("need required parameters (low_cut, high_cut, length)");
@@ -1268,7 +1273,7 @@ int main(int argc, char *argv[])
 	}
 
 #ifdef LIBCSDR_GPL
-	if(!strcmp(argv[1],"agc_ff"))
+	if(!strcmp(function_name,"agc_ff"))
 	{
 		//Process the params
 		//Explanation of what these actually do is in the DSP source.
@@ -1308,7 +1313,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	if(!strcmp(argv[1],"fastagc_ff"))
+	if(!strcmp(function_name,"fastagc_ff"))
 	{
 
 		static fastagc_ff_t input; //is in .bss and gets cleared to zero before main()
@@ -1396,7 +1401,7 @@ int main(int argc, char *argv[])
 	}
 
 
-	if(!strcmp(argv[1],"fractional_decimator_ff"))
+	if(!strcmp(function_name,"fractional_decimator_ff"))
 	{
 		//Process the params
 		if(argc<=2) return badsyntax("need required parameters (rate)");
@@ -1438,7 +1443,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"fft_cc"))
+	if(!strcmp(function_name,"fft_cc"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (fft_size, out_of_every_n_samples)");
 		int fft_size;
@@ -1515,7 +1520,7 @@ int main(int argc, char *argv[])
 		}
 	}
 	#define LOGPOWERCF_BUFSIZE 64
-	if(!strcmp(argv[1],"logpower_cf"))
+	if(!strcmp(function_name,"logpower_cf"))
 	{
 		float add_db=0;
 		if(argc>=3) sscanf(argv[2],"%g",&add_db);
@@ -1532,7 +1537,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"logaveragepower_cf"))
+	if(!strcmp(function_name,"logaveragepower_cf"))
 	{
 		bigbufs=1;
 		if(argc<=4) return badsyntax("need required parameters (add_db, table_size, avgnumber)"); 
@@ -1566,7 +1571,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	if(!strcmp(argv[1],"fft_exchange_sides_ff"))
+	if(!strcmp(function_name,"fft_exchange_sides_ff"))
 	{
 		if(argc<=2) return badsyntax("need required parameters (fft_size)");
 		int fft_size;
@@ -1595,7 +1600,7 @@ int main(int argc, char *argv[])
 //so we just add data to become garbage and get skipped.
 //COMPRESS_FFT_PAD_N should be even.
 
-	if(!strcmp(argv[1],"compress_fft_adpcm_f_u8"))
+	if(!strcmp(function_name,"compress_fft_adpcm_f_u8"))
 	{
 		if(argc<=2) return badsyntax("need required parameters (fft_size)");
 		int fft_size;
@@ -1621,7 +1626,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	if(!strcmp(argv[1],"fft_benchmark"))
+	if(!strcmp(function_name,"fft_benchmark"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (fft_size, fft_cycles)");
 		int fft_size;
@@ -1660,7 +1665,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	if(!strcmp(argv[1],"bandpass_fir_fft_cc")) //this command does not exist as a separate function
+	if(!strcmp(function_name,"bandpass_fir_fft_cc")) //this command does not exist as a separate function
 	{
 		float low_cut;
 		float high_cut;
@@ -1772,7 +1777,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	if(!strcmp(argv[1],"flowcontrol"))
+	if(!strcmp(function_name,"flowcontrol"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (data_rate, reads_per_seconds)");
 		int data_rate;
@@ -1796,7 +1801,7 @@ int main(int argc, char *argv[])
 	}
 
 #if 0
-	if(!strcmp(argv[1],"flowcontrol"))
+	if(!strcmp(function_name,"flowcontrol"))
 	{
 		if(argc<=3) return badsyntax("need required parameters (data_rate, reads_per_seconds)");
 
@@ -1896,7 +1901,7 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-	if(!strcmp(argv[1],"through"))
+	if(!strcmp(function_name,"through"))
 	{
 		struct timespec start_time, end_time;
 		if(!sendbufsize(initialize_buffers())) return -2;
@@ -1934,7 +1939,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"dsb_fc"))
+	if(!strcmp(function_name,"dsb_fc"))
 	{
 		float q_value = 0;
 		if(argc>=3) sscanf(argv[2],"%g",&q_value);
@@ -1954,7 +1959,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"convert_f_samplerf"))
+	if(!strcmp(function_name,"convert_f_samplerf"))
 	{
 		if(argc<=2) return badsyntax("need required parameter (wait_for_this_sample)");
 
@@ -1979,7 +1984,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"add_dcoffset_cc"))
+	if(!strcmp(function_name,"add_dcoffset_cc"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -1992,7 +1997,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"fmmod_fc"))
+	if(!strcmp(function_name,"fmmod_fc"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		float last_phase = 0;
@@ -2006,7 +2011,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"fixed_amplitude_cc"))
+	if(!strcmp(function_name,"fixed_amplitude_cc"))
 	{
 		if(argc<=2) return badsyntax("need required parameter (new_amplitude)");
 
@@ -2042,7 +2047,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"squelch_and_smeter_cc"))
+	if(!strcmp(function_name,"squelch_and_smeter_cc"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		float power;
@@ -2268,7 +2273,7 @@ int main(int argc, char *argv[])
 			   |___/                                                
 	*/
 
-	if(!strcmp(argv[1],"bpsk31_varicode2ascii_sy_u8"))
+	if(!strcmp(function_name,"bpsk31_varicode2ascii_sy_u8"))
 	{
 		unsigned long long status_shr = 0;
 		unsigned char output;
@@ -2283,7 +2288,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"invert_sy_sy"))
+	if(!strcmp(function_name,"invert_sy_sy"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		unsigned char i=0;
@@ -2296,7 +2301,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"rtty_line_decoder_sy_u8"))
+	if(!strcmp(function_name,"rtty_line_decoder_sy_u8"))
 	{
 		static rtty_baudot_decoder_t status_baudot; //created on .bss -> initialized to 0
 		unsigned char output;
@@ -2311,7 +2316,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"rtty_baudot2ascii_u8_u8"))
+	if(!strcmp(function_name,"rtty_baudot2ascii_u8_u8"))
 	{
 		unsigned char fig_mode = 0;
 		unsigned char output;
@@ -2326,7 +2331,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"binary_slicer_f_u8"))
+	if(!strcmp(function_name,"binary_slicer_f_u8"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		for(;;)
@@ -2340,7 +2345,7 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-	if(!strcmp(argv[1],"serial_line_decoder_f_u8"))
+	if(!strcmp(function_name,"serial_line_decoder_f_u8"))
 	{
 		bigbufs=1;
 
@@ -2383,7 +2388,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"pll_cc"))
+	if(!strcmp(function_name,"pll_cc"))
 	{
 		pll_t pll;
 
@@ -2426,7 +2431,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q [--octave <debug_n>]] 
+	if(!strcmp(function_name,"timing_recovery_cc")) //<algorithm> <decimation> [--add_q [--octave <debug_n>]] 
 	{
 		if(argc<=2) return badsyntax("need required parameter (algorithm)");
 		timing_recovery_algorithm_t algorithm = timing_recovery_get_algorithm_from_string(argv[2]);
@@ -2468,7 +2473,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"octave_complex_c"))
+	if(!strcmp(function_name,"octave_complex_c"))
 	{
 		if(argc<=2) return badsyntax("need required parameter (samples_to_plot)");
 		int samples_to_plot = 0;
@@ -2505,7 +2510,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"psk_modulator_u8_c")) //<n_psk>
+	if(!strcmp(function_name,"psk_modulator_u8_c")) //<n_psk>
 	{
 		int n_psk;
 		if(argc<=2) return badsyntax("need required parameter (n_psk)");
@@ -2525,7 +2530,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"duplicate_samples_ntimes_u8_u8")) //<sample_size_bytes> <ntimes>
+	if(!strcmp(function_name,"duplicate_samples_ntimes_u8_u8")) //<sample_size_bytes> <ntimes>
 	{
 		int sample_size_bytes = 0, ntimes = 0;
 		if(argc<=2) return badsyntax("need required parameter (sample_size_bytes)");
@@ -2548,7 +2553,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"psk31_interpolate_sine_cc")) //<interpolation>
+	if(!strcmp(function_name,"psk31_interpolate_sine_cc")) //<interpolation>
 	{
 		int interpolation;
 		if(argc<=2) return badsyntax("need required parameter (interpolation)");
@@ -2570,7 +2575,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"pack_bits_8to1_u8_u8")) 
+	if(!strcmp(function_name,"pack_bits_8to1_u8_u8")) 
 	{
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize*8);
@@ -2586,7 +2591,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"psk31_varicode_encoder_u8_u8")) 
+	if(!strcmp(function_name,"psk31_varicode_encoder_u8_u8")) 
 	{
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize*8);
@@ -2608,7 +2613,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"dump_u8")) 
+	if(!strcmp(function_name,"dump_u8")) 
 	{
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize*3);
@@ -2640,7 +2645,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"bpsk_costas_loop_cc")) //<samples_per_bits>
+	if(!strcmp(function_name,"bpsk_costas_loop_cc")) //<samples_per_bits>
 	{
 		float samples_per_bits;
 		if(argc<=2) return badsyntax("need required parameter (samples_per_bits)");
@@ -2662,7 +2667,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"none"))
+	if(!strcmp(function_name,"none"))
 	{
 		return 0;
 	}
