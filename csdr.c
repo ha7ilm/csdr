@@ -119,14 +119,14 @@ char usage[]=
 "    fft_exchange_sides_ff <fft_size>\n"
 "    squelch_and_smeter_cc --fifo <squelch_fifo> --outfifo <smeter_fifo> <use_every_nth> <report_every_nth>\n"
 "    fifo <buffer_size> <number_of_buffers>\n"
-"    bpsk31_varicode2ascii_sy_u8\n"
-"    invert_sy_sy\n"
-"    rtty_line_decoder_sy_u8\n"
+"    invert_u8_u8\n"
+"    rtty_line_decoder_u8_u8\n"
 "    rtty_baudot2ascii_u8_u8\n"
-"    serial_line_decoder_sy_u8\n"
+"    serial_line_decoder_u8_u8\n"
 "    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
 "    timing_recovery_cc <algorithm> <decimation> [--add_q]\n"
 "    psk31_varicode_encoder_u8_u8\n"
+"    psk31_varicode_decoder_u8_u8\n"
 "    differential_encoder_u8_u8\n"
 "    differential_decoder_u8_u8\n"
 "    dump_u8\n"
@@ -2277,7 +2277,7 @@ int main(int argc, char *argv[])
 			   |___/                                                
 	*/
 
-	if(!strcmp(argv[1],"bpsk31_varicode2ascii_sy_u8"))
+	if(!!strcmp(argv[1],"bpsk31_varicode_decoder_u8_u8"))
 	{
 		unsigned long long status_shr = 0;
 		unsigned char output;
@@ -2292,7 +2292,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"invert_sy_sy"))
+	if(!strcmp(argv[1],"invert_u8_u8"))
 	{
 		if(!sendbufsize(initialize_buffers())) return -2;
 		unsigned char i=0;
@@ -2305,7 +2305,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"rtty_line_decoder_sy_u8"))
+	if(!strcmp(argv[1],"rtty_line_decoder_u8_u8"))
 	{
 		static rtty_baudot_decoder_t status_baudot; //created on .bss -> initialized to 0
 		unsigned char output;
@@ -2358,7 +2358,7 @@ int main(int argc, char *argv[])
 		if(argc<=2) return badsyntax("need required parameter (samples_per_bits)");
 		sscanf(argv[2],"%f",&serial.samples_per_bits);
 		if(serial.samples_per_bits<1) return badsyntax("samples_per_bits should be at least 1.");
-		if(serial.samples_per_bits<5) fprintf(stderr, "serial_line_decoder_sy_u8: warning: this algorithm does not work well if samples_per_bits is too low. It should be at least 5.\n");
+		if(serial.samples_per_bits<5) fprintf(stderr, "%s: warning: this algorithm does not work well if samples_per_bits is too low. It should be at least 5.\n", argv[1]);
 
 		serial.databits=8;
 		if(argc>3) sscanf(argv[3],"%d",&serial.databits);
@@ -2384,7 +2384,7 @@ int main(int argc, char *argv[])
 			else fread(input_buffer, sizeof(float), the_bufsize, stdin); //should happen only on the first run
 			serial_line_decoder_f_u8(&serial,input_buffer, (unsigned char*)output_buffer, the_bufsize);
 			//printf("now in | ");
-			if(serial.input_used==0) { fprintf(stderr, "serial_line_decoder_sy_u8: error: serial_line_decoder_f_u8() got stuck.\n"); return -3; }
+			if(serial.input_used==0) { fprintf(stderr, "%s: error: serial_line_decoder_f_u8() got stuck.\n", argv[1]); return -3; }
 			//printf("now out %d | ", serial.output_size);
 			fwrite(output_buffer, sizeof(unsigned char), serial.output_size, stdout);
 			fflush(stdout);
@@ -2398,8 +2398,6 @@ int main(int argc, char *argv[])
 
 		if(argc<=2) return badsyntax("need required parameter (pll_type)");
 		sscanf(argv[2],"%d",(int*)&pll.pll_type);
-		//if(serial.samples_per_bits<1) return badsyntax("samples_per_bits should be at least 1.");
-		//if(serial.samples_per_bits<5) fprintf(stderr, "serial_line_decoder_sy_u8: warning: this algorithm does not work well if samples_per_bits is too low. It should be at least 5.\n");
 		if(pll.pll_type == PLL_P_CONTROLLER)
 		{
 				float alpha = 0.01;
