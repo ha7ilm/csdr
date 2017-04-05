@@ -136,7 +136,7 @@ int bigbufs = 0;
 //change on on 2015-08-29: we don't yield at all. fread() will do it if it blocks
 #define YIELD_EVERY_N_TIMES 3
 //#define TRY_YIELD if(++yield_counter%YIELD_EVERY_N_TIMES==0) sched_yield()
-#define TRY_YIELD
+#define TRY_YIELD fflush(stdout); sched_yield()
 //unsigned yield_counter=0;
 
 int badsyntax(char* why)
