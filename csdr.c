@@ -155,7 +155,7 @@ int bigbufs = 0;
 //change on on 2015-08-29: we don't yield at all. fread() will do it if it blocks
 #define YIELD_EVERY_N_TIMES 3
 //#define TRY_YIELD if(++yield_counter%YIELD_EVERY_N_TIMES==0) sched_yield()
-#define TRY_YIELD
+#define TRY_YIELD fflush(stdout);sched_yield()
 //unsigned yield_counter=0;
 
 int badsyntax(char* why)
@@ -295,7 +295,7 @@ int the_bufsize = 0;
 char **argv_global;
 
 
-#define UNITROUND_UNIT 128
+#define UNITROUND_UNIT 4
 
 int unitround(int what)
 {
@@ -313,11 +313,20 @@ int initialize_buffers()
 	buffer_u8 = 	(unsigned char*)malloc(the_bufsize*sizeof(unsigned char));
 	buffer_i16 = 	(short*)		malloc(the_bufsize*sizeof(short));
 	temp_f = 		(float*)		malloc(the_bufsize*sizeof(float) * 4);
+	if(the_bufsize<=4096) //this is hacky, should be done correctly
+	{
+		fcntl(STDIN_FILENO, F_SETPIPE_SZ,  4096);
+		fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 4096);
+	}
 	return the_bufsize;
 }
 
 int sendbufsize(int size)
 {
+	if(size<=4096)
+	{
+		fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 4096);
+	}
 	//The first word is a preamble, "csdr".
 	//If the next csdr process detects it, sets the buffer size according to the second word
 	if(!env_csdr_dynamic_bufsize_on) return env_csdr_fixed_bufsize;
