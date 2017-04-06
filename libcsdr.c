@@ -2001,8 +2001,8 @@ void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate
 		if(ideal_gain>max_gain) ideal_gain = max_gain;
 		if(ideal_gain<=0) ideal_gain = 0;
 		//*current_gain += (ideal_gain-(*current_gain))*rate;
-		*current_gain = (ideal_gain-(*current_gain))*rate + (*current_gain)*rate_1minus;
-		if(debugn<100) fprintf(stderr, "cgain: %g\n", *current_gain), debugn++;
+		*current_gain = (ideal_gain-(*current_gain))*rate + (*current_gain); //*rate_1minus;
+		//if(debugn<100) fprintf(stderr, "cgain: %g\n", *current_gain), debugn++;
 		output[i].i=(*current_gain)*input[i].i;
 		output[i].q=(*current_gain)*input[i].q;
 	}
