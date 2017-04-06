@@ -2277,7 +2277,7 @@ int main(int argc, char *argv[])
 			   |___/                                                
 	*/
 
-	if(!strcmp(argv[1],"bpsk31_varicode_decoder_u8_u8"))
+	if(!strcmp(argv[1],"psk31_varicode_decoder_u8_u8"))
 	{
 		unsigned long long status_shr = 0;
 		unsigned char output;
