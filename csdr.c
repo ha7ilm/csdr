@@ -135,6 +135,7 @@ char usage[]=
 "    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
 "    bpsk_costas_loop_cc <samples_per_bits>\n"
 "    binary_slicer_f_u8\n"
+"    simple_agc_cc <rate> [reference [max_gain]]\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -2652,7 +2653,7 @@ int main(int argc, char *argv[])
 		float samples_per_bits;
 		if(argc<=2) return badsyntax("need required parameter (samples_per_bits)");
 		sscanf(argv[2],"%f",&samples_per_bits);
-		if(samples_per_bits<=0) badsyntax("samples_per_bits should be >= 0");
+		if(samples_per_bits<=0) badsyntax("samples_per_bits should be > 0");
 
 		bpsk_costas_loop_state_t state = init_bpsk_costas_loop_cc(samples_per_bits);
 
@@ -2664,6 +2665,36 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			FREAD_C;
 			bpsk_costas_loop_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
+			FWRITE_C;
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"simple_agc_cc")) //<rate> [reference [max_gain]] 
+	{
+		float rate;
+		if(argc<=2) return badsyntax("need required parameter (rate)");
+		sscanf(argv[2],"%f",&rate);
+		if(rate<=0) badsyntax("rate should be > 0");
+
+		float reference = 1.;
+		if(argc>3) sscanf(argv[3],"%f",&reference);
+		if(reference<=0) badsyntax("reference should be > 0");
+
+		float max_gain = 65535.;
+		if(argc>4) sscanf(argv[4],"%f",&max_gain);
+		if(max_gain<=0) badsyntax("max_gain should be > 0");
+
+		float current_gain = 1.;
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize);
+
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_C;
+			simple_agc_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, rate, reference, max_gain, &current_gain);
 			FWRITE_C;
 			TRY_YIELD;
 		}
