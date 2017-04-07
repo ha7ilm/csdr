@@ -257,7 +257,7 @@
     </param>
     <param>
       <key>commandline</key>
-      <value>csdr dsb_fc | csdr shift_addition_cc $(csdr =-2000./48e3) | csdr fir_decimate_cc 32</value>
+      <value>csdr dsb_fc | csdr shift_addition_cc $(csdr =-2000./48e3) | csdr fir_decimate_cc 32 | csdr simple_agc_cc 0.0001 0.5</value>
     </param>
     <param>
       <key>comment</key>

@@ -1685,6 +1685,7 @@ unsigned char differential_codec(unsigned char* input, unsigned char* output, in
 			if(!input[i]) state=!state;
 			output[i] = state;
 		}
+	return state;
 }
 
 /*
