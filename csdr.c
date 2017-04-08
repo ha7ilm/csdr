@@ -136,6 +136,7 @@ char usage[]=
 "    bpsk_costas_loop_cc <samples_per_bits>\n"
 "    binary_slicer_f_u8\n"
 "    simple_agc_cc <rate> [reference [max_gain]]\n"
+"    firdes_carrier_c <rate> <length> [window [--octave]]\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -2698,6 +2699,51 @@ int main(int argc, char *argv[])
 			FWRITE_C;
 			TRY_YIELD;
 		}
+	}
+
+	if(!strcmp(argv[1],"firdes_carrier_c")) //<rate> <length> [window [--octave]]
+	{
+		//Process the params
+		if(argc<=3) return badsyntax("need required parameters (rate, length)");
+
+		float rate;
+		sscanf(argv[2],"%g",&rate);
+		int length;
+		sscanf(argv[3],"%d",&length);
+		if(length%2==0) return badsyntax("number of symmetric FIR filter taps should be odd");
+
+		window_t window = WINDOW_DEFAULT;
+		if(argc>=5)
+		{
+			window=firdes_get_window_from_string(argv[4]);
+		}
+		else fprintf(stderr,"firdes_carrier_c: window = %s\n",firdes_get_string_from_window(window));
+
+		int octave=(argc>=6 && !strcmp("--octave",argv[5]));
+
+		complexf* taps=(complexf*)malloc(sizeof(complexf)*length);
+
+		//Make the filter
+		firdes_carrier_c(taps, length, rate, window);
+
+		//Do the output
+		if(octave) printf("taps=[");
+		for(int i=0;i<length;i++) printf("(%g)+(%g)*i ",iof(taps,i),qof(taps,i));
+		int fft_length=1024;
+		while(fft_length<length) fft_length*=2;
+		//if(octave) printf("];\n");
+		if(octave) printf(
+			"];figure(\"Position\",[0 0 1000 1000]);fser=fft([taps,zeros(1,%d)]);ampl=abs(fser).^2;halfindex=floor(1+size(ampl)(2)/2);\n"
+			"amplrev=[ampl(halfindex:end),ampl(1:halfindex)];\n" //we have to swap the output of FFT
+			"subplot(2,1,1);plot(amplrev);\n"
+			"subplot(2,1,2);plot(arg(fser));\n"
+			"#figure(2);freqz(taps);\n"
+			"#figur(3);plot3(taps);\n",fft_length-length);
+
+		//Wait forever, so that octave won't close just after popping up the window.
+		//You can close it with ^C.
+		if(octave) { fflush(stdout); getchar(); }
+		return 0;
 	}
 
 	if(!strcmp(argv[1],"none"))

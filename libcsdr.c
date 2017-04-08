@@ -2009,6 +2009,34 @@ void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate
 	}
 }
 
+void firdes_carrier_c(complexf* output, int length, float rate, window_t window)
+{
+	int middle=length/2;
+	float phase = 0, phase_addition = rate*M_PI*2;
+	float (*window_function)(float) = firdes_get_window_kernel(window);
+	for(int i=0; i<length; i++) //@@firdes_carrier_c: calculate taps
+	{
+		e_powj(&output[i], phase);
+		float window_multiplier = window_function(fabs((float)(middle-i)/middle));
+		output[i].i *= window_multiplier;
+		output[i].q *= window_multiplier;
+		phase += phase_addition;
+		while(phase>2*M_PI) phase-=2*M_PI;
+	}
+
+	//Normalize filter kernel
+	float sum=0;
+	for(int i=0;i<length;i++) //@firdes_carrier_c: normalize pass 1
+	{
+		sum+=sqrt(output[i].i*output[i].i + output[i].q*output[i].q);
+	}
+	for(int i=0;i<length;i++) //@firdes_carrier_c: normalize pass 2
+	{
+		output[i].i/=sum;
+		output[i].q/=sum;
+	}
+}
+
 
 
 
