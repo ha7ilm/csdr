@@ -2721,10 +2721,10 @@ int main(int argc, char *argv[])
 
 		int octave=(argc>=6 && !strcmp("--octave",argv[5]));
 
-		complexf* taps=(complexf*)malloc(sizeof(complexf)*length);
+		complexf* taps=(complexf*)calloc(sizeof(complexf),length);
 
 		//Make the filter
-		firdes_carrier_c(taps, length, rate, window);
+		firdes_add_carrier_c(taps, length, rate, window);
 
 		//Do the output
 		if(octave) printf("taps=[");
