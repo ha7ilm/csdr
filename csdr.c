@@ -2719,10 +2719,10 @@ int main(int argc, char *argv[])
 
 		int octave=(argc>=6 && !strcmp("--octave",argv[5]));
 
-		complexf* taps=(complexf*)calloc(sizeof(complexf),length);
+		complexf* taps=(complexf*)malloc(sizeof(complexf)*length);
 
 		//Make the filter
-		firdes_add_resonator_c(taps, length, rate, window);
+		firdes_add_resonator_c(taps, length, rate, window, 0, 1);
 
 		//Do the output
 		if(octave) printf("taps=[");
@@ -2744,6 +2744,7 @@ int main(int argc, char *argv[])
  
 	if(!strcmp(argv[1],"resonators_fir_cc")) //<taps_length> <resonator_rate × N>
 	{
+		//rule of thumb: bw = 2/taps_length,   which does not equal to transition_bw
 
 		if(argc<=2) return badsyntax("need required parameter (taps_length)");
 		int taps_length;
@@ -2754,24 +2755,20 @@ int main(int argc, char *argv[])
 		for(int i=0;i<num_resonators;i++)
 			sscanf(argv[3+i], "%f", resonator_rate+i);
 		if(num_resonators<=0) return badsyntax("need required parameter (resonator_rate) once or multiple times");
-		for(int i=0;i<num_resonators;i++)
-			fprintf(stderr, "%f\n", resonator_rate[i]);
+		//for(int i=0;i<num_resonators;i++) fprintf(stderr, "%f\n", resonator_rate[i]);
 		fflush(stderr);
 
 		window_t window = WINDOW_DEFAULT;
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize);
+		if(the_bufsize - taps_length <= 0 ) badsyntax("taps_length is below buffer size, decrease taps_length");
 
 		complexf* taps = (complexf*)calloc(sizeof(complexf),taps_length);
 		for(int i=0; i<num_resonators; i++)
 		{
-			firdes_add_resonator_c(taps, taps_length, resonator_rate[i], window);
-		}
-		for(int i=0; i<taps_length; i++)
-		{
-			taps[i].i/=num_resonators;
-			taps[i].q/=num_resonators;
+			//fprintf(stderr, "nr = %d\n", i==num_resonators-1);
+			firdes_add_resonator_c(taps, taps_length, resonator_rate[i], window, 1, i==num_resonators-1);
 		}
 
 		int output_size=0;
@@ -2781,7 +2778,7 @@ int main(int argc, char *argv[])
 			FEOF_CHECK;
 			output_size = apply_fir_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, taps, taps_length);
 			fwrite(output_buffer, sizeof(complexf), output_size, stdout);
-			fprintf(stderr, "os = %d\n", output_size);
+			//fprintf(stderr, "os = %d, is = %d\n", output_size, the_bufsize);
 			TRY_YIELD;
 			memmove((complexf*)input_buffer,((complexf*)input_buffer)+output_size,(the_bufsize-output_size)*sizeof(complexf)); 
 			fread(((complexf*)input_buffer)+(the_bufsize-output_size), sizeof(complexf), output_size, stdin);

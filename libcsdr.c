@@ -2009,8 +2009,10 @@ void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate
 	}
 }
 
-void firdes_add_resonator_c(complexf* output, int length, float rate, window_t window)
+void firdes_add_resonator_c(complexf* output, int length, float rate, window_t window, int add, int normalize)
 {
+	//add=0: malloc output previously
+	//add=1: calloc output previously
 	complexf* taps = (complexf*)malloc(sizeof(complexf)*length);
 	int middle=length/2;
 	float phase = 0, phase_addition = -rate*M_PI*2;
@@ -2027,20 +2029,25 @@ void firdes_add_resonator_c(complexf* output, int length, float rate, window_t w
 	}
 
 	//Normalize filter kernel
-	float sum=0;
-	for(int i=0;i<length;i++) //@firdes_add_resonator_c: normalize pass 1
+	if(add) 
+		for(int i=0;i<length;i++)
+		{
+			output[i].i += taps[i].i;
+			output[i].q += taps[i].q;
+		}
+	else for(int i=0;i<length;i++) output[i] = taps[i];
+	if(normalize)
 	{
-		sum+=sqrt(taps[i].i*taps[i].i + taps[i].q*taps[i].q);
-	}
-	for(int i=0;i<length;i++) //@firdes_add_resonator_c: normalize pass 2
-	{
-		taps[i].i/=sum;
-		taps[i].q/=sum;
-	}
-	for(int i=0;i<length;i++)
-	{
-		output[i].i += taps[i].i;
-		output[i].q += taps[i].q;
+		float sum=0;
+		for(int i=0;i<length;i++) //@firdes_add_resonator_c: normalize pass 1
+		{
+			sum+=sqrt(output[i].i*output[i].i + output[i].q*output[i].q);
+		}
+		for(int i=0;i<length;i++) //@firdes_add_resonator_c: normalize pass 2
+		{
+			output[i].i/=sum;
+			output[i].q/=sum;
+		}
 	}
 }
 
