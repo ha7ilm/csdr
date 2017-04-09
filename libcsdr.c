@@ -2009,13 +2009,13 @@ void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate
 	}
 }
 
-void firdes_add_carrier_c(complexf* output, int length, float rate, window_t window)
+void firdes_add_resonator_c(complexf* output, int length, float rate, window_t window)
 {
 	complexf* taps = (complexf*)malloc(sizeof(complexf)*length);
 	int middle=length/2;
-	float phase = 0, phase_addition = rate*M_PI*2;
+	float phase = 0, phase_addition = -rate*M_PI*2;
 	float (*window_function)(float) = firdes_get_window_kernel(window);
-	for(int i=0; i<length; i++) //@@firdes_carrier_c: calculate taps
+	for(int i=0; i<length; i++) //@@firdes_add_resonator_c: calculate taps
 	{
 		e_powj(&taps[i], phase);
 		float window_multiplier = window_function(fabs((float)(middle-i)/middle));
@@ -2023,15 +2023,16 @@ void firdes_add_carrier_c(complexf* output, int length, float rate, window_t win
 		taps[i].q *= window_multiplier;
 		phase += phase_addition;
 		while(phase>2*M_PI) phase-=2*M_PI;
+		while(phase<0) phase+=2*M_PI;
 	}
 
 	//Normalize filter kernel
 	float sum=0;
-	for(int i=0;i<length;i++) //@firdes_carrier_c: normalize pass 1
+	for(int i=0;i<length;i++) //@firdes_add_resonator_c: normalize pass 1
 	{
 		sum+=sqrt(taps[i].i*taps[i].i + taps[i].q*taps[i].q);
 	}
-	for(int i=0;i<length;i++) //@firdes_carrier_c: normalize pass 2
+	for(int i=0;i<length;i++) //@firdes_add_resonator_c: normalize pass 2
 	{
 		taps[i].i/=sum;
 		taps[i].q/=sum;
@@ -2043,6 +2044,19 @@ void firdes_add_carrier_c(complexf* output, int length, float rate, window_t win
 	}
 }
 
+int apply_fir_cc(complexf* input, complexf* output, int input_size, complexf* taps, int taps_length)
+{
+	int i;
+	for(i=0; i<input_size-taps_length+1; i++)
+	{
+		csetnull(&output[i]);
+		for(int ti=0;ti<taps_length;ti++)
+		{
+			cmultadd(&output[i], &input[i+ti], &taps[ti]);
+		}
+	}
+	return i;
+}
 
 
 

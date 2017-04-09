@@ -136,7 +136,8 @@ char usage[]=
 "    bpsk_costas_loop_cc <samples_per_bits>\n"
 "    binary_slicer_f_u8\n"
 "    simple_agc_cc <rate> [reference [max_gain]]\n"
-"    firdes_carrier_c <rate> <length> [window [--octave]]\n"
+"    firdes_resonator_c <rate> <length> [window [--octave]]\n"
+"    resonators_fir_cc <taps_length> [resonator_rate × N]\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -1054,6 +1055,7 @@ int main(int argc, char *argv[])
 			TRY_YIELD;
 		}
 	}
+
 	if(!strcmp(argv[1],"fir_decimate_cc"))
 	{
 		bigbufs=1;
@@ -1111,7 +1113,6 @@ int main(int argc, char *argv[])
 			output_size=fir_decimate_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, factor, taps, padded_taps_length);
 			//fprintf(stderr, "os %d\n",output_size);
 			fwrite(output_buffer, sizeof(complexf), output_size, stdout);
-			fflush(stdout);
 			TRY_YIELD;
 			input_skip=factor*output_size;
 			memmove((complexf*)input_buffer,((complexf*)input_buffer)+input_skip,(the_bufsize-input_skip)*sizeof(complexf)); //memmove lets the source and destination overlap
@@ -1167,7 +1168,6 @@ int main(int argc, char *argv[])
 			output_size=fir_interpolate_cc((complexf*)input_buffer, (complexf*)interp_output_buffer, the_bufsize, factor, taps, taps_length);
 			//fprintf(stderr, "os %d\n",output_size);
 			fwrite(interp_output_buffer, sizeof(complexf), output_size, stdout);
-			fflush(stdout);
 			TRY_YIELD;
 			input_skip=output_size/factor;
 			memmove((complexf*)input_buffer,((complexf*)input_buffer)+input_skip,(the_bufsize-input_skip)*sizeof(complexf)); //memmove lets the source and destination overlap
@@ -2389,7 +2389,6 @@ int main(int argc, char *argv[])
 			if(serial.input_used==0) { fprintf(stderr, "%s: error: serial_line_decoder_f_u8() got stuck.\n", argv[1]); return -3; }
 			//printf("now out %d | ", serial.output_size);
 			fwrite(output_buffer, sizeof(unsigned char), serial.output_size, stdout);
-			fflush(stdout);
 			TRY_YIELD;
 		}
 	}
@@ -2468,7 +2467,6 @@ int main(int argc, char *argv[])
 			timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
 			//fprintf(stderr, "trcc is=%d, os=%d, ip=%d\n",the_bufsize, state.output_size, state.input_processed);
 			fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
-			fflush(stdout);
 			TRY_YIELD;
 			//fprintf(stderr, "state.input_processed = %d\n", state.input_processed);
 			memmove((complexf*)input_buffer,((complexf*)input_buffer)+state.input_processed,(the_bufsize-state.input_processed)*sizeof(complexf)); //memmove lets the source and destination overlap
@@ -2701,7 +2699,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"firdes_carrier_c")) //<rate> <length> [window [--octave]]
+	if(!strcmp(argv[1],"firdes_resonator_c")) //<rate> <length> [window [--octave]]
 	{
 		//Process the params
 		if(argc<=3) return badsyntax("need required parameters (rate, length)");
@@ -2717,14 +2715,14 @@ int main(int argc, char *argv[])
 		{
 			window=firdes_get_window_from_string(argv[4]);
 		}
-		else fprintf(stderr,"firdes_carrier_c: window = %s\n",firdes_get_string_from_window(window));
+		else fprintf(stderr,"firdes_resonator_c: window = %s\n",firdes_get_string_from_window(window));
 
 		int octave=(argc>=6 && !strcmp("--octave",argv[5]));
 
 		complexf* taps=(complexf*)calloc(sizeof(complexf),length);
 
 		//Make the filter
-		firdes_add_carrier_c(taps, length, rate, window);
+		firdes_add_resonator_c(taps, length, rate, window);
 
 		//Do the output
 		if(octave) printf("taps=[");
@@ -2736,14 +2734,58 @@ int main(int argc, char *argv[])
 			"];figure(\"Position\",[0 0 1000 1000]);fser=fft([taps,zeros(1,%d)]);ampl=abs(fser).^2;halfindex=floor(1+size(ampl)(2)/2);\n"
 			"amplrev=[ampl(halfindex:end),ampl(1:halfindex)];\n" //we have to swap the output of FFT
 			"subplot(2,1,1);plot(amplrev);\n"
-			"subplot(2,1,2);plot(arg(fser));\n"
-			"#figure(2);freqz(taps);\n"
-			"#figur(3);plot3(taps);\n",fft_length-length);
+			"subplot(2,1,2);plot(arg(fser));\n",fft_length-length);
 
 		//Wait forever, so that octave won't close just after popping up the window.
 		//You can close it with ^C.
 		if(octave) { fflush(stdout); getchar(); }
 		return 0;
+	}
+ 
+	if(!strcmp(argv[1],"resonators_fir_cc")) //<taps_length> <resonator_rate × N>
+	{
+
+		if(argc<=2) return badsyntax("need required parameter (taps_length)");
+		int taps_length;
+		sscanf(argv[2],"%d",&taps_length);
+
+		int num_resonators = argc-3;
+		float* resonator_rate = (float*)malloc(sizeof(float)*num_resonators);
+		for(int i=0;i<num_resonators;i++)
+			sscanf(argv[3+i], "%f", resonator_rate+i);
+		if(num_resonators<=0) return badsyntax("need required parameter (resonator_rate) once or multiple times");
+		for(int i=0;i<num_resonators;i++)
+			fprintf(stderr, "%f\n", resonator_rate[i]);
+		fflush(stderr);
+
+		window_t window = WINDOW_DEFAULT;
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize);
+
+		complexf* taps = (complexf*)calloc(sizeof(complexf),taps_length);
+		for(int i=0; i<num_resonators; i++)
+		{
+			firdes_add_resonator_c(taps, taps_length, resonator_rate[i], window);
+		}
+		for(int i=0; i<taps_length; i++)
+		{
+			taps[i].i/=num_resonators;
+			taps[i].q/=num_resonators;
+		}
+
+		int output_size=0;
+		FREAD_C;
+		for(;;)
+		{
+			FEOF_CHECK;
+			output_size = apply_fir_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, taps, taps_length);
+			fwrite(output_buffer, sizeof(complexf), output_size, stdout);
+			fprintf(stderr, "os = %d\n", output_size);
+			TRY_YIELD;
+			memmove((complexf*)input_buffer,((complexf*)input_buffer)+output_size,(the_bufsize-output_size)*sizeof(complexf)); 
+			fread(((complexf*)input_buffer)+(the_bufsize-output_size), sizeof(complexf), output_size, stdin);
+		}
 	}
 
 	if(!strcmp(argv[1],"none"))
