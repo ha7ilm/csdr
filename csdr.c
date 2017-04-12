@@ -134,6 +134,12 @@ int bigbufs = 0;
 #define YIELD_EVERY_N_TIMES 3
 //#define TRY_YIELD if(++yield_counter%YIELD_EVERY_N_TIMES==0) sched_yield()
 #define TRY_YIELD
+#ifdef __CYGWIN__
+ #pragma message "we go the cyg way"
+ #undef TRY_YIELD
+ int flush_cntr = 0;
+ #define TRY_YIELD fflush(stdout); sched_yield()
+#endif
 //unsigned yield_counter=0;
 
 int badsyntax(char* why)
