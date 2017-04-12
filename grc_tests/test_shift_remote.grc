@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <?grc format='1' created='3.7.8'?>
 <flow_graph>
-  <timestamp>Tue Mar 17 19:40:27 2015</timestamp>
+  <timestamp>Thu Jan 15 18:51:48 2015</timestamp>
   <block>
     <key>options</key>
     <param>
@@ -70,33 +70,6 @@
     </param>
   </block>
   <block>
-    <key>variable</key>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(376, 11)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>decimation</value>
-    </param>
-    <param>
-      <key>value</key>
-      <value>1</value>
-    </param>
-  </block>
-  <block>
     <key>variable_slider</key>
     <param>
       <key>comment</key>
@@ -108,7 +81,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>1e3</value>
+      <value>0</value>
     </param>
     <param>
       <key>_enabled</key>
@@ -116,7 +89,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(480, 11)</value>
+      <value>(24, 331)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -124,15 +97,15 @@
     </param>
     <param>
       <key>grid_pos</key>
-      <value>2,1,1,1</value>
+      <value></value>
     </param>
     <param>
       <key>id</key>
-      <value>frequency</value>
+      <value>gen_freq</value>
     </param>
     <param>
       <key>label</key>
-      <value></value>
+      <value>Frequency:</value>
     </param>
     <param>
       <key>max</key>
@@ -140,7 +113,7 @@
     </param>
     <param>
       <key>min</key>
-      <value>0</value>
+      <value>-samp_rate/2</value>
     </param>
     <param>
       <key>notebook</key>
@@ -167,7 +140,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(272, 11)</value>
+      <value>(8, 195)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -175,11 +148,11 @@
     </param>
     <param>
       <key>id</key>
-      <value>interpolation</value>
+      <value>rate</value>
     </param>
     <param>
       <key>value</key>
-      <value>4</value>
+      <value>-0.1</value>
     </param>
   </block>
   <block>
@@ -206,7 +179,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>32000</value>
+      <value>250e3</value>
     </param>
   </block>
   <block>
@@ -233,11 +206,11 @@
     </param>
     <param>
       <key>freq</key>
-      <value>frequency</value>
+      <value>gen_freq</value>
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(104, 211)</value>
+      <value>(8, 75)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -261,7 +234,7 @@
     </param>
     <param>
       <key>type</key>
-      <value>float</value>
+      <value>complex</value>
     </param>
     <param>
       <key>samp_rate</key>
@@ -292,7 +265,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(312, 243)</value>
+      <value>(224, 107)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -320,7 +293,7 @@
     </param>
     <param>
       <key>type</key>
-      <value>float</value>
+      <value>complex</value>
     </param>
     <param>
       <key>vlen</key>
@@ -335,7 +308,7 @@
     </param>
     <param>
       <key>commandline</key>
-      <value>"csdr rational_resampler_ff %d %d 0.05"%(interpolation,decimation)</value>
+      <value>"csdr shift_addition_cc %g"%rate</value>
     </param>
     <param>
       <key>comment</key>
@@ -351,7 +324,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(752, 195)</value>
+      <value>(824, 315)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -359,7 +332,7 @@
     </param>
     <param>
       <key>id</key>
-      <value>ha5kfu_execproc_xx_0</value>
+      <value>ha5kfu_execproc_xx_0_0</value>
     </param>
     <param>
       <key>maxoutbuf</key>
@@ -371,7 +344,54 @@
     </param>
     <param>
       <key>type</key>
-      <value>ff</value>
+      <value>cc</value>
+    </param>
+  </block>
+  <block>
+    <key>ha5kfu_execproc_xx</key>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>commandline</key>
+      <value>ncat -v raspberrypi.local 5321</value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(536, 443)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>ha5kfu_execproc_xx_0_0_0_1</value>
+    </param>
+    <param>
+      <key>maxoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>minoutbuf</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>cc</value>
     </param>
   </block>
   <block>
@@ -390,7 +410,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(8, 75)</value>
+      <value>(272, 11)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -398,7 +418,7 @@
     </param>
     <param>
       <key>grid_pos</key>
-      <value>1,1,1,1</value>
+      <value></value>
     </param>
     <param>
       <key>id</key>
@@ -406,7 +426,7 @@
     </param>
     <param>
       <key>labels</key>
-      <value>['scope', 'fft']</value>
+      <value>['original', 'shift_addition_cc','shift_addfast_cc',]</value>
     </param>
     <param>
       <key>notebook</key>
@@ -415,151 +435,6 @@
     <param>
       <key>style</key>
       <value>wx.NB_TOP</value>
-    </param>
-  </block>
-  <block>
-    <key>notebook</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(152, 75)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>grid_pos</key>
-      <value>1,2,1,1</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>nb1</value>
-    </param>
-    <param>
-      <key>labels</key>
-      <value>['scope', 'fft']</value>
-    </param>
-    <param>
-      <key>notebook</key>
-      <value></value>
-    </param>
-    <param>
-      <key>style</key>
-      <value>wx.NB_TOP</value>
-    </param>
-  </block>
-  <block>
-    <key>notebook</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(296, 75)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>grid_pos</key>
-      <value>2,2,1,1</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>nb2</value>
-    </param>
-    <param>
-      <key>labels</key>
-      <value>['scope', 'fft']</value>
-    </param>
-    <param>
-      <key>notebook</key>
-      <value></value>
-    </param>
-    <param>
-      <key>style</key>
-      <value>wx.NB_TOP</value>
-    </param>
-  </block>
-  <block>
-    <key>rational_resampler_xxx</key>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>decim</key>
-      <value>decimation</value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>fbw</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(496, 611)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>rational_resampler_xxx_0</value>
-    </param>
-    <param>
-      <key>interp</key>
-      <value>interpolation</value>
-    </param>
-    <param>
-      <key>maxoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>minoutbuf</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>taps</key>
-      <value>firdes.low_pass(5,1,0.5*min(1./interpolation,1./decimation),0.05)  </value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>fff</value>
     </param>
   </block>
   <block>
@@ -602,7 +477,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(752, 379)</value>
+      <value>(848, 27)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -614,7 +489,110 @@
     </param>
     <param>
       <key>id</key>
-      <value>wxgui_fftsink2_0</value>
+      <value>wxgui_fftsink2_0_0</value>
+    </param>
+    <param>
+      <key>notebook</key>
+      <value>nb0,0</value>
+    </param>
+    <param>
+      <key>peak_hold</key>
+      <value>False</value>
+    </param>
+    <param>
+      <key>ref_level</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>ref_scale</key>
+      <value>2.0</value>
+    </param>
+    <param>
+      <key>fft_rate</key>
+      <value>15</value>
+    </param>
+    <param>
+      <key>samp_rate</key>
+      <value>samp_rate</value>
+    </param>
+    <param>
+      <key>title</key>
+      <value>FFT Plot</value>
+    </param>
+    <param>
+      <key>type</key>
+      <value>complex</value>
+    </param>
+    <param>
+      <key>win_size</key>
+      <value></value>
+    </param>
+    <param>
+      <key>win</key>
+      <value>None</value>
+    </param>
+    <param>
+      <key>y_divs</key>
+      <value>10</value>
+    </param>
+    <param>
+      <key>y_per_div</key>
+      <value>10</value>
+    </param>
+  </block>
+  <block>
+    <key>wxgui_fftsink2</key>
+    <param>
+      <key>avg_alpha</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>average</key>
+      <value>False</value>
+    </param>
+    <param>
+      <key>baseband_freq</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>alias</key>
+      <value></value>
+    </param>
+    <param>
+      <key>comment</key>
+      <value></value>
+    </param>
+    <param>
+      <key>affinity</key>
+      <value></value>
+    </param>
+    <param>
+      <key>_enabled</key>
+      <value>True</value>
+    </param>
+    <param>
+      <key>fft_size</key>
+      <value>1024</value>
+    </param>
+    <param>
+      <key>freqvar</key>
+      <value>None</value>
+    </param>
+    <param>
+      <key>_coordinate</key>
+      <value>(1112, 339)</value>
+    </param>
+    <param>
+      <key>_rotation</key>
+      <value>0</value>
+    </param>
+    <param>
+      <key>grid_pos</key>
+      <value></value>
+    </param>
+    <param>
+      <key>id</key>
+      <value>wxgui_fftsink2_0_1</value>
     </param>
     <param>
       <key>notebook</key>
@@ -642,11 +620,11 @@
     </param>
     <param>
       <key>title</key>
-      <value>Original signal</value>
+      <value>FFT Plot</value>
     </param>
     <param>
       <key>type</key>
-      <value>float</value>
+      <value>complex</value>
     </param>
     <param>
       <key>win_size</key>
@@ -705,7 +683,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(984, 195)</value>
+      <value>(808, 387)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -717,11 +695,11 @@
     </param>
     <param>
       <key>id</key>
-      <value>wxgui_fftsink2_0_0</value>
+      <value>wxgui_fftsink2_0_1_1</value>
     </param>
     <param>
       <key>notebook</key>
-      <value>nb1,1</value>
+      <value>nb0,2</value>
     </param>
     <param>
       <key>peak_hold</key>
@@ -741,118 +719,15 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>samp_rate*(interpolation/float(decimation))</value>
+      <value>samp_rate</value>
     </param>
     <param>
       <key>title</key>
-      <value>Resampled signal (csdr)</value>
+      <value>FFT Plot</value>
     </param>
     <param>
       <key>type</key>
-      <value>float</value>
-    </param>
-    <param>
-      <key>win_size</key>
-      <value></value>
-    </param>
-    <param>
-      <key>win</key>
-      <value>None</value>
-    </param>
-    <param>
-      <key>y_divs</key>
-      <value>10</value>
-    </param>
-    <param>
-      <key>y_per_div</key>
-      <value>10</value>
-    </param>
-  </block>
-  <block>
-    <key>wxgui_fftsink2</key>
-    <param>
-      <key>avg_alpha</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>average</key>
-      <value>False</value>
-    </param>
-    <param>
-      <key>baseband_freq</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>fft_size</key>
-      <value>1024</value>
-    </param>
-    <param>
-      <key>freqvar</key>
-      <value>None</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(760, 723)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>grid_pos</key>
-      <value></value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>wxgui_fftsink2_0_0_0</value>
-    </param>
-    <param>
-      <key>notebook</key>
-      <value>nb2,1</value>
-    </param>
-    <param>
-      <key>peak_hold</key>
-      <value>False</value>
-    </param>
-    <param>
-      <key>ref_level</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>ref_scale</key>
-      <value>2.0</value>
-    </param>
-    <param>
-      <key>fft_rate</key>
-      <value>15</value>
-    </param>
-    <param>
-      <key>samp_rate</key>
-      <value>samp_rate*(interpolation/float(decimation))</value>
-    </param>
-    <param>
-      <key>title</key>
-      <value>Resampled signal (GNU Radio)</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>float</value>
+      <value>complex</value>
     </param>
     <param>
       <key>win_size</key>
@@ -895,7 +770,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(752, 259)</value>
+      <value>(1112, 555)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -907,11 +782,11 @@
     </param>
     <param>
       <key>id</key>
-      <value>wxgui_scopesink2_0</value>
+      <value>wxgui_scopesink2_0_0</value>
     </param>
     <param>
       <key>notebook</key>
-      <value>nb0,0</value>
+      <value>nb0,1</value>
     </param>
     <param>
       <key>num_inputs</key>
@@ -927,15 +802,15 @@
     </param>
     <param>
       <key>title</key>
-      <value>Original signal</value>
+      <value>Scope Plot</value>
     </param>
     <param>
       <key>trig_mode</key>
-      <value>wxgui.TRIG_MODE_AUTO</value>
+      <value>wxgui.TRIG_MODE_NORM</value>
     </param>
     <param>
       <key>type</key>
-      <value>float</value>
+      <value>complex</value>
     </param>
     <param>
       <key>v_offset</key>
@@ -982,7 +857,7 @@
     </param>
     <param>
       <key>_coordinate</key>
-      <value>(984, 75)</value>
+      <value>(808, 611)</value>
     </param>
     <param>
       <key>_rotation</key>
@@ -994,11 +869,11 @@
     </param>
     <param>
       <key>id</key>
-      <value>wxgui_scopesink2_1</value>
+      <value>wxgui_scopesink2_0_0_1</value>
     </param>
     <param>
       <key>notebook</key>
-      <value>nb1,0</value>
+      <value>nb0,2</value>
     </param>
     <param>
       <key>num_inputs</key>
@@ -1006,7 +881,7 @@
     </param>
     <param>
       <key>samp_rate</key>
-      <value>samp_rate*(interpolation/float(decimation))</value>
+      <value>samp_rate</value>
     </param>
     <param>
       <key>t_scale</key>
@@ -1014,102 +889,15 @@
     </param>
     <param>
       <key>title</key>
-      <value>Resampled signal (csdr)</value>
+      <value>Scope Plot</value>
     </param>
     <param>
       <key>trig_mode</key>
-      <value>wxgui.TRIG_MODE_AUTO</value>
+      <value>wxgui.TRIG_MODE_NORM</value>
     </param>
     <param>
       <key>type</key>
-      <value>float</value>
-    </param>
-    <param>
-      <key>v_offset</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>v_scale</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>win_size</key>
-      <value></value>
-    </param>
-    <param>
-      <key>xy_mode</key>
-      <value>False</value>
-    </param>
-    <param>
-      <key>y_axis_label</key>
-      <value>Counts</value>
-    </param>
-  </block>
-  <block>
-    <key>wxgui_scopesink2</key>
-    <param>
-      <key>ac_couple</key>
-      <value>False</value>
-    </param>
-    <param>
-      <key>alias</key>
-      <value></value>
-    </param>
-    <param>
-      <key>comment</key>
-      <value></value>
-    </param>
-    <param>
-      <key>affinity</key>
-      <value></value>
-    </param>
-    <param>
-      <key>_enabled</key>
-      <value>True</value>
-    </param>
-    <param>
-      <key>_coordinate</key>
-      <value>(760, 603)</value>
-    </param>
-    <param>
-      <key>_rotation</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>grid_pos</key>
-      <value></value>
-    </param>
-    <param>
-      <key>id</key>
-      <value>wxgui_scopesink2_1_0</value>
-    </param>
-    <param>
-      <key>notebook</key>
-      <value>nb2,0</value>
-    </param>
-    <param>
-      <key>num_inputs</key>
-      <value>1</value>
-    </param>
-    <param>
-      <key>samp_rate</key>
-      <value>samp_rate*(interpolation/float(decimation))</value>
-    </param>
-    <param>
-      <key>t_scale</key>
-      <value>0</value>
-    </param>
-    <param>
-      <key>title</key>
-      <value>Resampled signal (GNU Radio)</value>
-    </param>
-    <param>
-      <key>trig_mode</key>
-      <value>wxgui.TRIG_MODE_AUTO</value>
-    </param>
-    <param>
-      <key>type</key>
-      <value>float</value>
+      <value>complex</value>
     </param>
     <param>
       <key>v_offset</key>
@@ -1140,49 +928,43 @@
   </connection>
   <connection>
     <source_block_id>blocks_throttle_0</source_block_id>
-    <sink_block_id>ha5kfu_execproc_xx_0</sink_block_id>
+    <sink_block_id>ha5kfu_execproc_xx_0_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>blocks_throttle_0</source_block_id>
-    <sink_block_id>rational_resampler_xxx_0</sink_block_id>
+    <sink_block_id>ha5kfu_execproc_xx_0_0_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
     <source_block_id>blocks_throttle_0</source_block_id>
-    <sink_block_id>wxgui_fftsink2_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>blocks_throttle_0</source_block_id>
-    <sink_block_id>wxgui_scopesink2_0</sink_block_id>
-    <source_key>0</source_key>
-    <sink_key>0</sink_key>
-  </connection>
-  <connection>
-    <source_block_id>ha5kfu_execproc_xx_0</source_block_id>
     <sink_block_id>wxgui_fftsink2_0_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>ha5kfu_execproc_xx_0</source_block_id>
-    <sink_block_id>wxgui_scopesink2_1</sink_block_id>
+    <source_block_id>ha5kfu_execproc_xx_0_0</source_block_id>
+    <sink_block_id>wxgui_fftsink2_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>rational_resampler_xxx_0</source_block_id>
-    <sink_block_id>wxgui_fftsink2_0_0_0</sink_block_id>
+    <source_block_id>ha5kfu_execproc_xx_0_0</source_block_id>
+    <sink_block_id>wxgui_scopesink2_0_0</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>
   <connection>
-    <source_block_id>rational_resampler_xxx_0</source_block_id>
-    <sink_block_id>wxgui_scopesink2_1_0</sink_block_id>
+    <source_block_id>ha5kfu_execproc_xx_0_0_0_1</source_block_id>
+    <sink_block_id>wxgui_fftsink2_0_1_1</sink_block_id>
+    <source_key>0</source_key>
+    <sink_key>0</sink_key>
+  </connection>
+  <connection>
+    <source_block_id>ha5kfu_execproc_xx_0_0_0_1</source_block_id>
+    <sink_block_id>wxgui_scopesink2_0_0_1</sink_block_id>
     <source_key>0</source_key>
     <sink_key>0</sink_key>
   </connection>

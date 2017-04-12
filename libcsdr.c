@@ -263,8 +263,208 @@ float shift_table_cc(complexf* input, complexf* output, int input_size, float ra
 	return phase;
 }
 
+
+shift_unroll_data_t shift_unroll_init(float rate, int size)
+{
+	shift_unroll_data_t output;
+	output.phase_increment=2*rate*PI;
+	output.size = size;
+	output.dsin=(float*)malloc(sizeof(float)*size);
+	output.dcos=(float*)malloc(sizeof(float)*size);
+	float myphase = 0;
+	for(int i=0;i<size;i++)
+	{
+		myphase += output.phase_increment;
+		while(myphase>PI) myphase-=2*PI;
+		while(myphase<-PI) myphase+=2*PI;		
+		output.dsin[i]=sin(myphase);
+		output.dcos[i]=cos(myphase);
+	}
+	return output;	
+}
+
+float shift_unroll_cc(complexf *input, complexf* output, int input_size, shift_unroll_data_t* d, float starting_phase)
+{
+	//input_size should be multiple of 4
+	//fprintf(stderr, "shift_addfast_cc: input_size = %d\n", input_size);
+	float cos_start=cos(starting_phase);
+	float sin_start=sin(starting_phase);
+	register float cos_val, sin_val;
+	for(int i=0;i<input_size; i++) //@shift_unroll_cc
+	{
+		cos_val = cos_start * d->dcos[i] - sin_start * d->dsin[i];
+		sin_val  = sin_start * d->dcos[i] + cos_start * d->dsin[i];
+		iof(output,i)=cos_val*iof(input,i)-sin_val*qof(input,i);
+		qof(output,i)=sin_val*iof(input,i)+cos_val*qof(input,i);
+	}
+	starting_phase+=input_size*d->phase_increment;
+	while(starting_phase>PI) starting_phase-=2*PI;
+	while(starting_phase<-PI) starting_phase+=2*PI;
+	return starting_phase;
+}
+
+shift_addfast_data_t shift_addfast_init(float rate)
+{
+	shift_addfast_data_t output;
+	output.phase_increment=2*rate*PI;
+	for(int i=0;i<4;i++)
+	{
+		output.dsin[i]=sin(output.phase_increment*(i+1));
+		output.dcos[i]=cos(output.phase_increment*(i+1));
+	}
+	return output;
+}
+
 #ifdef NEON_OPTS
-#pragma message "We have a faster fir_decimate_cc now."
+#pragma message "Manual NEON optimizations are ON: we have a faster shift_addfast_cc now."
+
+float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase)
+{
+	//input_size should be multiple of 4
+	float cos_start[4], sin_start[4];
+	float cos_vals[4], sin_vals[4];
+	for(int i=0;i<4;i++) 
+	{
+		cos_start[i] = cos(starting_phase);
+		sin_start[i] = sin(starting_phase);
+	}
+
+	float* pdcos = d->dcos;
+	float* pdsin = d->dsin;
+	register float* pinput = (float*)input;
+	register float* pinput_end = (float*)(input+input_size);
+	register float* poutput = (float*)output;
+
+	//Register map:
+	#define RDCOS "q0" //dcos, dsin
+	#define RDSIN "q1"
+	#define RCOSST "q2" //cos_start, sin_start
+	#define RSINST "q3"
+	#define RCOSV "q4" //cos_vals, sin_vals
+	#define RSINV "q5"
+	#define ROUTI "q6" //output_i, output_q
+	#define ROUTQ "q7" 
+	#define RINPI "q8" //input_i, input_q
+	#define RINPQ "q9"
+	#define R3(x,y,z) x ", " y ", " z "\n\t"
+
+	asm volatile( //(the range of q is q0-q15)
+		"		vld1.32	{" RDCOS "}, [%[pdcos]]\n\t"
+		"		vld1.32	{" RDSIN "}, [%[pdsin]]\n\t"
+		"		vld1.32	{" RCOSST "}, [%[cos_start]]\n\t"
+		"		vld1.32	{" RSINST "}, [%[sin_start]]\n\t"
+		"for_addfast: vld2.32 {" RINPI "-" RINPQ "}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in RINPI and the Q samples in RINPQ), also increment the memory address in pinput (hence the "!" mark) 
+
+		//C version:
+		//cos_vals[j] = cos_start * d->dcos[j] - sin_start * d->dsin[j];
+		//sin_vals[j] = sin_start * d->dcos[j] + cos_start * d->dsin[j];
+
+		"		vmul.f32 " R3(RCOSV, RCOSST, RDCOS)  //cos_vals[i] = cos_start * d->dcos[i]
+		"		vmls.f32 " R3(RCOSV, RSINST, RDSIN)  //cos_vals[i] -= sin_start * d->dsin[i]
+		"		vmul.f32 " R3(RSINV, RSINST, RDCOS)  //sin_vals[i] = sin_start * d->dcos[i]
+		"		vmla.f32 " R3(RSINV, RCOSST, RDSIN)  //sin_vals[i] += cos_start * d->dsin[i]
+
+		//C version:
+		//iof(output,4*i+j)=cos_vals[j]*iof(input,4*i+j)-sin_vals[j]*qof(input,4*i+j);
+		//qof(output,4*i+j)=sin_vals[j]*iof(input,4*i+j)+cos_vals[j]*qof(input,4*i+j);	
+		"		vmul.f32 " R3(ROUTI, RCOSV, RINPI) //output_i =  cos_vals * input_i
+		"		vmls.f32 " R3(ROUTI, RSINV, RINPQ) //output_i -= sin_vals * input_q
+		"		vmul.f32 " R3(ROUTQ, RSINV, RINPI) //output_q =  sin_vals * input_i
+		"		vmla.f32 " R3(ROUTQ, RCOSV, RINPQ) //output_i += cos_vals * input_q
+
+		"		vst2.32 {" ROUTI "-" ROUTQ "}, [%[poutput]]!\n\t" //store the outputs in memory
+		//"		add %[poutput],%[poutput],#32\n\t"
+		"		vdup.32 " RCOSST ", d9[1]\n\t" // cos_start[0-3] = cos_vals[3]
+		"		vdup.32 " RSINST ", d11[1]\n\t" // sin_start[0-3] = sin_vals[3]
+
+		"		cmp %[pinput], %[pinput_end]\n\t" //if(pinput != pinput_end)
+		"		bcc for_addfast\n\t"			  //	then goto for_addfast
+	:
+		[pinput]"+r"(pinput), [poutput]"+r"(poutput) //output operand list -> C variables that we will change from ASM
+	:
+		[pinput_end]"r"(pinput_end), [pdcos]"r"(pdcos), [pdsin]"r"(pdsin), [sin_start]"r"(sin_start), [cos_start]"r"(cos_start) //input operand list
+	: 
+		"memory", "q0", "q1", "q2", "q4", "q5", "q6", "q7", "q8", "q9", "cc" //clobber list
+	);
+	starting_phase+=input_size*d->phase_increment;
+	while(starting_phase>PI) starting_phase-=2*PI;
+	while(starting_phase<-PI) starting_phase+=2*PI;
+	return starting_phase;
+}
+
+#else
+
+
+#if 1
+
+#define SADF_L1(j) cos_vals_ ## j = cos_start * dcos_ ## j - sin_start * dsin_ ## j; \
+	sin_vals_ ## j = sin_start * dcos_ ## j + cos_start * dsin_ ## j;
+#define SADF_L2(j) iof(output,4*i+j)=(cos_vals_ ## j)*iof(input,4*i+j)-(sin_vals_ ## j)*qof(input,4*i+j); \
+	qof(output,4*i+j)=(sin_vals_ ## j)*iof(input,4*i+j)+(cos_vals_ ## j)*qof(input,4*i+j);
+
+float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase)
+{
+	//input_size should be multiple of 4
+	//fprintf(stderr, "shift_addfast_cc: input_size = %d\n", input_size);
+	float cos_start=cos(starting_phase);
+	float sin_start=sin(starting_phase);
+	float register cos_vals_0, cos_vals_1, cos_vals_2, cos_vals_3,
+		sin_vals_0, sin_vals_1, sin_vals_2, sin_vals_3, 
+		dsin_0 = d->dsin[0], dsin_1 = d->dsin[1], dsin_2 = d->dsin[2], dsin_3 = d->dsin[3],
+		dcos_0 = d->dcos[0], dcos_1 = d->dcos[1], dcos_2 = d->dcos[2], dcos_3 = d->dcos[3];
+
+	for(int i=0;i<input_size/4; i++) //@shift_addfast_cc
+	{
+		SADF_L1(0)
+		SADF_L1(1)
+		SADF_L1(2)
+		SADF_L1(3)
+		SADF_L2(0)
+		SADF_L2(1)
+		SADF_L2(2)
+		SADF_L2(3)
+		cos_start = cos_vals_3;
+		sin_start = sin_vals_3;
+	}
+	starting_phase+=input_size*d->phase_increment;
+	while(starting_phase>PI) starting_phase-=2*PI;
+	while(starting_phase<-PI) starting_phase+=2*PI;
+	return starting_phase;
+}
+#else
+float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase)
+{
+	//input_size should be multiple of 4
+	//fprintf(stderr, "shift_addfast_cc: input_size = %d\n", input_size);
+	float cos_start=cos(starting_phase);
+	float sin_start=sin(starting_phase);
+	float cos_vals[4], sin_vals[4];
+	for(int i=0;i<input_size/4; i++) //@shift_addfast_cc
+	{
+		for(int j=0;j<4;j++) //@shift_addfast_cc
+		{
+			cos_vals[j] = cos_start * d->dcos[j] - sin_start * d->dsin[j];
+			sin_vals[j] = sin_start * d->dcos[j] + cos_start * d->dsin[j];
+		}
+		for(int j=0;j<4;j++) //@shift_addfast_cc
+		{
+			iof(output,4*i+j)=cos_vals[j]*iof(input,4*i+j)-sin_vals[j]*qof(input,4*i+j);
+			qof(output,4*i+j)=sin_vals[j]*iof(input,4*i+j)+cos_vals[j]*qof(input,4*i+j);
+		}
+		cos_start = cos_vals[3];
+		sin_start = sin_vals[3];
+	}
+	starting_phase+=input_size*d->phase_increment;
+	while(starting_phase>PI) starting_phase-=2*PI;
+	while(starting_phase<-PI) starting_phase+=2*PI;
+	return starting_phase;
+}
+#endif
+
+#endif
+
+#ifdef NEON_OPTS
+#pragma message "Manual NEON optimizations are ON: we have a faster fir_decimate_cc now."
 
 //max help: http://community.arm.com/groups/android-community/blog/2015/03/27/arm-neon-programming-quick-reference
 
@@ -280,11 +480,7 @@ int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decim
 	for(int i=0; i<input_size; i+=decimation) //@fir_decimate_cc: outer loop
 	{
 		if(i+taps_length>input_size) break;
-		register float acci=0;
-		register float accq=0;
-
-		register int ti=0;
-		register float* pinput=(float*)&(input[i+ti]);
+		register float* pinput=(float*)&(input[i]);
 		register float* ptaps=taps;
 		register float* ptaps_end=taps+taps_length;
 		float quad_acciq [8];
@@ -297,13 +493,13 @@ q4, q5: accumulator for I branch and Q branch (will be the output)
 */
 
 		asm volatile(
-			"		vmov.f32 q4, #0.0\n\t" //another way to null the accumulators
-			"		vmov.f32 q5, #0.0\n\t"
+			"		veor q4, q4\n\t"
+			"		veor q5, q5\n\t"
 			"for_fdccasm: vld2.32	{q0-q1}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in q0 and the Q samples in q1), also increment the memory address in pinput (hence the "!" mark) //http://community.arm.com/groups/processors/blog/2010/03/17/coding-for-neon--part-1-load-and-stores
 			"		vld1.32	{q2}, [%[ptaps]]!\n\t"
 			"		vmla.f32 q4, q0, q2\n\t" //quad_acc_i += quad_input_i * quad_taps_1 //http://stackoverflow.com/questions/3240440/how-to-use-the-multiply-and-accumulate-intrinsics-in-arm-cortex-a8 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489e/CIHEJBIE.html
 			"		vmla.f32 q5, q1, q2\n\t" //quad_acc_q += quad_input_q * quad_taps_1
-			"		cmp %[ptaps], %[ptaps_end]\n\t" //if(ptaps == ptaps_end)
+			"		cmp %[ptaps], %[ptaps_end]\n\t" //if(ptaps != ptaps_end)
 			"		bcc for_fdccasm\n\t"			//	then goto for_fdcasm
 			"		vst1.32 {q4}, [%[quad_acci]]\n\t" //if the loop is finished, store the two accumulators in memory
 			"		vst1.32 {q5}, [%[quad_accq]]\n\t"
@@ -454,7 +650,7 @@ float inline fir_one_pass_ff(float* input, float* taps, int taps_length)
 	return acc;
 }
 
-fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, fractional_decimator_ff_t d)
+old_fractional_decimator_ff_t old_fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, old_fractional_decimator_ff_t d)
 {
 	if(rate<=1.0) return d; //sanity check, can't decimate <=1.0
 	//This routine can handle floating point decimation rates.
@@ -487,6 +683,104 @@ fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, i
 	return d;
 }
 
+fractional_decimator_ff_t fractional_decimator_ff_init(float rate, int num_poly_points, float* taps, int taps_length)
+{
+	fractional_decimator_ff_t d;
+	d.num_poly_points = num_poly_points&~1; //num_poly_points needs to be even!
+	d.poly_precalc_denomiator = (float*)malloc(d.num_poly_points*sizeof(float));
+	//x0..x3
+	//-1,0,1,2
+	//-(4/2)+1
+	//x0..x5
+	//-2,-1,0,1,2,3
+	d.xifirst=-(num_poly_points/2)+1, d.xilast=num_poly_points/2;
+	int id = 0; //index in poly_precalc_denomiator
+	for(int xi=d.xifirst;xi<=d.xilast;xi++)
+	{
+		d.poly_precalc_denomiator[id]=1;
+		for(int xj=d.xifirst;xj<=d.xilast;xj++)
+		{
+			if(xi!=xj) d.poly_precalc_denomiator[id] *= (xi-xj); //poly_precalc_denomiator could be integer as well. But that would later add a necessary conversion.
+		}
+		id++;
+	}
+	d.where=-d.xifirst;
+	d.coeffs_buf=(float*)malloc(d.num_poly_points*sizeof(float)); 
+	d.filtered_buf=(float*)malloc(d.num_poly_points*sizeof(float)); 
+	//d.last_inputs_circbuf = (float)malloc(d.num_poly_points*sizeof(float));
+	//d.last_inputs_startsat = 0; 
+	//d.last_inputs_samplewhere = -1;
+	//for(int i=0;i<num_poly_points; i++) d.last_inputs_circbuf[i] = 0;
+	d.rate = rate;
+	d.taps = taps;
+	d.taps_length = taps_length;
+	d.input_processed = 0;
+	return d;
+}
+
+#define DEBUG_ASSERT 1
+void fractional_decimator_ff(float* input, float* output, int input_size, fractional_decimator_ff_t* d)
+{
+	//This routine can handle floating point decimation rates.
+	//It applies polynomial interpolation to samples that are taken into consideration from a pre-filtered input.
+	//The pre-filter can be switched off by applying taps=NULL.
+	//fprintf(stderr, "drate=%f\n", d->rate);
+	if(DEBUG_ASSERT) assert(d->rate > 1.0); 
+	if(DEBUG_ASSERT) assert(d->where >= -d->xifirst);
+	int oi=0; //output index
+	int index_high; 
+#define FD_INDEX_LOW (index_high-1)
+	//we optimize to calculate ceilf(where) only once every iteration, so we do it here:
+	for(;(index_high=ceilf(d->where))+d->num_poly_points+d->taps_length<input_size;d->where+=d->rate) //@fractional_decimator_ff
+	{
+		//d->num_poly_points above is theoretically more than we could have here, but this makes the spectrum look good
+		int sxifirst = FD_INDEX_LOW + d->xifirst; 
+		int sxilast = FD_INDEX_LOW + d->xilast; 
+		if(d->taps) 
+			for(int wi=0;wi<d->num_poly_points;wi++) d->filtered_buf[wi] = fir_one_pass_ff(input+FD_INDEX_LOW+wi, d->taps, d->taps_length);
+		else
+			for(int wi=0;wi<d->num_poly_points;wi++) d->filtered_buf[wi] = *(input+FD_INDEX_LOW+wi);
+		int id=0;
+		float xwhere = d->where - FD_INDEX_LOW;
+		for(int xi=d->xifirst;xi<=d->xilast;xi++)
+		{
+			d->coeffs_buf[id]=1;
+			for(int xj=d->xifirst;xj<=d->xilast;xj++)
+			{
+				if(xi!=xj) d->coeffs_buf[id] *= (xwhere-xj);
+			}
+			id++;		
+		}
+		float acc = 0;
+		for(int i=0;i<d->num_poly_points;i++)
+		{
+			acc += (d->coeffs_buf[i]/d->poly_precalc_denomiator[i])*d->filtered_buf[i];  //(xnom/xden)*yn
+		}
+		output[oi++]=acc;
+	}
+	d->input_processed = FD_INDEX_LOW + d->xifirst;
+	d->where -= d->input_processed;
+	d->output_size = oi;
+}
+
+/*
+ * Some notes to myself on the circular buffer I wanted to implement here:
+		int last_input_samplewhere_shouldbe = (index_high-1)+xifirst;
+		int last_input_offset = last_input_samplewhere_shouldbe - d->last_input_samplewhere;
+		if(last_input_offset < num_poly_points)
+		{
+			//if we can move the last_input circular buffer, we move, and add the new samples at the end
+			d->last_inputs_startsat += last_input_offset;
+			d->last_inputs_startsat %= num_poly_points;
+			int num_copied_samples = 0;
+			for(int i=0; i<last_input_offset; i++)
+			{
+				d->last_inputs_circbuf[i]=
+			}
+			d->last_input_samplewhere = d->las
+		}
+	However, I think I should just rather do a continuous big buffer.
+*/
 
 void apply_fir_fft_cc(FFT_PLAN_T* plan, FFT_PLAN_T* plan_inverse, complexf* taps_fft, complexf* last_overlap, int overlap_size)
 {
@@ -930,6 +1224,29 @@ void apply_window_c(complexf* input, complexf* output, int size, window_t window
 	}
 }
 
+float *precalculate_window(int size, window_t window)
+{
+	float (*window_function)(float)=firdes_get_window_kernel(window);
+	float *windowt;
+	windowt = malloc(sizeof(float) * size);
+	for(int i=0;i<size;i++) //@precalculate_window
+	{
+		float rate=(float)i/(size-1);
+		windowt[i] = window_function(2.0*rate+1.0);
+	}
+	return windowt;
+}
+
+void apply_precalculated_window_c(complexf* input, complexf* output, int size, float *windowt)
+{
+	for(int i=0;i<size;i++) //@apply_precalculated_window_c
+	{
+		iof(output,i)=iof(input,i)*windowt[i];
+		qof(output,i)=qof(input,i)*windowt[i];
+	}
+}
+
+
 void apply_window_f(float* input, float* output, int size, window_t window)
 {
 	float (*window_function)(float)=firdes_get_window_kernel(window);
@@ -948,6 +1265,19 @@ void logpower_cf(complexf* input, float* output, int size, float add_db)
 
 	for(int i=0;i<size;i++) output[i]=10*output[i]+add_db; //@logpower_cf: pass 3
 }
+
+void accumulate_power_cf(complexf* input, float* output, int size)
+{
+	for(int i=0;i<size;i++) output[i] += iof(input,i)*iof(input,i) + qof(input,i)*qof(input,i); //@logpower_cf: pass 1
+	
+}
+
+void log_ff(float* input, float* output, int size, float add_db) {
+	for(int i=0;i<size;i++) output[i]=log10(input[i]); //@logpower_cf: pass 2
+
+	for(int i=0;i<size;i++) output[i]=10*output[i]+add_db; //@logpower_cf: pass 3
+}
+
 
 /*
   _____        _                                            _

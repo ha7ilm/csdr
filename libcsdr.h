@@ -68,6 +68,8 @@ typedef struct complexf_s { float i; float q; } complexf;
 //they dropped M_PI in C99, so we define it:
 #define PI ((float)3.14159265358979323846)
 
+#define TIME_TAKEN(start,end) ((end.tv_sec-start.tv_sec)+(end.tv_nsec-start.tv_nsec)/1e9)
+
 //window
 typedef enum window_s
 {
@@ -140,17 +142,42 @@ typedef struct rational_resampler_ff_s
 rational_resampler_ff_t rational_resampler_ff(float *input, float *output, int input_size, int interpolation, int decimation, float *taps, int taps_length, int last_taps_delay);
 void rational_resampler_get_lowpass_f(float* output, int output_size, int interpolation, int decimation, window_t window);
 
+float *precalculate_window(int size, window_t window);
 void apply_window_c(complexf* input, complexf* output, int size, window_t window);
+void apply_precalculated_window_c(complexf* input, complexf* output, int size, float *windowt);
 void apply_window_f(float* input, float* output, int size, window_t window);
 void logpower_cf(complexf* input, float* output, int size, float add_db);
+void accumulate_power_cf(complexf* input, float* output, int size);
+void log_ff(float* input, float* output, int size, float add_db);
 
 typedef struct fractional_decimator_ff_s
+{
+	float where;
+	int input_processed;
+	int output_size;
+	int num_poly_points; //number of samples that the Lagrange interpolator will use
+	float* poly_precalc_denomiator; //while we don't precalculate coefficients here as in a Farrow structure, because it is a fractional interpolator, but we rather precaculate part of the interpolator expression
+	//float* last_inputs_circbuf; //circular buffer to store the last (num_poly_points) number of input samples.
+	//int last_inputs_startsat; //where the circular buffer starts now
+	//int last_inputs_samplewhere; 
+	float* coeffs_buf;
+	float* filtered_buf;
+	int xifirst; 
+	int xilast; 
+	float rate;
+	float *taps;
+	int taps_length;
+} fractional_decimator_ff_t;
+fractional_decimator_ff_t fractional_decimator_ff_init(float rate, int num_poly_points, float* taps, int taps_length);
+void fractional_decimator_ff(float* input, float* output, int input_size, fractional_decimator_ff_t* d);
+
+typedef struct old_fractional_decimator_ff_s
 {
 	float remain;
 	int input_processed;
 	int output_size;
-} fractional_decimator_ff_t;
-fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, fractional_decimator_ff_t d);
+} old_fractional_decimator_ff_t;
+old_fractional_decimator_ff_t old_fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, old_fractional_decimator_ff_t d);
 
 typedef struct shift_table_data_s
 {
@@ -161,6 +188,25 @@ void shift_table_deinit(shift_table_data_t table_data);
 shift_table_data_t shift_table_init(int table_size);
 float shift_table_cc(complexf* input, complexf* output, int input_size, float rate, shift_table_data_t table_data, float starting_phase);
 
+typedef struct shift_addfast_data_s
+{
+	float dsin[4];
+	float dcos[4];
+	float phase_increment;
+} shift_addfast_data_t;
+shift_addfast_data_t shift_addfast_init(float rate);
+shift_addfast_data_t shift_addfast_init(float rate);
+float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_addfast_data_t* d, float starting_phase);
+
+typedef struct shift_unroll_data_s
+{
+	float* dsin;
+	float* dcos;
+	float phase_increment;
+	int size;
+} shift_unroll_data_t;
+float shift_unroll_cc(complexf *input, complexf* output, int input_size, shift_unroll_data_t* d, float starting_phase);
+shift_unroll_data_t shift_unroll_init(float rate, int size);
 
 int log2n(int x);
 int next_pow2(int x);

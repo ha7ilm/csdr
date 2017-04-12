@@ -26,8 +26,6 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
-
 LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c
 #SOURCES = csdr.c $(LIBSOURCES)
 cpufeature = $(if $(findstring $(1),$(shell cat /proc/cpuinfo)),$(2))
@@ -41,29 +39,39 @@ PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
 PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
 PARAMS_SO = -fpic
 PARAMS_MISC = -Wno-unused-result
+#DEBUG_ON = 0 #debug is always on by now (anyway it could be compiled with `make DEBUG_ON=1`)
+#PARAMS_DEBUG = $(if $(DEBUG_ON),-g,)
 FFTW_PACKAGE = fftw-3.3.3
 SO_EXT = $(if $(findstring CYGWIN,$(shell uname -a)),dll,so)
 SO_PATH = $(if $(findstring CYGWIN,$(shell uname -a)),/bin,/usr/lib)
 
-all: clean-vect
+.PHONY: clean-vect clean
+all: csdr nmux
+libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastddc.c fastddc.h  fft_fftw.h  fft_rpi.h  ima_adpcm.h  libcsdr_gpl.h  libcsdr.h  predefined.h
 	@echo NOTE: you may have to manually edit Makefile to optimize for your CPU \(especially if you compile on ARM, please edit PARAMS_NEON\).
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
+	rm -f dumpvect*.vect
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -o libcsdr.$(SO_EXT)
-
 	-./parsevect dumpvect*.vect
+csdr: csdr.c libcsdr.so
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
+ddcd: ddcd.cpp libcsdr.so ddcd.h
+	g++ $(PARAMS_LOOPVECT) $(PARAMS_SIMD) ddcd.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o ddcd
+nmux: nmux.cpp libcsdr.so nmux.h tsmpool.cpp tsmpool.h
+	g++ $(PARAMS_LOOPVECT) $(PARAMS_SIMD) nmux.cpp tsmpool.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o nmux
 arm-cross: clean-vect
 	#note: this doesn't work since having added FFTW
 	arm-linux-gnueabihf-gcc -std=gnu99 -O3 -fshort-double -ffast-math -dumpbase dumpvect-arm -fdump-tree-vect-details -mfloat-abi=softfp -march=armv7-a -mtune=cortex-a9 -mfpu=neon -mvectorize-with-neon-quad -Wno-unused-result -Wformat=0 $(SOURCES) -lm -o ./csdr
 clean-vect:
 	rm -f dumpvect*.vect
 clean: clean-vect
-	rm -f libcsdr.$(SO_EXT) csdr
+	rm -f libcsdr.$(SO_EXT) csdr nmux
 install:
 	install -m 0755 libcsdr.$(SO_EXT) $(SO_PATH)
 	install -m 0755 csdr /usr/bin
 	install -m 0755 csdr-fm /usr/bin
+	install -m 0755 nmux /usr/bin
 	-ldconfig
 uninstall:
 	rm $(SO_PATH)/libcsdr.$(SO_EXT) /usr/bin/csdr /usr/bin/csdr-fm
@@ -85,7 +93,7 @@ emcc-get-deps:
 	emmake make; \
 	emmake make install
 emcc:
-	emcc -O3 -Isdr.js/$(FFTW_PACKAGE)/api -Lsdr.js/$(FFTW_PACKAGE)/emscripten-lib -o sdr.js/sdrjs-compiled.js fft_fftw.c libcsdr_wrapper.c -DLIBCSDR_GPL -DUSE_IMA_ADPCM -DUSE_FFTW -lfftw3f -s EXPORTED_FUNCTIONS="`python sdr.js/exported_functions.py`"
+	emcc -O3 -Isdr.js/$(FFTW_PACKAGE)/api -Lsdr.js/$(FFTW_PACKAGE)/emscripten-lib -o sdr.js/sdrjs-compiled.js fft_fftw.c libcsdr_wrapper.c -s TOTAL_MEMORY=67108864 -DLIBCSDR_GPL -DUSE_IMA_ADPCM -DUSE_FFTW -lfftw3f -s EXPORTED_FUNCTIONS="`python sdr.js/exported_functions.py`"
 	cat sdr.js/sdrjs-header.js sdr.js/sdrjs-compiled.js sdr.js/sdrjs-footer.js > sdr.js/sdr.js
 emcc-beautify:
 	bash -c 'type js-beautify >/dev/null 2>&1; if [ $$? -eq 0 ]; then js-beautify sdr.js/sdr.js >sdr.js/sdr.js.beautiful; mv sdr.js/sdr.js.beautiful sdr.js/sdr.js; fi'
