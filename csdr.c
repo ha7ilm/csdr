@@ -99,7 +99,8 @@ char usage[]=
 "    agc_ff [hang_time [reference [attack_rate [decay_rate [max_gain [attack_wait [filter_alpha]]]]]]]\n"
 "    fastagc_ff [block_size [reference]]\n"
 "    rational_resampler_ff <interpolation> <decimation> [transition_bw [window]]\n"
-"    fractional_decimator_ff <decimation_rate> [transition_bw [window]]\n"
+"    old_fractional_decimator_ff <decimation_rate> [transition_bw [window]]\n"
+"    fractional_decimator_ff <decimation_rate> [num_poly_points ( [transition_bw [window]] | --prefilter )]\n"
 "    fft_cc <fft_size> <out_of_every_n_samples> [window [--octave] [--benchmark]]\n"
 "    logpower_cf [add_db]\n"
 "    fft_benchmark <fft_size> <fft_cycles> [--benchmark]\n"
@@ -1093,7 +1094,7 @@ int main(int argc, char *argv[])
 		padded_taps_length = taps_length+(NEON_ALIGNMENT/4)-1 - ((taps_length+(NEON_ALIGNMENT/4)-1)%(NEON_ALIGNMENT/4));
 		fprintf(stderr,"padded_taps_length = %d\n", padded_taps_length);
 
-		taps = (float*) (float*)malloc(padded_taps_length+NEON_ALIGNMENT);
+		taps = (float*) (float*)malloc((padded_taps_length+NEON_ALIGNMENT)*sizeof(float));
 		fprintf(stderr,"taps = %x\n", taps);
 		taps =  (float*)((((unsigned)taps)+NEON_ALIGNMENT-1) & ~(NEON_ALIGNMENT-1));
 		fprintf(stderr,"taps = %x\n", taps);
@@ -1414,6 +1415,68 @@ int main(int argc, char *argv[])
 		float rate;
 		sscanf(argv[2],"%g",&rate);
 
+		int num_poly_points = 12;
+		if(argc>=4) sscanf(argv[3],"%d",&num_poly_points);
+		if(num_poly_points&1) return badsyntax("num_poly_points should be even");
+		if(num_poly_points<2) return badsyntax("num_poly_points should be >= 2");
+
+		int use_prefilter = 0;
+		float transition_bw=0.03;
+		window_t window = WINDOW_DEFAULT;
+		if(argc>=5)
+		{
+			if(!strcmp(argv[4], "--prefilter")) 
+			{
+				fprintf(stderr, "fractional_decimator_ff: using prefilter with default values\n");
+				use_prefilter = 1;
+			}
+			else 
+			{
+				sscanf(argv[4],"%g",&transition_bw);
+				if(argc>=6) window = firdes_get_window_from_string(argv[5]);
+			}
+		}
+		fprintf(stderr,"fractional_decimator_ff: use_prefilter = %d, num_poly_points = %d, transition_bw = %g, window = %s\n", 
+			use_prefilter, num_poly_points, transition_bw, firdes_get_string_from_window(window));
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize / rate);
+
+		if(rate==1) clone_(the_bufsize); //copy input to output in this special case (and stick in this function).
+
+		//Generate filter taps
+		int taps_length = 0;
+		float* taps = NULL;
+		if(use_prefilter)
+		{
+			taps_length = firdes_filter_len(transition_bw);
+			fprintf(stderr,"fractional_decimator_ff: taps_length = %d\n",taps_length);
+			taps = (float*)malloc(sizeof(float)*taps_length);
+			firdes_lowpass_f(taps, taps_length, 0.5/(rate-transition_bw), window); //0.6 const to compensate rolloff
+			//for(int=0;i<taps_length; i++) fprintf(stderr,"%g ",taps[i]);
+		}
+		else fprintf(stderr,"fractional_decimator_ff: not using taps\n");
+		fractional_decimator_ff_t d = fractional_decimator_ff_init(rate, num_poly_points, taps, taps_length); 
+		for(;;)
+		{
+			FEOF_CHECK;
+			if(d.input_processed==0) d.input_processed=the_bufsize;
+			else memcpy(input_buffer, input_buffer+d.input_processed, sizeof(float)*(the_bufsize-d.input_processed));
+			fread(input_buffer+(the_bufsize-d.input_processed), sizeof(float), d.input_processed, stdin);
+			fractional_decimator_ff(input_buffer, output_buffer, the_bufsize, &d);
+			fwrite(output_buffer, sizeof(float), d.output_size, stdout);
+			//fprintf(stderr, "os = %d, ip = %d\n", d.output_size, d.input_processed);
+			TRY_YIELD;
+		}
+	}
+
+	if(!strcmp(argv[1],"old_fractional_decimator_ff"))
+	{
+		//Process the params
+		if(argc<=2) return badsyntax("need required parameters (rate)");
+		float rate;
+		sscanf(argv[2],"%g",&rate);
+
 		float transition_bw=0.03;
 		if(argc>=4) sscanf(argv[3],"%g",&transition_bw);
 
@@ -1422,7 +1485,7 @@ int main(int argc, char *argv[])
 		{
 			window = firdes_get_window_from_string(argv[4]);
 		}
-		else fprintf(stderr,"fractional_decimator_ff: window = %s\n",firdes_get_string_from_window(window));
+		else fprintf(stderr,"old_fractional_decimator_ff: window = %s\n",firdes_get_string_from_window(window));
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize / rate);
@@ -1431,19 +1494,19 @@ int main(int argc, char *argv[])
 
 		//Generate filter taps
 		int taps_length = firdes_filter_len(transition_bw);
-		fprintf(stderr,"fractional_decimator_ff: taps_length = %d\n",taps_length);
+		fprintf(stderr,"old_fractional_decimator_ff: taps_length = %d\n",taps_length);
 		float* taps = (float*)malloc(sizeof(float)*taps_length);
 		firdes_lowpass_f(taps, taps_length, 0.59*0.5/(rate-transition_bw), window); //0.6 const to compensate rolloff
 		//for(int=0;i<taps_length; i++) fprintf(stderr,"%g ",taps[i]);
 
-		static fractional_decimator_ff_t d; //in .bss => initialized to zero
+		static old_fractional_decimator_ff_t d; //in .bss => initialized to zero
 		for(;;)
 		{
 			FEOF_CHECK;
 			if(d.input_processed==0) d.input_processed=the_bufsize;
 			else memcpy(input_buffer, input_buffer+d.input_processed, sizeof(float)*(the_bufsize-d.input_processed));
 			fread(input_buffer+(the_bufsize-d.input_processed), sizeof(float), d.input_processed, stdin);
-			d = fractional_decimator_ff(input_buffer, output_buffer, the_bufsize, rate, taps, taps_length, d);
+			d = old_fractional_decimator_ff(input_buffer, output_buffer, the_bufsize, rate, taps, taps_length, d);
 			fwrite(output_buffer, sizeof(float), d.output_size, stdout);
 			TRY_YIELD;
 		}

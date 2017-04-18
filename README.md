@@ -554,11 +554,28 @@ The output sample rate will be `interpolation / decimation × input_sample_rate`
 
 Syntax: 
 
-	csdr fractional_decimator_ff <decimation_rate> [transition_bw [window]]
+	csdr fractional_decimator_ff <decimation_rate> [num_poly_points ( [transition_bw [window]] | --prefilter )]
 
 It can decimate by a floating point ratio.
 
-`transition_bw` and `window` are the parameters of the filter.
+It uses Lagrance interpolation, where `num_poly_points` (12 by default) input samples are taken into consideration while calculating one output sample. 
+
+It can filter the signal with an anti-aliasing FIR filter before applying the Lagrange interpolation. This filter is inactive by default, but can be activated by:
+
+* passing only the `transition_bw`, or both the `transition_bw` and the `window` parameters of the filter,
+* using the `--prefilter` switch after `num_poly_points` to switch this filter on with the default parameters.
+
+----
+
+### [old_fractional_decimator_ff](#old_fractional_decimator_ff)
+
+Syntax: 
+
+	csdr old_fractional_decimator_ff <decimation_rate> [transition_bw [window]]
+
+This is the deprecated, old algorithm to decimate by a floating point ratio, superseded by `fractional_decimator_ff`. 
+
+(It uses linear interpolation, and its filter cuts at 59% of the passband.)
 
 ----
 

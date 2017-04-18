@@ -149,11 +149,32 @@ void log_ff(float* input, float* output, int size, float add_db);
 
 typedef struct fractional_decimator_ff_s
 {
+	float where;
+	int input_processed;
+	int output_size;
+	int num_poly_points; //number of samples that the Lagrange interpolator will use
+	float* poly_precalc_denomiator; //while we don't precalculate coefficients here as in a Farrow structure, because it is a fractional interpolator, but we rather precaculate part of the interpolator expression
+	//float* last_inputs_circbuf; //circular buffer to store the last (num_poly_points) number of input samples.
+	//int last_inputs_startsat; //where the circular buffer starts now
+	//int last_inputs_samplewhere; 
+	float* coeffs_buf;
+	float* filtered_buf;
+	int xifirst; 
+	int xilast; 
+	float rate;
+	float *taps;
+	int taps_length;
+} fractional_decimator_ff_t;
+fractional_decimator_ff_t fractional_decimator_ff_init(float rate, int num_poly_points, float* taps, int taps_length);
+void fractional_decimator_ff(float* input, float* output, int input_size, fractional_decimator_ff_t* d);
+
+typedef struct old_fractional_decimator_ff_s
+{
 	float remain;
 	int input_processed;
 	int output_size;
-} fractional_decimator_ff_t;
-fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, fractional_decimator_ff_t d);
+} old_fractional_decimator_ff_t;
+old_fractional_decimator_ff_t old_fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, old_fractional_decimator_ff_t d);
 
 typedef struct shift_table_data_s
 {

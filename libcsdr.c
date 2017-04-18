@@ -481,11 +481,7 @@ int fir_decimate_cc(complexf *input, complexf *output, int input_size, int decim
 	for(int i=0; i<input_size; i+=decimation) //@fir_decimate_cc: outer loop
 	{
 		if(i+taps_length>input_size) break;
-		register float acci=0;
-		register float accq=0;
-
-		register int ti=0;
-		register float* pinput=(float*)&(input[i+ti]);
+		register float* pinput=(float*)&(input[i]);
 		register float* ptaps=taps;
 		register float* ptaps_end=taps+taps_length;
 		float quad_acciq [8];
@@ -498,8 +494,8 @@ q4, q5: accumulator for I branch and Q branch (will be the output)
 */
 
 		asm volatile(
-			"		vmov.f32 q4, #0.0\n\t" //another way to null the accumulators
-			"		vmov.f32 q5, #0.0\n\t"
+			"		veor q4, q4\n\t"
+			"		veor q5, q5\n\t"
 			"for_fdccasm: vld2.32	{q0-q1}, [%[pinput]]!\n\t" //load q0 and q1 directly from the memory address stored in pinput, with interleaving (so that we get the I samples in q0 and the Q samples in q1), also increment the memory address in pinput (hence the "!" mark) //http://community.arm.com/groups/processors/blog/2010/03/17/coding-for-neon--part-1-load-and-stores
 			"		vld1.32	{q2}, [%[ptaps]]!\n\t"
 			"		vmla.f32 q4, q0, q2\n\t" //quad_acc_i += quad_input_i * quad_taps_1 //http://stackoverflow.com/questions/3240440/how-to-use-the-multiply-and-accumulate-intrinsics-in-arm-cortex-a8 //http://infocenter.arm.com/help/index.jsp?topic=/com.arm.doc.dui0489e/CIHEJBIE.html
@@ -683,7 +679,7 @@ float inline fir_one_pass_ff(float* input, float* taps, int taps_length)
 	return acc;
 }
 
-fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, fractional_decimator_ff_t d)
+old_fractional_decimator_ff_t old_fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, old_fractional_decimator_ff_t d)
 {
 	if(rate<=1.0) return d; //sanity check, can't decimate <=1.0
 	//This routine can handle floating point decimation rates.
@@ -716,6 +712,104 @@ fractional_decimator_ff_t fractional_decimator_ff(float* input, float* output, i
 	return d;
 }
 
+fractional_decimator_ff_t fractional_decimator_ff_init(float rate, int num_poly_points, float* taps, int taps_length)
+{
+	fractional_decimator_ff_t d;
+	d.num_poly_points = num_poly_points&~1; //num_poly_points needs to be even!
+	d.poly_precalc_denomiator = (float*)malloc(d.num_poly_points*sizeof(float));
+	//x0..x3
+	//-1,0,1,2
+	//-(4/2)+1
+	//x0..x5
+	//-2,-1,0,1,2,3
+	d.xifirst=-(num_poly_points/2)+1, d.xilast=num_poly_points/2;
+	int id = 0; //index in poly_precalc_denomiator
+	for(int xi=d.xifirst;xi<=d.xilast;xi++)
+	{
+		d.poly_precalc_denomiator[id]=1;
+		for(int xj=d.xifirst;xj<=d.xilast;xj++)
+		{
+			if(xi!=xj) d.poly_precalc_denomiator[id] *= (xi-xj); //poly_precalc_denomiator could be integer as well. But that would later add a necessary conversion.
+		}
+		id++;
+	}
+	d.where=-d.xifirst;
+	d.coeffs_buf=(float*)malloc(d.num_poly_points*sizeof(float)); 
+	d.filtered_buf=(float*)malloc(d.num_poly_points*sizeof(float)); 
+	//d.last_inputs_circbuf = (float)malloc(d.num_poly_points*sizeof(float));
+	//d.last_inputs_startsat = 0; 
+	//d.last_inputs_samplewhere = -1;
+	//for(int i=0;i<num_poly_points; i++) d.last_inputs_circbuf[i] = 0;
+	d.rate = rate;
+	d.taps = taps;
+	d.taps_length = taps_length;
+	d.input_processed = 0;
+	return d;
+}
+
+#define DEBUG_ASSERT 1
+void fractional_decimator_ff(float* input, float* output, int input_size, fractional_decimator_ff_t* d)
+{
+	//This routine can handle floating point decimation rates.
+	//It applies polynomial interpolation to samples that are taken into consideration from a pre-filtered input.
+	//The pre-filter can be switched off by applying taps=NULL.
+	//fprintf(stderr, "drate=%f\n", d->rate);
+	if(DEBUG_ASSERT) assert(d->rate > 1.0); 
+	if(DEBUG_ASSERT) assert(d->where >= -d->xifirst);
+	int oi=0; //output index
+	int index_high; 
+#define FD_INDEX_LOW (index_high-1)
+	//we optimize to calculate ceilf(where) only once every iteration, so we do it here:
+	for(;(index_high=ceilf(d->where))+d->num_poly_points+d->taps_length<input_size;d->where+=d->rate) //@fractional_decimator_ff
+	{
+		//d->num_poly_points above is theoretically more than we could have here, but this makes the spectrum look good
+		int sxifirst = FD_INDEX_LOW + d->xifirst; 
+		int sxilast = FD_INDEX_LOW + d->xilast; 
+		if(d->taps) 
+			for(int wi=0;wi<d->num_poly_points;wi++) d->filtered_buf[wi] = fir_one_pass_ff(input+FD_INDEX_LOW+wi, d->taps, d->taps_length);
+		else
+			for(int wi=0;wi<d->num_poly_points;wi++) d->filtered_buf[wi] = *(input+FD_INDEX_LOW+wi);
+		int id=0;
+		float xwhere = d->where - FD_INDEX_LOW;
+		for(int xi=d->xifirst;xi<=d->xilast;xi++)
+		{
+			d->coeffs_buf[id]=1;
+			for(int xj=d->xifirst;xj<=d->xilast;xj++)
+			{
+				if(xi!=xj) d->coeffs_buf[id] *= (xwhere-xj);
+			}
+			id++;		
+		}
+		float acc = 0;
+		for(int i=0;i<d->num_poly_points;i++)
+		{
+			acc += (d->coeffs_buf[i]/d->poly_precalc_denomiator[i])*d->filtered_buf[i];  //(xnom/xden)*yn
+		}
+		output[oi++]=acc;
+	}
+	d->input_processed = FD_INDEX_LOW + d->xifirst;
+	d->where -= d->input_processed;
+	d->output_size = oi;
+}
+
+/*
+ * Some notes to myself on the circular buffer I wanted to implement here:
+		int last_input_samplewhere_shouldbe = (index_high-1)+xifirst;
+		int last_input_offset = last_input_samplewhere_shouldbe - d->last_input_samplewhere;
+		if(last_input_offset < num_poly_points)
+		{
+			//if we can move the last_input circular buffer, we move, and add the new samples at the end
+			d->last_inputs_startsat += last_input_offset;
+			d->last_inputs_startsat %= num_poly_points;
+			int num_copied_samples = 0;
+			for(int i=0; i<last_input_offset; i++)
+			{
+				d->last_inputs_circbuf[i]=
+			}
+			d->last_input_samplewhere = d->las
+		}
+	However, I think I should just rather do a continuous big buffer.
+*/
 
 void apply_fir_fft_cc(FFT_PLAN_T* plan, FFT_PLAN_T* plan_inverse, complexf* taps_fft, complexf* last_overlap, int overlap_size)
 {
