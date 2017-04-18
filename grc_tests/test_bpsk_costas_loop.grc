@@ -1131,7 +1131,7 @@
     </param>
     <param>
       <key>title</key>
-      <value>After Costas Loop</value>
+      <value>BPSK modulated signal after Costas Loop</value>
     </param>
     <param>
       <key>trig_mode</key>
@@ -1305,7 +1305,7 @@
     </param>
     <param>
       <key>title</key>
-      <value>After BPSK modulator</value>
+      <value>BPSK modulated signal with frequency offset</value>
     </param>
     <param>
       <key>trig_mode</key>
