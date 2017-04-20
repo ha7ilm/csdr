@@ -1660,6 +1660,25 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if(!strcmp(argv[1],"fft_one_side_ff"))
+	{
+		if(argc<=2) return badsyntax("need required parameters (fft_size)");
+		int fft_size;
+		sscanf(argv[2],"%d",&fft_size);
+		if(!getbufsize()) return -2; 
+		sendbufsize(fft_size);
+		float* input_buffer_s1 = (float*)malloc(sizeof(float)*fft_size/2);
+		float* input_buffer_s2 = (float*)malloc(sizeof(float)*fft_size/2);
+		for(;;)
+		{
+			FEOF_CHECK;
+			fread(input_buffer_s1, sizeof(float), fft_size/2, stdin);
+			fread(input_buffer_s2, sizeof(float), fft_size/2, stdin);
+			fwrite(input_buffer_s1, sizeof(float), fft_size/2, stdout);
+			TRY_YIELD;
+		}
+	}
+
 
 #ifdef USE_IMA_ADPCM
 
