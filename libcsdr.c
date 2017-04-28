@@ -1306,6 +1306,12 @@ void log_ff(float* input, float* output, int size, float add_db) {
 	for(int i=0;i<size;i++) output[i]=10*output[i]+add_db; //@logpower_cf: pass 3
 }
 
+float total_logpower_cf(complexf* input, int input_size)
+{
+    float acc = 0; 
+	for(int i=0;i<input_size;i++) acc+=(iof(input,i)*iof(input,i) + qof(input,i)*qof(input,i));
+    return 10*log10(acc/input_size);
+}
 
 /*
   _____  _       _ _        _       _                          _
@@ -2249,22 +2255,64 @@ void convert_s24_f(unsigned char* input, float* output, int input_size, int bige
 	}
 }
 
-FILE* init_get_awgn_samples_f()
+FILE* init_get_random_samples_f()
 {
     return fopen("/dev/urandom", "r");
 }
 
-void get_awgn_samples_f(float* output, int output_size, FILE* status)
+void get_random_samples_f(float* output, int output_size, FILE* status)
 {
     int* pioutput = (int*)output;
     fread((unsigned char*)output, sizeof(float), output_size, status);
     for(int i=0;i<output_size;i++)
-        output[i] = ((float)pioutput[i])/INT_MAX; 
+    {
+        float tempi = pioutput[i];
+        output[i] = tempi/((float)(INT_MAX)); //*0.82
+    }
 }
 
-int deinit_get_agwn_samples_f(FILE* status)
+void get_random_gaussian_samples_c(complexf* output, int output_size, FILE* status)
+{
+    int* pioutput = (int*)output;
+    fread((unsigned char*)output, sizeof(complexf), output_size, status);
+    for(int i=0;i<output_size;i++)
+    {
+        float u1 = 0.5+0.49999999*(((float)pioutput[2*i])/(float)INT_MAX);
+        float u2 = 0.5+0.49999999*(((float)pioutput[2*i+1])/(float)INT_MAX);
+        iof(output, i)=sqrt(-2*log(u1))*cos(2*PI*u2);
+        qof(output, i)=sqrt(-2*log(u1))*sin(2*PI*u2);
+    }
+}
+
+/*
+void get_awgn_samples_c(complexf* output, int output_size, FILE* status)
+{
+    int* pioutput = (int*)output;
+    int cnt = 0;
+    for(int i=0;i<output_size;i++)
+    {
+        do
+        {
+            fread(pioutput+2*i, sizeof(complexf), 2, status);
+            iof(output, i)=((float)pioutput[2*i])/((float)INT_MAX); 
+            qof(output, i)=((float)pioutput[2*i+1])/((float)INT_MAX); 
+        }
+        while(sqrt(iof(output, i)*iof(output, i)+qof(output, i)*qof(output, i))>1);
+        iof(output, i)=(1/0.82)*iof(output, i);
+        qof(output, i)=(1/0.82)*qof(output, i);
+    }
+}
+*/
+
+
+int deinit_get_random_samples_f(FILE* status)
 {
     return fclose(status);
+}
+
+float* add_ff(float* input1, float* input2, float* output, int input_size)
+{
+    for(int i=0;i<input_size;i++) output[i]=input1[i]+input2[i];
 }
 
 int trivial_vectorize()

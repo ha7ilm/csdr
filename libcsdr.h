@@ -363,6 +363,9 @@ void firdes_add_resonator_c(complexf* output, int length, float rate, window_t w
 int apply_fir_cc(complexf* input, complexf* output, int input_size, complexf* taps, int taps_length);
 
 
-FILE* init_get_awgn_samples_f();
-void get_awgn_samples_f(float* output, int output_size, FILE* status);
-int deinit_get_agwn_samples_f(FILE* status);
+FILE* init_get_random_samples_f();
+void get_random_samples_f(float* output, int output_size, FILE* status);
+void get_random_gaussian_samples_c(complexf* output, int output_size, FILE* status);
+int deinit_get_random_samples_f(FILE* status);
+float* add_ff(float* input1, float* input2, float* output, int input_size);
+float total_logpower_cf(complexf* input, int input_size);

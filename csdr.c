@@ -140,6 +140,8 @@ char usage[]=
 "    firdes_resonator_c <rate> <length> [window [--octave]]\n"
 "    resonators_fir_cc <taps_length> [resonator_rate × N]\n"
 "    repeat_u8 <data_bytes × N>\n"
+"    noise_f\n"
+"    awgn_cc <snr_db> [--snrshow]\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -2892,25 +2894,55 @@ int main(int argc, char *argv[])
 
     if(!strcmp(argv[1], "awgn_cc"))
     {
-        if(argc<=2) badsyntax("no data to repeat");
+        FILE* urandom = init_get_random_samples_f();
+        if(argc<=2) badsyntax("required parameter <snr_db> is missing.");
         float snr_db = 0;
 		sscanf(argv[2],"%f",&snr_db);
+        int snrshow = 0;
+        if(argc>=4 && !strcmp(argv[3],"--snrshow")) snrshow = 1;
         float signal_amplitude_per_noise = pow(10,snr_db/20);
         float a_signal=signal_amplitude_per_noise/(signal_amplitude_per_noise+1.0);
         float a_noise=1.0/(signal_amplitude_per_noise+1.0);
-        
-
+        fprintf(stderr, "csdr awgn_cc: a_signal = %f, a_noise = %f\n", a_signal, a_noise);
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize); 
+        complexf* awgn_buffer = (complexf*)malloc(sizeof(complexf)*the_bufsize);
+        for(;;)
+        {
+            FEOF_CHECK;
+            FREAD_C;
+            //get_awgn_samples_f((float*)awgn_buffer, the_bufsize*2, urandom);
+            get_random_gaussian_samples_c(awgn_buffer, the_bufsize, urandom);
+            /*if(snrshow) 
+            {
+                float power_signal = total_logpower_cf((complexf*)input_buffer, the_bufsize);
+                float power_noise = total_logpower_cf(awgn_buffer, the_bufsize);
+                fprintf(stderr, "csdr awgn_cc: at the beginning, power_signal = %f dB, power_noise = %f dB\n", power_signal, power_noise);
+            }*/
+            gain_ff(input_buffer, input_buffer, the_bufsize*2, a_signal);
+            gain_ff((float*)awgn_buffer, (float*)awgn_buffer, the_bufsize*2, a_noise*0.707);
+            if(snrshow)
+            {
+                float power_signal = total_logpower_cf((complexf*)input_buffer, the_bufsize);
+                float power_noise = total_logpower_cf(awgn_buffer, the_bufsize);
+                //fprintf(stderr, "csdr awgn_cc: after gain_ff, power_signal = %f dB, power_noise = %f dB\n", power_signal, power_noise);
+                fprintf(stderr, "csdr awgn_cc: SNR = %f dB\n", power_signal - power_noise);
+            }
+            add_ff(input_buffer, (float*)awgn_buffer, (float*)output_buffer, the_bufsize*2);
+            FWRITE_C;
+            TRY_YIELD;
+        }
     }
 
-    if(!strcmp(argv[1], "noise_f"))
+    if(!strcmp(argv[1], "uniform_noise_f"))
     {
-        FILE* urandom = init_get_awgn_samples_f();
+        FILE* urandom = init_get_random_samples_f();
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize); 
         for(;;)
         {
             FEOF_CHECK;
-            get_awgn_samples_f(output_buffer, the_bufsize, urandom);
+            get_random_samples_f(output_buffer, the_bufsize, urandom);
             FWRITE_R;
             TRY_YIELD;
         }
@@ -2933,7 +2965,7 @@ int main(int argc, char *argv[])
 	if(argv[1][0]=='=')
 	{
 		char buffer[100];
-		snprintf(buffer, 100-1, "python -c \"print %s\"", argv[1]+1);
+		snprintf(buffer, 100-1, "python -c \"import os, sys\nfrom math import *\nprint %s\"", argv[1]+1);
 		system(buffer);
 		return 0;
 	}

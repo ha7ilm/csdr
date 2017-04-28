@@ -832,7 +832,7 @@ For this input, the output of `psk31_varicode_encoder_u8_u8` will be the followi
 
 Syntax:
 
-	repeat_u8 <taps_length> [resonator_rate × N]\n"
+	csdr repeat_u8 <taps_length> [resonator_rate × N]\n"
 
 It repeatedly outputs a set of data bytes (given with decimal numbers).
 
@@ -842,6 +842,28 @@ For example, `csdr repeat_u8 1 1 0 0` will output:
 01 01 00 00 01 01 00 00 
 01 01 00 00 01 01 00 00
 ```
+
+----
+
+### [noise_f](#noise_f)
+
+Syntax:
+
+	csdr noise_f
+
+It outputs white noise within the range [-1.0, 1.0].
+
+----
+
+### [awgn_cc](#awgn_cc)
+
+Syntax:
+
+	csdr awgn_cc <snr_db> [--snrshow]
+
+It adds white noise with the given SNR to a signal assumed to be of 0 dB power.
+
+If the `--snrshow` switch is given, it also shows the actual SNR based on the calculated power of signal and noise components.
 
 ----
 
@@ -878,6 +900,16 @@ If using parenthesis inside the expression, it needs to be escaped (as `bash` wo
 Another solution is using single quotes to wrap the expression: 
 
 	csdr shift_addition_cc $(csdr '=(1200+300)/2400000.')
+
+Current version of `csdr` executes the following python script for this function:
+
+```python
+import os, sys
+from math import *
+print <evaluate_python_expression>
+```
+
+This means that one can also call math functions like `sqrt()`.
 
 #### Control via pipes
 
