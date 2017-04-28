@@ -361,3 +361,8 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk
 void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate, float reference, float max_gain, float* current_gain);
 void firdes_add_resonator_c(complexf* output, int length, float rate, window_t window, int add, int normalize);
 int apply_fir_cc(complexf* input, complexf* output, int input_size, complexf* taps, int taps_length);
+
+
+FILE* init_get_awgn_samples_f();
+void get_awgn_samples_f(float* output, int output_size, FILE* status);
+int deinit_get_agwn_samples_f(FILE* status);

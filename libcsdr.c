@@ -2249,6 +2249,24 @@ void convert_s24_f(unsigned char* input, float* output, int input_size, int bige
 	}
 }
 
+FILE* init_get_awgn_samples_f()
+{
+    return fopen("/dev/urandom", "r");
+}
+
+void get_awgn_samples_f(float* output, int output_size, FILE* status)
+{
+    int* pioutput = (int*)output;
+    fread((unsigned char*)output, sizeof(float), output_size, status);
+    for(int i=0;i<output_size;i++)
+        output[i] = ((float)pioutput[i])/INT_MAX; 
+}
+
+int deinit_get_agwn_samples_f(FILE* status)
+{
+    return fclose(status);
+}
+
 int trivial_vectorize()
 {
 	//this function is trivial to vectorize and should pass on both NEON and SSE

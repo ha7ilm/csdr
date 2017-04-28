@@ -2877,13 +2877,43 @@ int main(int argc, char *argv[])
     {
         if(argc<=2) badsyntax("no data to repeat");
         unsigned char* repeat_buffer = (unsigned char*)malloc(sizeof(unsigned char)*(argc-2));
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize); //this is really (c-2) but this is a very fast source block so it makes no sense to send out a small number here
         for(int i=0;i<argc-2;i++)
         {
+            FEOF_CHECK;
             int current_val;
             sscanf(argv[i+2], "%d", &current_val); 
             repeat_buffer[i]=current_val;
+            TRY_YIELD;
         }
         for(;;) fwrite(repeat_buffer, sizeof(unsigned char), argc-2, stdout);
+    }
+
+    if(!strcmp(argv[1], "awgn_cc"))
+    {
+        if(argc<=2) badsyntax("no data to repeat");
+        float snr_db = 0;
+		sscanf(argv[2],"%f",&snr_db);
+        float signal_amplitude_per_noise = pow(10,snr_db/20);
+        float a_signal=signal_amplitude_per_noise/(signal_amplitude_per_noise+1.0);
+        float a_noise=1.0/(signal_amplitude_per_noise+1.0);
+        
+
+    }
+
+    if(!strcmp(argv[1], "noise_f"))
+    {
+        FILE* urandom = init_get_awgn_samples_f();
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize); 
+        for(;;)
+        {
+            FEOF_CHECK;
+            get_awgn_samples_f(output_buffer, the_bufsize, urandom);
+            FWRITE_R;
+            TRY_YIELD;
+        }
     }
 
 	if(!strcmp(argv[1],"none"))
