@@ -139,6 +139,7 @@ char usage[]=
 "    simple_agc_cc <rate> [reference [max_gain]]\n"
 "    firdes_resonator_c <rate> <length> [window [--octave]]\n"
 "    resonators_fir_cc <taps_length> [resonator_rate × N]\n"
+"    repeat_u8 <data_bytes × N>\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -2516,7 +2517,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q [--octave <debug_n>]] 
+	if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q [--output_error | --octave <debug_n>]] 
 	{
 		if(argc<=2) return badsyntax("need required parameter (algorithm)");
 		timing_recovery_algorithm_t algorithm = timing_recovery_get_algorithm_from_string(argv[2]);
@@ -2530,8 +2531,12 @@ int main(int argc, char *argv[])
 		int add_q = (argc>=5 && !strcmp(argv[4], "--add_q"));
 
 		int debug_n = 0;
+        int output_error = 0;
 		if(argc>=7 && !strcmp(argv[5], "--octave")) debug_n = atoi(argv[6]);
 		if(debug_n<0) badsyntax("debug_n should be >= 0");
+        if(argc>=6 && !strcmp(argv[5], "--output_error")) output_error = 1;
+        float* timing_error = NULL;
+        if(output_error) timing_error = (float*)malloc(sizeof(float)*the_bufsize);
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize/decimation);
@@ -2546,9 +2551,10 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			if(debug_n && ++debug_i%debug_n==0) timing_recovery_trigger_debug(&state, 3);
-			timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, &state);
+			timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, timing_error, &state);
 			//fprintf(stderr, "trcc is=%d, os=%d, ip=%d\n",the_bufsize, state.output_size, state.input_processed);
-			fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
+			if(timing_error) fwrite(timing_error, sizeof(float), state.output_size, stdout);
+            else fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
 			TRY_YIELD;
 			//fprintf(stderr, "state.input_processed = %d\n", state.input_processed);
 			memmove((complexf*)input_buffer,((complexf*)input_buffer)+state.input_processed,(the_bufsize-state.input_processed)*sizeof(complexf)); //memmove lets the source and destination overlap
@@ -2866,6 +2872,19 @@ int main(int argc, char *argv[])
 			fread(((complexf*)input_buffer)+(the_bufsize-output_size), sizeof(complexf), output_size, stdin);
 		}
 	}
+
+    if(!strcmp(argv[1], "repeat_u8"))
+    {
+        if(argc<=2) badsyntax("no data to repeat");
+        unsigned char* repeat_buffer = (unsigned char*)malloc(sizeof(unsigned char)*(argc-2));
+        for(int i=0;i<argc-2;i++)
+        {
+            int current_val;
+            sscanf(argv[i+2], "%d", &current_val); 
+            repeat_buffer[i]=current_val;
+        }
+        for(;;) fwrite(repeat_buffer, sizeof(unsigned char), argc-2, stdout);
+    }
 
 	if(!strcmp(argv[1],"none"))
 	{

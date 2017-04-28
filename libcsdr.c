@@ -1919,7 +1919,7 @@ void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_pha
 
 #define MTIMINGR_HDEBUG 0
 
-void timing_recovery_cc(complexf* input, complexf* output, int input_size, timing_recovery_state_t* state)
+void timing_recovery_cc(complexf* input, complexf* output, int input_size, float* timing_error, timing_recovery_state_t* state)
 {
 	//We always assume that the input starts at center of the first symbol cross before the first symbol.
 	//Last time we consumed that much from the input samples that it is there.
@@ -1977,6 +1977,8 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, timin
 			}
 			//Original correction method: this version can only move a single sample in any direction
 			//current_bitstart_index += num_samples_halfbit * 2 + (error)?((error<0)?1:-1):0;
+
+            if(timing_error) timing_error[si-1]=error; //it is not written if NULL
 			
 			if(error>2) error=2;
 			if(error<-2) error=-2;

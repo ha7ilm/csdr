@@ -828,6 +828,23 @@ For this input, the output of `psk31_varicode_encoder_u8_u8` will be the followi
 
 ----
 
+### [repeat_u8](#repeat_u8)
+
+Syntax:
+
+	repeat_u8 <taps_length> [resonator_rate × N]\n"
+
+It repeatedly outputs a set of data bytes (given with decimal numbers).
+
+For example, `csdr repeat_u8 1 1 0 0` will output:
+
+```
+01 01 00 00 01 01 00 00 
+01 01 00 00 01 01 00 00
+```
+
+----
+
 ### [?](#search_the_function_list)
 
 Syntax: 
