@@ -125,7 +125,7 @@ char usage[]=
 "    rtty_baudot2ascii_u8_u8\n"
 "    serial_line_decoder_u8_u8\n"
 "    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
-"    timing_recovery_cc <algorithm> <decimation> [--add_q]\n"
+"    timing_recovery_cc <algorithm> <decimation> [--add_q] [--octave <debug_n>]\n"
 "    psk31_varicode_encoder_u8_u8\n"
 "    psk31_varicode_decoder_u8_u8\n"
 "    differential_encoder_u8_u8\n"
