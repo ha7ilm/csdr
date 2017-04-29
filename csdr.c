@@ -2982,7 +2982,6 @@ int main(int argc, char *argv[])
             float nv = normalized_timing_variance_u32_f((unsigned*)input_buffer, temp_buffer, the_bufsize, samples_per_symbol, initial_sample_offset);
 			fwrite(&nv, sizeof(float), 1, stdout);
 			fprintf(stderr, "csdr normalized_timing_variance_u32_f: normalized variance = %f\n", nv);
-            FWRITE_R;
             TRY_YIELD;
         }
 	}

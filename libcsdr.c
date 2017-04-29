@@ -2179,19 +2179,19 @@ float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_s
         unsigned sinearest = (input[i]-initial_sample_offset) / samples_per_symbol;
         unsigned sinearest_remain = (input[i]-initial_sample_offset) % samples_per_symbol;
         if(sinearest_remain>samples_per_symbol/2) sinearest++;
-        unsigned sicorrect = initial_sample_offset+(sinearest*samples_per_symbol); //the sample offset which input[i] should have been, in order to sample at the maximum effect point
-        int sidiff = abs(sicorrect-input[i]);
-		float ndiff = sidiff/samples_per_symbol;
+        unsigned socorrect = initial_sample_offset+(sinearest*samples_per_symbol); //the sample offset which input[i] should have been, in order to sample at the maximum effect point
+        int sodiff = abs(socorrect-input[i]);
+		float ndiff = (float)sodiff/samples_per_symbol;
 
-        fprintf(stderr, "ndiff = %f\n", ndiff);
         ndiff_rad[i] = ndiff*PI;
-		ndiff_rad_mean = ndiff_rad_mean*(((float)i-1)/i)+(ndiff_rad[i]/i);
+		ndiff_rad_mean = ndiff_rad_mean*(((float)i)/(i+1))+(ndiff_rad[i]/(i+1));
+		//fprintf(stderr, "input[%d] = %u, sinearest = %u, socorrect = %u, sodiff = %u, ndiff = %f, ndiff_rad[i] = %f, ndiff_rad_mean = %f\n", i, input[i], sinearest, socorrect, sodiff, ndiff, ndiff_rad[i], ndiff_rad_mean);
     }
-	fprintf(stderr, "ndiff_rad_mean = %f\n", ndiff_rad_mean);
+	//fprintf(stderr, "ndiff_rad_mean = %f\n", ndiff_rad_mean);
 
     float result = 0;
 	for(int i=0;i<input_size;i++) result+=(powf(ndiff_rad[i]-ndiff_rad_mean,2))/(input_size-1);
-	fprintf(stderr, "nv = %f\n", result);
+	//fprintf(stderr, "nv = %f\n", result);
 	return result;
 }
 
