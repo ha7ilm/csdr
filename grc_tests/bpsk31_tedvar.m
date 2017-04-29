@@ -5,7 +5,7 @@
 %pkg install -forge parallel
 pkg load parallel
 
-system('cat /dev/urandom | csdr pack_bits_8to1_u8_u8 | csdr psk_modulator_u8_c 2 | csdr gain_ff 0.25 | csdr psk31_interpolate_sine_cc 256 | csdr add_n_zero_samples_at_beginning_f 170 | dd iflag=fullblock bs=4M count=1 of=/tmp/psk31-raw-data');
+system('cat /dev/urandom | csdr pack_bits_8to1_u8_u8 | csdr psk_modulator_u8_c 2 | csdr gain_ff 0.25 | csdr psk31_interpolate_sine_cc 256 | csdr add_n_zero_samples_at_beginning_f 170 | dd iflag=fullblock bs=8M count=1 of=/tmp/psk31-raw-data');
 
 function output=shrun(cmd, type, minsize)
     SIGTERM=15;
@@ -30,10 +30,10 @@ end
 
 function variance=run_var(snr, which_ted)
     disp('ran a command')
-    out_vect=shrun(sprintf('cat /tmp/psk31-raw-data | csdr awgn_cc %d --snrshow-no| csdr timing_recovery_cc %s 256 --add_q --output_indexes | CSDR_FIXED_BUFSIZE=131072 csdr normalized_timing_variance_u32_f 256 85', snr, which_ted), 'float32', 1);
+    out_vect=shrun(sprintf('cat /tmp/psk31-raw-data | csdr awgn_cc %d --snrshow-no| csdr timing_recovery_cc %s 256 --add_q --output_indexes | CSDR_FIXED_BUFSIZE=2048 csdr normalized_timing_variance_u32_f 256 85', snr, which_ted), 'float32', 2);
     disp('run_var output:');
     out_vect'
-    variance=out_vect(1);
+    variance=out_vect(2);
 end
 
 function variances=mkvarplot(which_ted, snrs)
@@ -58,7 +58,7 @@ function fmtplot(h)
     ylabel('Phase error variance [rad^2]');
 end
 
-snrs_gardner=-70:5:40
+snrs_gardner=-70:2:100
 %snrs_gardner=[10]
 error_values_gardner=mkvarplot('GARDNER',snrs_gardner);
 %{
