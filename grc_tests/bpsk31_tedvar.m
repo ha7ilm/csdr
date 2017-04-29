@@ -58,7 +58,7 @@ function fmtplot(h)
     ylabel('Phase error variance [rad^2]');
 end
 
-snrs_gardner=-10:2:50
+snrs_gardner=0:5:30
 %snrs_gardner=[10]
 error_values_gardner=mkvarplot('EARLYLATE',snrs_gardner);
 %{
