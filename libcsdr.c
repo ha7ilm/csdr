@@ -2187,7 +2187,7 @@ float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_s
 		ndiff_rad_mean = ndiff_rad_mean*(((float)i)/(i+1))+(ndiff_rad[i]/(i+1));
 		//fprintf(stderr, "input[%d] = %u, sinearest = %u, socorrect = %u, sodiff = %u, ndiff = %f, ndiff_rad[i] = %f, ndiff_rad_mean = %f\n", i, input[i], sinearest, socorrect, sodiff, ndiff, ndiff_rad[i], ndiff_rad_mean);
     }
-	//fprintf(stderr, "ndiff_rad_mean = %f\n", ndiff_rad_mean);
+	fprintf(stderr, "ndiff_rad_mean = %f\n", ndiff_rad_mean);
 
     float result = 0;
 	for(int i=0;i<input_size;i++) result+=(powf(ndiff_rad[i]-ndiff_rad_mean,2))/(input_size-1);
