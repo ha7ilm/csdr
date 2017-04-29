@@ -75,7 +75,6 @@ char usage[]=
 "    yes_f <to_repeat> [buf_times]\n"
 "    detect_nan_ff\n"
 "    dump_f\n"
-"    flowcontrol <data_rate> <reads_per_second> [prebuffer_sec] [thrust]\n"
 "    shift_math_cc <rate>\n"
 "    shift_math_cc --fifo <fifo_path>\n"
 "    shift_addition_cc <rate>\n"
@@ -125,7 +124,7 @@ char usage[]=
 "    rtty_baudot2ascii_u8_u8\n"
 "    serial_line_decoder_u8_u8\n"
 "    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
-"    timing_recovery_cc <algorithm> <decimation> [--add_q] [--octave <debug_n>]\n"
+"    timing_recovery_cc <algorithm> <decimation> [--add_q [--output_error | --output_indexes | --octave <debug_n>]] \n"
 "    psk31_varicode_encoder_u8_u8\n"
 "    psk31_varicode_decoder_u8_u8\n"
 "    differential_encoder_u8_u8\n"
@@ -142,6 +141,8 @@ char usage[]=
 "    repeat_u8 <data_bytes × N>\n"
 "    noise_f\n"
 "    awgn_cc <snr_db> [--snrshow]\n"
+"    pack_bits_8to1_u8_u8\n"
+"    add_n_zero_samples_at_beginning_f <n_zero_samples>\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -2519,7 +2520,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q [--output_error | --octave <debug_n>]] 
+	if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q [--output_error | --output_indexes | --octave <debug_n>]] 
 	{
 		if(argc<=2) return badsyntax("need required parameter (algorithm)");
 		timing_recovery_algorithm_t algorithm = timing_recovery_get_algorithm_from_string(argv[2]);
@@ -2534,11 +2535,17 @@ int main(int argc, char *argv[])
 
 		int debug_n = 0;
 		int output_error = 0;
+		int output_indexes = 0;
 		if(argc>=7 && !strcmp(argv[5], "--octave")) debug_n = atoi(argv[6]);
 		if(debug_n<0) badsyntax("debug_n should be >= 0");
-		if(argc>=6 && !strcmp(argv[5], "--output_error")) output_error = 1;
+
+        if(argc>=6 && !strcmp(argv[5], "--output_error")) output_error = 1;
 		float* timing_error = NULL;
 		if(output_error) timing_error = (float*)malloc(sizeof(float)*the_bufsize);
+
+        if(argc>=6 && !strcmp(argv[5], "--output_indexes")) output_indexes = 1;
+		unsigned* sampled_indexes = NULL;
+		if(output_indexes) sampled_indexes = (unsigned*)malloc(sizeof(float)*the_bufsize);
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize/decimation);
@@ -2549,16 +2556,23 @@ int main(int argc, char *argv[])
 		state.debug_writefiles = 1;
 		state.debug_force = !!debug_n; //should remove that later
 		FREAD_C;
+        unsigned buffer_start_counter = 0;
 		for(;;)
 		{
 			FEOF_CHECK;
 			if(debug_n && ++debug_i%debug_n==0) timing_recovery_trigger_debug(&state, 3);
-			timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, timing_error, &state);
+			timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, timing_error, (int*)sampled_indexes, &state);
 			//fprintf(stderr, "trcc is=%d, os=%d, ip=%d\n",the_bufsize, state.output_size, state.input_processed);
 			if(timing_error) fwrite(timing_error, sizeof(float), state.output_size, stdout);
+            else if(sampled_indexes) 
+            {
+                for(int i=0;i<state.output_size;i++) sampled_indexes[i]+=buffer_start_counter;
+                fwrite(sampled_indexes, sizeof(unsigned), state.output_size, stdout);
+            }
             else fwrite(output_buffer, sizeof(complexf), state.output_size, stdout);
 			TRY_YIELD;
 			//fprintf(stderr, "state.input_processed = %d\n", state.input_processed);
+            buffer_start_counter+=state.input_processed;
 			memmove((complexf*)input_buffer,((complexf*)input_buffer)+state.input_processed,(the_bufsize-state.input_processed)*sizeof(complexf)); //memmove lets the source and destination overlap
 			fread(((complexf*)input_buffer)+(the_bufsize-state.input_processed), sizeof(complexf), state.input_processed, stdin);
 			//fprintf(stderr,"iskip=%d state.output_size=%d start=%x target=%x skipcount=%x \n",state.input_processed,state.output_size,input_buffer, ((complexf*)input_buffer)+(BIG_BUFSIZE-state.input_processed),(BIG_BUFSIZE-state.input_processed));
@@ -2945,18 +2959,64 @@ int main(int argc, char *argv[])
             get_random_samples_f(output_buffer, the_bufsize, urandom);
             FWRITE_R;
             TRY_YIELD;
-        }
+		}
     }
+
+	if(!strcmp(argv[1], "normalized_timing_variance_u32_f")) //<samples_per_symbol> <initial_sample_offset>
+	{
+        int samples_per_symbol = 0;
+        if(argc<=2) badsyntax("required parameter <samples_per_symbol> is missing.");
+		sscanf(argv[2],"%d",&samples_per_symbol);
+
+        int initial_sample_offset = 0;
+        if(argc<=3) badsyntax("required parameter <initial_sample_offset> is missing.");
+		sscanf(argv[3],"%d",&initial_sample_offset);
+
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize); 
+		float* temp_buffer = (float*)malloc(sizeof(float)*the_bufsize);
+        for(;;)
+        {
+            FEOF_CHECK;
+			FREAD_R; //doesn't count, reads 4 bytes per sample anyway
+            float nv = normalized_timing_variance_u32_f((unsigned*)input_buffer, temp_buffer, the_bufsize, samples_per_symbol, initial_sample_offset);
+			fwrite(&nv, sizeof(float), 1, stdout);
+			fprintf(stderr, "csdr normalized_timing_variance_u32_f: normalized variance = %f\n", nv);
+            FWRITE_R;
+            TRY_YIELD;
+        }
+	}
+
+	if(!strcmp(argv[1], "add_n_zero_samples_at_beginning_f")) //<n_zero_samples>
+	{
+        int n_zero_samples = 0;
+        if(argc<=2) badsyntax("required parameter <n_zero_samples> is missing.");
+		sscanf(argv[2],"%d",&n_zero_samples);
+		if(!sendbufsize(initialize_buffers())) return -2;
+        float* zeros=(float*)calloc(sizeof(float),n_zero_samples);
+        fwrite(zeros, sizeof(float), n_zero_samples, stdout);
+        clone_(the_bufsize);
+    }
+
 
 	if(!strcmp(argv[1],"none"))
 	{
 		return 0;
 	}
 
+	if(argv[1][0]=='?' && argv[1][1]=='?')
+	{
+		char buffer[1000];
+		snprintf(buffer, 1000-1, "xdg-open https://github.com/simonyiszk/csdr/blob/master/README.md#$(csdr ?%s | head -n1 | awk '{print $1;}')", argv[1]+2);
+		fprintf(stderr, "csdr ??: %s\n", buffer);
+		system(buffer);
+		return 0;
+	}
+
 	if(argv[1][0]=='?')
 	{
-		char buffer[100];
-		snprintf(buffer, 100-1, "csdr 2>&1 | grep %s", argv[1]+1);
+		char buffer[1000];
+		snprintf(buffer, 1000-1, "csdr 2>&1 | grep %s", argv[1]+1);
 		fprintf(stderr, "csdr ?: %s\n", buffer);
 		system(buffer);
 		return 0;

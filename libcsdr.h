@@ -334,7 +334,7 @@ typedef struct timing_recovery_state_s
 } timing_recovery_state_t;
 
 timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q);
-void timing_recovery_cc(complexf* input, complexf* output, int input_size, float* timing_error, timing_recovery_state_t* state);
+void timing_recovery_cc(complexf* input, complexf* output, int input_size, float* timing_error, int* sampled_indexes,  timing_recovery_state_t* state);
 timing_recovery_algorithm_t timing_recovery_get_algorithm_from_string(char* input);
 char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algorithm);
 void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_phase);
@@ -369,3 +369,4 @@ void get_random_gaussian_samples_c(complexf* output, int output_size, FILE* stat
 int deinit_get_random_samples_f(FILE* status);
 float* add_ff(float* input1, float* input2, float* output, int input_size);
 float total_logpower_cf(complexf* input, int input_size);
+float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_size, int samples_per_symbol, int initial_sample_offset);

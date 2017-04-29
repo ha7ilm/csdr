@@ -1925,7 +1925,7 @@ void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_pha
 
 #define MTIMINGR_HDEBUG 0
 
-void timing_recovery_cc(complexf* input, complexf* output, int input_size, float* timing_error, timing_recovery_state_t* state)
+void timing_recovery_cc(complexf* input, complexf* output, int input_size, float* timing_error, int* sampled_indexes,  timing_recovery_state_t* state)
 {
 	//We always assume that the input starts at center of the first symbol cross before the first symbol.
 	//Last time we consumed that much from the input samples that it is there.
@@ -1963,6 +1963,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, float
 				el_point_right_index  = current_bitstart_index + num_samples_earlylate_wing * 3;
 				el_point_left_index   = current_bitstart_index + num_samples_earlylate_wing * 1 - correction_offset;
 				el_point_mid_index    = current_bitstart_index + num_samples_halfbit;
+                if(sampled_indexes) sampled_indexes[si]=el_point_mid_index;
 				output[si++] = input[el_point_mid_index];
 			}
 			else if(state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER)
@@ -1971,6 +1972,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, float
 				el_point_right_index  = current_bitstart_index + num_samples_halfbit * 3;
 				el_point_left_index   = current_bitstart_index + num_samples_halfbit * 1;
 				el_point_mid_index    = current_bitstart_index + num_samples_halfbit * 2;
+                if(sampled_indexes) sampled_indexes[si]=el_point_left_index;
 				output[si++] = input[el_point_left_index];
 			}
 			else break;
@@ -2167,7 +2169,31 @@ int apply_fir_cc(complexf* input, complexf* output, int input_size, complexf* ta
 	return i;
 }
 
+float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_size, int samples_per_symbol, int initial_sample_offset)
+{
+	float *ndiff_rad = temp;
+	float ndiff_rad_mean = 0;
+    for(int i=0;i<input_size;i++) 
+    {
+        //find out which real sample index this input sample index is the nearest to.
+        unsigned sinearest = (input[i]-initial_sample_offset) / samples_per_symbol;
+        unsigned sinearest_remain = (input[i]-initial_sample_offset) % samples_per_symbol;
+        if(sinearest_remain>samples_per_symbol/2) sinearest++;
+        unsigned sicorrect = initial_sample_offset+(sinearest*samples_per_symbol); //the sample offset which input[i] should have been, in order to sample at the maximum effect point
+        int sidiff = abs(sicorrect-input[i]);
+		float ndiff = sidiff/samples_per_symbol;
 
+        fprintf(stderr, "ndiff = %f\n", ndiff);
+        ndiff_rad[i] = ndiff*PI;
+		ndiff_rad_mean = ndiff_rad_mean*(((float)i-1)/i)+(ndiff_rad[i]/i);
+    }
+	fprintf(stderr, "ndiff_rad_mean = %f\n", ndiff_rad_mean);
+
+    float result = 0;
+	for(int i=0;i<input_size;i++) result+=(powf(ndiff_rad[i]-ndiff_rad_mean,2))/(input_size-1);
+	fprintf(stderr, "nv = %f\n", result);
+	return result;
+}
 
 /*
   _____        _                                            _

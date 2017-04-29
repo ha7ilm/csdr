@@ -855,6 +855,32 @@ It outputs white noise within the range [-1.0, 1.0].
 
 ----
 
+### [pack_bits_8to1_u8_u8](#pack_bits_8to1_u8_u8)
+
+Syntax:
+
+	csdr pack_bits_8to1_u8_u8 
+
+It serializes the bytes on the input: it outputs each bit of the input byte as a single byte valued 0x00 or 0x01, starting from the lowest bit and going to the highest bit.
+
+The output is 8 times as large in size as the input. 
+
+For example, the input byte 0x43 will result in eight bytes at the output:
+
+```
+01 01 00 00 00 00 01 00 
+```
+
+For consequtive 0x02, 0x03, 0xff bytes on the input, the output will be:
+
+```
+00 01 00 00 00 00 00 00 
+01 01 00 00 00 00 00 00 
+01 01 01 01 01 01 01 01 
+```
+
+----
+
 ### [awgn_cc](#awgn_cc)
 
 Syntax:
@@ -864,6 +890,16 @@ Syntax:
 It adds white noise with the given SNR to a signal assumed to be of 0 dB power.
 
 If the `--snrshow` switch is given, it also shows the actual SNR based on the calculated power of signal and noise components.
+
+----
+
+### [add_n_zero_samples_at_beginning_f](#add_n_zero_samples_at_beginning_f)
+
+Syntax:
+
+	csdr add_n_zero_samples_at_beginning_f <n_zero_samples> 
+
+When the function is executed, it furst writes `<n_zero_samples>` 32-bit floating point zeros at the output, after that it just clones the input at the output. 
 
 ----
 
