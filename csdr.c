@@ -2523,8 +2523,8 @@ int main(int argc, char *argv[])
 	{
 		if(argc<=2) return badsyntax("need required parameter (algorithm)");
 		timing_recovery_algorithm_t algorithm = timing_recovery_get_algorithm_from_string(argv[2]);
-		if(algorithm == TIMING_RECOVERY_ALGORITHM_DEFAULT) 
-			fprintf(stderr,"#timing_recovery_cc: algorithm = %s\n",timing_recovery_get_string_from_algorithm(algorithm));
+		//if(algorithm == TIMING_RECOVERY_ALGORITHM_DEFAULT) 
+		//	fprintf(stderr,"#timing_recovery_cc: algorithm = %s\n",timing_recovery_get_string_from_algorithm(algorithm));
 		if(argc<=3) return badsyntax("need required parameter (decimation factor)");
 		int decimation;
 		sscanf(argv[3],"%d",&decimation);
@@ -2533,12 +2533,12 @@ int main(int argc, char *argv[])
 		int add_q = (argc>=5 && !strcmp(argv[4], "--add_q"));
 
 		int debug_n = 0;
-        int output_error = 0;
+		int output_error = 0;
 		if(argc>=7 && !strcmp(argv[5], "--octave")) debug_n = atoi(argv[6]);
 		if(debug_n<0) badsyntax("debug_n should be >= 0");
-        if(argc>=6 && !strcmp(argv[5], "--output_error")) output_error = 1;
-        float* timing_error = NULL;
-        if(output_error) timing_error = (float*)malloc(sizeof(float)*the_bufsize);
+		if(argc>=6 && !strcmp(argv[5], "--output_error")) output_error = 1;
+		float* timing_error = NULL;
+		if(output_error) timing_error = (float*)malloc(sizeof(float)*the_bufsize);
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize/decimation);
