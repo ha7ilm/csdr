@@ -70,8 +70,9 @@ error_values_earlylate=mkvarplot('EARLYLATE',snrs_earlylate);
 h=figure(1);
 
 
-ebn0=snrs-13.26-10*log10(1/256.) 
-%13.56 dB is the difference between the real (measured) SNR and the number input to awgn_cc
+ebn0=snrs-13.26-10*log10(1/256.)
+%13.56 dB is the difference between the real (measured) SNR and the number input to awgn_cc.
+%This is because agwn_cc assumes a signal with 0dB power at te input, while our BPSK31 baseband signal is of -13.26 dB.
 
 semilogy(ebn0, error_values_gardner, 'linewidth', 2);
 title('Estimation variance');
