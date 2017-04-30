@@ -3039,22 +3039,26 @@ int main(int argc, char *argv[])
     {
         if(argc<=2) return badsyntax("required parameter <matched_filter_type> is missing.");
         matched_filter_type_t type = matched_filter_get_type_from_string(argv[2]);
-        int samples_per_symbol = 0;
 
+        int samples_per_symbol = 0;
         if(argc<=3) return badsyntax("required parameter <samples_per_symbol> is missing.");
         sscanf(argv[3],"%d",&samples_per_symbol);
 
         int num_taps = 0;
-        if(argc<=4 && type!=MATCHED_FILTER_COSINE) 
-            return badsyntax("required parameter <num_taps> is missing.");
-        sscanf(argv[4],"%d",&num_taps);
+        if(type!=MATCHED_FILTER_COSINE)
+        {
+            if(argc<=4) return badsyntax("required parameter <num_taps> is missing.");
+            sscanf(argv[4],"%d",&num_taps);
+        }
+        else num_taps = (2*samples_per_symbol)+1;
 
         float beta = 0;
-        if(argc<=5 && type==MATCHED_FILTER_RRC) 
-            return badsyntax("required parameter <beta> is missing.");
-        sscanf(argv[5],"%f",&beta);
+        if(type==MATCHED_FILTER_RRC)
+        {
+            if(argc<=5) return badsyntax("required parameter <beta> is missing.");
+            sscanf(argv[5],"%f",&beta);
+        }
 
-        if(type==MATCHED_FILTER_COSINE) num_taps = (2*samples_per_symbol)+1;
         float* taps = (float*)malloc(sizeof(float)*num_taps);
         switch(type)
         {
@@ -3065,6 +3069,7 @@ int main(int argc, char *argv[])
             firdes_cosine_f(taps, num_taps, samples_per_symbol);
             break;
         }
+        //fprintf(stderr, "beta = %f, num_taps = %d, samples_per_symbol = %d\n", beta, num_taps, samples_per_symbol);
 
         if(!sendbufsize(initialize_buffers())) return -2;
 

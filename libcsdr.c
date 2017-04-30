@@ -2371,13 +2371,13 @@ int firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float bet
 {
     //needs an odd taps_length
     int middle_i=taps_length/2;
-    taps[middle_i]=(1/samples_per_symbol)*(1+beta*(4/PI-1));
-    for(int i=1;i<taps_length/2;i++) 
+    taps[middle_i]=(1/(float)samples_per_symbol)*(1+beta*(4/PI-1));
+    for(int i=1;i<1+taps_length/2;i++) 
     {
         if(i==samples_per_symbol/(4*beta)) 
-            taps[middle_i+i]=taps[middle_i-i]=(beta/(samples_per_symbol*sqrt(2)))*((1+(2/PI))*sin(PI/(4*beta))+(1-(2/PI)*cos(PI/(4*beta))));
+            taps[middle_i+i]=taps[middle_i-i]=(beta/(samples_per_symbol*sqrt(2)))*((1+(2/PI))*sin(PI/(4*beta))+(1-(2/PI))*cos(PI/(4*beta)));
         else
-            taps[middle_i+i]=taps[middle_i-i]=(1/samples_per_symbol)*
+            taps[middle_i+i]=taps[middle_i-i]=(1/(float)samples_per_symbol)*
                 (sin(PI*(i/(float)samples_per_symbol)*(1-beta)) + 4*beta*(i/(float)samples_per_symbol)*cos(PI*(i/(float)samples_per_symbol)*(1+beta)))/
                 (PI*(i/(float)samples_per_symbol)*(1-powf(4*beta*(i/(float)samples_per_symbol),2)));
     }
