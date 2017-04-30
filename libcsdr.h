@@ -69,7 +69,7 @@ typedef struct complexf_s { float i; float q; } complexf;
 //window
 typedef enum window_s
 {
-	WINDOW_BOXCAR, WINDOW_BLACKMAN, WINDOW_HAMMING
+    WINDOW_BOXCAR, WINDOW_BLACKMAN, WINDOW_HAMMING
 } window_t;
 
 #define WINDOW_DEFAULT WINDOW_HAMMING
@@ -109,31 +109,31 @@ float shift_math_cc(complexf *input, complexf* output, int input_size, float rat
 
 typedef struct dcblock_preserve_s
 {
-	float last_input;
-	float last_output;
+    float last_input;
+    float last_output;
 } dcblock_preserve_t;
 dcblock_preserve_t dcblock_ff(float* input, float* output, int input_size, float a, dcblock_preserve_t preserved);
 float fastdcblock_ff(float* input, float* output, int input_size, float last_dc_level);
 
 typedef struct fastagc_ff_s
 {
-	float* buffer_1;
-	float* buffer_2;
-	float* buffer_input; //it is the actual input buffer to fill
-	float peak_1;
-	float peak_2;
-	int input_size;
-	float reference;
-	float last_gain;
+    float* buffer_1;
+    float* buffer_2;
+    float* buffer_input; //it is the actual input buffer to fill
+    float peak_1;
+    float peak_2;
+    int input_size;
+    float reference;
+    float last_gain;
 } fastagc_ff_t;
 
 void fastagc_ff(fastagc_ff_t* input, float* output);
 
 typedef struct rational_resampler_ff_s
 {
-	int input_processed;
-	int output_size;
-	int last_taps_delay;
+    int input_processed;
+    int output_size;
+    int last_taps_delay;
 } rational_resampler_ff_t;
 
 rational_resampler_ff_t rational_resampler_ff(float *input, float *output, int input_size, int interpolation, int decimation, float *taps, int taps_length, int last_taps_delay);
@@ -149,37 +149,37 @@ void log_ff(float* input, float* output, int size, float add_db);
 
 typedef struct fractional_decimator_ff_s
 {
-	float where;
-	int input_processed;
-	int output_size;
-	int num_poly_points; //number of samples that the Lagrange interpolator will use
-	float* poly_precalc_denomiator; //while we don't precalculate coefficients here as in a Farrow structure, because it is a fractional interpolator, but we rather precaculate part of the interpolator expression
-	//float* last_inputs_circbuf; //circular buffer to store the last (num_poly_points) number of input samples.
-	//int last_inputs_startsat; //where the circular buffer starts now
-	//int last_inputs_samplewhere; 
-	float* coeffs_buf;
-	float* filtered_buf;
-	int xifirst; 
-	int xilast; 
-	float rate;
-	float *taps;
-	int taps_length;
+    float where;
+    int input_processed;
+    int output_size;
+    int num_poly_points; //number of samples that the Lagrange interpolator will use
+    float* poly_precalc_denomiator; //while we don't precalculate coefficients here as in a Farrow structure, because it is a fractional interpolator, but we rather precaculate part of the interpolator expression
+    //float* last_inputs_circbuf; //circular buffer to store the last (num_poly_points) number of input samples.
+    //int last_inputs_startsat; //where the circular buffer starts now
+    //int last_inputs_samplewhere; 
+    float* coeffs_buf;
+    float* filtered_buf;
+    int xifirst; 
+    int xilast; 
+    float rate;
+    float *taps;
+    int taps_length;
 } fractional_decimator_ff_t;
 fractional_decimator_ff_t fractional_decimator_ff_init(float rate, int num_poly_points, float* taps, int taps_length);
 void fractional_decimator_ff(float* input, float* output, int input_size, fractional_decimator_ff_t* d);
 
 typedef struct old_fractional_decimator_ff_s
 {
-	float remain;
-	int input_processed;
-	int output_size;
+    float remain;
+    int input_processed;
+    int output_size;
 } old_fractional_decimator_ff_t;
 old_fractional_decimator_ff_t old_fractional_decimator_ff(float* input, float* output, int input_size, float rate, float *taps, int taps_length, old_fractional_decimator_ff_t d);
 
 typedef struct shift_table_data_s
 {
-	float* table;
-	int table_size;
+    float* table;
+    int table_size;
 } shift_table_data_t;
 void shift_table_deinit(shift_table_data_t table_data);
 shift_table_data_t shift_table_init(int table_size);
@@ -187,9 +187,9 @@ float shift_table_cc(complexf* input, complexf* output, int input_size, float ra
 
 typedef struct shift_addfast_data_s
 {
-	float dsin[4];
-	float dcos[4];
-	float phase_increment;
+    float dsin[4];
+    float dcos[4];
+    float phase_increment;
 } shift_addfast_data_t;
 shift_addfast_data_t shift_addfast_init(float rate);
 shift_addfast_data_t shift_addfast_init(float rate);
@@ -197,10 +197,10 @@ float shift_addfast_cc(complexf *input, complexf* output, int input_size, shift_
 
 typedef struct shift_unroll_data_s
 {
-	float* dsin;
-	float* dcos;
-	float phase_increment;
-	int size;
+    float* dsin;
+    float* dcos;
+    float phase_increment;
+    int size;
 } shift_unroll_data_t;
 float shift_unroll_cc(complexf *input, complexf* output, int input_size, shift_unroll_data_t* d, float starting_phase);
 shift_unroll_data_t shift_unroll_init(float rate, int size);
@@ -234,25 +234,25 @@ int is_nan(float f);
 
 typedef struct rtty_baudot_item_s
 {
-	unsigned long long code;
-	unsigned char ascii_letter;
-	unsigned char ascii_figure;
+    unsigned long long code;
+    unsigned char ascii_letter;
+    unsigned char ascii_figure;
 } rtty_baudot_item_t;
 
 typedef enum rtty_baudot_decoder_state_e
 {
-	RTTY_BAUDOT_WAITING_STOP_PULSE = 0,
-	RTTY_BAUDOT_WAITING_START_PULSE,
-	RTTY_BAUDOT_RECEIVING_DATA
+    RTTY_BAUDOT_WAITING_STOP_PULSE = 0,
+    RTTY_BAUDOT_WAITING_START_PULSE,
+    RTTY_BAUDOT_RECEIVING_DATA
 } rtty_baudot_decoder_state_t;
 
 typedef struct rtty_baudot_decoder_s
 {
-	unsigned char fig_mode;
-	unsigned char character_received;
-	unsigned short shr;
-	unsigned char bit_cntr;
-	rtty_baudot_decoder_state_t state;
+    unsigned char fig_mode;
+    unsigned char character_received;
+    unsigned short shr;
+    unsigned char bit_cntr;
+    rtty_baudot_decoder_state_t state;
 } rtty_baudot_decoder_t;
 
 #define RTTY_FIGURE_MODE_SELECT_CODE 0b11011
@@ -265,9 +265,9 @@ char rtty_baudot_decoder_push(rtty_baudot_decoder_t* s, unsigned char symbol);
 
 typedef struct psk31_varicode_item_s
 {
-	unsigned long long code;
-	int bitcount;
-	unsigned char ascii;
+    unsigned long long code;
+    int bitcount;
+    unsigned char ascii;
 } psk31_varicode_item_t;
 
 char psk31_varicode_decoder_push(unsigned long long* status_shr, unsigned char symbol);
@@ -276,12 +276,12 @@ char psk31_varicode_decoder_push(unsigned long long* status_shr, unsigned char s
 
 typedef struct serial_line_s
 {
-	float samples_per_bits;
-	int databits; //including parity
-	float stopbits;
-	int output_size;
-	int input_used;
-	float bit_sampling_width_ratio;
+    float samples_per_bits;
+    int databits; //including parity
+    float stopbits;
+    int output_size;
+    int input_used;
+    float bit_sampling_width_ratio;
 } serial_line_t;
 
 void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* output, int input_size);
@@ -290,20 +290,20 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size);
 
 typedef enum pll_type_e
 {
-	PLL_P_CONTROLLER=1,
-	PLL_PI_CONTROLLER=2
+    PLL_P_CONTROLLER=1,
+    PLL_PI_CONTROLLER=2
 } pll_type_t;
 
 typedef struct pll_s
 {
-	pll_type_t pll_type;
-	//common:
-	float output_phase;
-	float dphase;
-	float frequency;
-	float alpha;
-	float beta;
-	float iir_temp;
+    pll_type_t pll_type;
+    //common:
+    float output_phase;
+    float dphase;
+    float frequency;
+    float alpha;
+    float beta;
+    float iir_temp;
 } pll_t;
 
 void pll_cc_init_pi_controller(pll_t* p, float bandwidth, float ko, float kd, float damping_factor);
@@ -312,25 +312,25 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
 
 typedef enum timing_recovery_algorithm_e
 {
-	TIMING_RECOVERY_ALGORITHM_GARDNER, 
-	TIMING_RECOVERY_ALGORITHM_EARLYLATE 
+    TIMING_RECOVERY_ALGORITHM_GARDNER, 
+    TIMING_RECOVERY_ALGORITHM_EARLYLATE 
 } timing_recovery_algorithm_t;
 
 #define TIMING_RECOVERY_ALGORITHM_DEFAULT TIMING_RECOVERY_ALGORITHM_GARDNER
 
 typedef struct timing_recovery_state_s
 {
-	timing_recovery_algorithm_t algorithm;
-	int decimation_rate; // = input_rate / output_rate. We should get an input signal that is N times oversampled. 
-	int output_size;
-	int input_processed;
-	int use_q; //use both I and Q for calculating the error
-	int debug_phase;
-	int debug_count;
-	int debug_force;
-	int debug_writefiles;
-	int last_correction_offset;
-	float earlylate_ratio;
+    timing_recovery_algorithm_t algorithm;
+    int decimation_rate; // = input_rate / output_rate. We should get an input signal that is N times oversampled. 
+    int output_size;
+    int input_processed;
+    int use_q; //use both I and Q for calculating the error
+    int debug_phase;
+    int debug_count;
+    int debug_force;
+    int debug_writefiles;
+    int last_correction_offset;
+    float earlylate_ratio;
 } timing_recovery_state_t;
 
 timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q);
@@ -348,12 +348,12 @@ unsigned char differential_codec(unsigned char* input, unsigned char* output, in
 
 typedef struct bpsk_costas_loop_state_s
 {
-	float rc_filter_alpha;
-	float vco_phase_addition_multiplier;
-	float vco_phase;
-	float last_lpfi_output;
-	float last_lpfq_output;
-	float last_vco_phase_addition;
+    float rc_filter_alpha;
+    float vco_phase_addition_multiplier;
+    float vco_phase;
+    float last_lpfi_output;
+    float last_lpfq_output;
+    float last_vco_phase_addition;
 } bpsk_costas_loop_state_t;
 
 bpsk_costas_loop_state_t init_bpsk_costas_loop_cc(float samples_per_bits);
