@@ -54,13 +54,13 @@ function fmtplot(h)
     set(FN,'FontName','times');
     FS = findall(h,'-property','FontSize');
     set(FS,'FontSize',18);
-    xlabel('SNR [dB]');
+    xlabel('E_b/N_0 [dB]');
     ylabel('Phase error variance [rad^2]');
 end
 
-snrs_gardner=0:5:30
-%snrs_gardner=[10]
-error_values_gardner=mkvarplot('EARLYLATE',snrs_gardner);
+snrs=-5:5:30
+%snrs=[10]
+error_values_gardner=mkvarplot('EARLYLATE',snrs);
 %{
 snrs_earlylate=0:256
 error_values_earlylate=mkvarplot('EARLYLATE',snrs_earlylate);
@@ -69,8 +69,12 @@ error_values_earlylate=mkvarplot('EARLYLATE',snrs_earlylate);
 %graphics_toolkit("gnuplot")
 h=figure(1);
 
-semilogy(snrs_gardner, error_values_gardner, 'linewidth', 2);
-title('Variance curve');
+
+ebn0=snrs-13.26-10*log10(1/256.) 
+%13.56 dB is the difference between the real (measured) SNR and the number input to awgn_cc
+
+semilogy(ebn0, error_values_gardner, 'linewidth', 2);
+title('Estimation variance');
 fmtplot(h)
 pause
 
