@@ -43,8 +43,8 @@ PARAMS_MISC = -Wno-unused-result
 #PARAMS_DEBUG = $(if $(DEBUG_ON),-g,)
 FFTW_PACKAGE = fftw-3.3.3
 
-.PHONY: clean-vect clean
-all: csdr nmux
+.PHONY: clean-vect clean codequality
+all: codequality csdr nmux
 libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastddc.c fastddc.h  fft_fftw.h  fft_rpi.h  ima_adpcm.h  libcsdr_gpl.h  libcsdr.h  predefined.h
 	@echo NOTE: you may have to manually edit Makefile to optimize for your CPU \(especially if you compile on ARM, please edit PARAMS_NEON\).
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
@@ -96,3 +96,5 @@ emcc:
 	cat sdr.js/sdrjs-header.js sdr.js/sdrjs-compiled.js sdr.js/sdrjs-footer.js > sdr.js/sdr.js
 emcc-beautify:
 	bash -c 'type js-beautify >/dev/null 2>&1; if [ $$? -eq 0 ]; then js-beautify sdr.js/sdr.js >sdr.js/sdr.js.beautiful; mv sdr.js/sdr.js.beautiful sdr.js/sdr.js; fi'
+codequality:
+	@bash -c 'if [ `cat csdr.c | grep badsyntax | grep -v return | wc -l` -ne 1 ]; then echo "error at code quality check: badsyntax() used in csdr.c without return."; exit 1; else exit 0; fi'

@@ -139,7 +139,8 @@ char usage[]=
 "    firdes_resonator_c <rate> <length> [window [--octave]]\n"
 "    resonators_fir_cc <taps_length> [resonator_rate × N]\n"
 "    repeat_u8 <data_bytes × N>\n"
-"    noise_f\n"
+"    uniform_noise_f\n"
+"    gaussian_noise_c\n"
 "    awgn_cc <snr_db> [--snrshow]\n"
 "    pack_bits_8to1_u8_u8\n"
 "    add_n_zero_samples_at_beginning_f <n_zero_samples>\n"
@@ -2529,7 +2530,7 @@ int main(int argc, char *argv[])
 		if(argc<=3) return badsyntax("need required parameter (decimation factor)");
 		int decimation;
 		sscanf(argv[3],"%d",&decimation);
-		if(decimation<=4 || decimation&3) badsyntax("decimation factor should be a positive integer divisible by 4");
+		if(decimation<=4 || decimation&3) return badsyntax("decimation factor should be a positive integer divisible by 4");
 
 		int add_q = (argc>=5 && !strcmp(argv[4], "--add_q"));
 
@@ -2537,7 +2538,7 @@ int main(int argc, char *argv[])
 		int output_error = 0;
 		int output_indexes = 0;
 		if(argc>=7 && !strcmp(argv[5], "--octave")) debug_n = atoi(argv[6]);
-		if(debug_n<0) badsyntax("debug_n should be >= 0");
+		if(debug_n<0) return badsyntax("debug_n should be >= 0");
 
         if(argc>=6 && !strcmp(argv[5], "--output_error")) output_error = 1;
 		float* timing_error = NULL;
@@ -2584,11 +2585,11 @@ int main(int argc, char *argv[])
 		if(argc<=2) return badsyntax("need required parameter (samples_to_plot)");
 		int samples_to_plot = 0;
 		sscanf(argv[2], "%d", &samples_to_plot);
-		if(samples_to_plot<=0) badsyntax("Number of samples to plot should be > 0");
+		if(samples_to_plot<=0) return badsyntax("Number of samples to plot should be > 0");
 		if(argc<=3) return badsyntax("need required parameter (out_of_n_samples)");
 		int out_of_n_samples = 0;
 		sscanf(argv[3], "%d", &out_of_n_samples);
-		if(out_of_n_samples<samples_to_plot) badsyntax("out_of_n_samples should be < samples_to_plot");
+		if(out_of_n_samples<samples_to_plot) return badsyntax("out_of_n_samples should be < samples_to_plot");
 		int mode2d = 0;
 		if(argc>4) mode2d = !strcmp(argv[4], "--2d"); 
 		complexf* read_buf = (complexf*)malloc(sizeof(complexf)*the_bufsize);
@@ -2621,7 +2622,7 @@ int main(int argc, char *argv[])
 		int n_psk;
 		if(argc<=2) return badsyntax("need required parameter (n_psk)");
 		sscanf(argv[2],"%d",&n_psk);
-		if(n_psk<=0 || n_psk>256) badsyntax("n_psk should be between 1 and 256");
+		if(n_psk<=0 || n_psk>256) return badsyntax("n_psk should be between 1 and 256");
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize);
@@ -2641,10 +2642,10 @@ int main(int argc, char *argv[])
 		int sample_size_bytes = 0, ntimes = 0;
 		if(argc<=2) return badsyntax("need required parameter (sample_size_bytes)");
 		sscanf(argv[2],"%d",&sample_size_bytes);	
-		if(sample_size_bytes<=0) badsyntax("sample_size_bytes should be >0");
+		if(sample_size_bytes<=0) return badsyntax("sample_size_bytes should be >0");
 		if(argc<=3) return badsyntax("need required parameter (ntimes)");
 		sscanf(argv[3],"%d",&ntimes);	
-		if(ntimes<=0) badsyntax("ntimes should be >0");
+		if(ntimes<=0) return badsyntax("ntimes should be >0");
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize*ntimes);
 		unsigned char* local_input_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize*sample_size_bytes);
@@ -2664,7 +2665,7 @@ int main(int argc, char *argv[])
 		int interpolation;
 		if(argc<=2) return badsyntax("need required parameter (interpolation)");
 		sscanf(argv[2],"%d",&interpolation);	
-		if(interpolation<=0) badsyntax("interpolation should be >0"); 
+		if(interpolation<=0) return badsyntax("interpolation should be >0"); 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize*interpolation);
 		complexf* local_output_buffer = (complexf*)malloc(sizeof(complexf)*the_bufsize*interpolation);
@@ -2756,7 +2757,7 @@ int main(int argc, char *argv[])
 		float samples_per_bits;
 		if(argc<=2) return badsyntax("need required parameter (samples_per_bits)");
 		sscanf(argv[2],"%f",&samples_per_bits);
-		if(samples_per_bits<=0) badsyntax("samples_per_bits should be > 0");
+		if(samples_per_bits<=0) return badsyntax("samples_per_bits should be > 0");
 
 		bpsk_costas_loop_state_t state = init_bpsk_costas_loop_cc(samples_per_bits);
 
@@ -2778,15 +2779,15 @@ int main(int argc, char *argv[])
 		float rate;
 		if(argc<=2) return badsyntax("need required parameter (rate)");
 		sscanf(argv[2],"%f",&rate);
-		if(rate<=0) badsyntax("rate should be > 0");
+		if(rate<=0) return badsyntax("rate should be > 0");
 
 		float reference = 1.;
 		if(argc>3) sscanf(argv[3],"%f",&reference);
-		if(reference<=0) badsyntax("reference should be > 0");
+		if(reference<=0) return badsyntax("reference should be > 0");
 
 		float max_gain = 65535.;
 		if(argc>4) sscanf(argv[4],"%f",&max_gain);
-		if(max_gain<=0) badsyntax("max_gain should be > 0");
+		if(max_gain<=0) return badsyntax("max_gain should be > 0");
 
 		float current_gain = 1.;
 
@@ -2866,7 +2867,7 @@ int main(int argc, char *argv[])
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize);
-		if(the_bufsize - taps_length <= 0 ) badsyntax("taps_length is below buffer size, decrease taps_length");
+		if(the_bufsize - taps_length <= 0 ) return badsyntax("taps_length is below buffer size, decrease taps_length");
 
 		complexf* taps = (complexf*)calloc(sizeof(complexf),taps_length);
 		for(int i=0; i<num_resonators; i++)
@@ -2891,7 +2892,7 @@ int main(int argc, char *argv[])
 
     if(!strcmp(argv[1], "repeat_u8"))
     {
-        if(argc<=2) badsyntax("no data to repeat");
+        if(argc<=2) return badsyntax("no data to repeat");
         unsigned char* repeat_buffer = (unsigned char*)malloc(sizeof(unsigned char)*(argc-2));
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize); //this is really (c-2) but this is a very fast source block so it makes no sense to send out a small number here
@@ -2909,11 +2910,18 @@ int main(int argc, char *argv[])
     if(!strcmp(argv[1], "awgn_cc"))
     {
         FILE* urandom = init_get_random_samples_f();
-        if(argc<=2) badsyntax("required parameter <snr_db> is missing.");
+        if(argc<=2) return badsyntax("required parameter <snr_db> is missing.");
         float snr_db = 0;
 		sscanf(argv[2],"%f",&snr_db);
+        FILE* awgnfile = NULL; 
+        if(argc>=5 && !strcmp(argv[3],"--awgnfile")) 
+        {
+            awgnfile=fopen(argv[4], "r");
+            if(!awgnfile) return badsyntax("failed to open the --awgnfile");
+        }
+        int parnumadd=2*(!!awgnfile);
         int snrshow = 0;
-        if(argc>=4 && !strcmp(argv[3],"--snrshow")) snrshow = 1;
+        if(argc>=4+parnumadd && !strcmp(argv[3+parnumadd],"--snrshow")) snrshow = 1;
         float signal_amplitude_per_noise = pow(10,snr_db/20);
         float a_signal=signal_amplitude_per_noise/(signal_amplitude_per_noise+1.0);
         float a_noise=1.0/(signal_amplitude_per_noise+1.0);
@@ -2926,7 +2934,16 @@ int main(int argc, char *argv[])
             FEOF_CHECK;
             FREAD_C;
             //get_awgn_samples_f((float*)awgn_buffer, the_bufsize*2, urandom);
-            get_random_gaussian_samples_c(awgn_buffer, the_bufsize, urandom);
+            if(!awgnfile) get_random_gaussian_samples_c(awgn_buffer, the_bufsize, urandom);
+            else 
+            {
+                for(;;)
+                {
+                    int items_read=fread(awgn_buffer, sizeof(complexf), the_bufsize, awgnfile);
+                    if(items_read<the_bufsize) rewind(awgnfile);
+                    else break;
+                }
+            }
             /*if(snrshow) 
             {
                 float power_signal = total_logpower_cf((complexf*)input_buffer, the_bufsize);
@@ -2962,15 +2979,32 @@ int main(int argc, char *argv[])
 		}
     }
 
-	if(!strcmp(argv[1], "normalized_timing_variance_u32_f")) //<samples_per_symbol> <initial_sample_offset>
+    if(!strcmp(argv[1], "gaussian_noise_c"))
+    {
+        FILE* urandom = init_get_random_samples_f();
+		if(!initialize_buffers()) return -2;
+		sendbufsize(the_bufsize); 
+        for(;;)
+        {
+            FEOF_CHECK;
+            get_random_gaussian_samples_c((complexf*)output_buffer, the_bufsize, urandom);
+            FWRITE_C;
+            TRY_YIELD;
+		}
+    }
+
+	if(!strcmp(argv[1], "normalized_timing_variance_u32_f")) //<samples_per_symbol> <initial_sample_offset> [--debug]
 	{
         int samples_per_symbol = 0;
-        if(argc<=2) badsyntax("required parameter <samples_per_symbol> is missing.");
+        if(argc<=2) return badsyntax("required parameter <samples_per_symbol> is missing.");
 		sscanf(argv[2],"%d",&samples_per_symbol);
 
         int initial_sample_offset = 0;
-        if(argc<=3) badsyntax("required parameter <initial_sample_offset> is missing.");
+        if(argc<=3) return badsyntax("required parameter <initial_sample_offset> is missing.");
 		sscanf(argv[3],"%d",&initial_sample_offset);
+
+        int debug_print = 0;
+        if(argc>4 && !strcmp(argv[4],"--debug")) debug_print = 1; 
 
 		if(!initialize_buffers()) return -2;
 		sendbufsize(the_bufsize); 
@@ -2979,7 +3013,7 @@ int main(int argc, char *argv[])
         {
             FEOF_CHECK;
 			FREAD_R; //doesn't count, reads 4 bytes per sample anyway
-            float nv = normalized_timing_variance_u32_f((unsigned*)input_buffer, temp_buffer, the_bufsize, samples_per_symbol, initial_sample_offset);
+            float nv = normalized_timing_variance_u32_f((unsigned*)input_buffer, temp_buffer, the_bufsize, samples_per_symbol, initial_sample_offset, debug_print);
 			fwrite(&nv, sizeof(float), 1, stdout);
 			fprintf(stderr, "csdr normalized_timing_variance_u32_f: normalized variance = %f\n", nv);
             TRY_YIELD;
@@ -2989,7 +3023,7 @@ int main(int argc, char *argv[])
 	if(!strcmp(argv[1], "add_n_zero_samples_at_beginning_f")) //<n_zero_samples>
 	{
         int n_zero_samples = 0;
-        if(argc<=2) badsyntax("required parameter <n_zero_samples> is missing.");
+        if(argc<=2) return badsyntax("required parameter <n_zero_samples> is missing.");
 		sscanf(argv[2],"%d",&n_zero_samples);
 		if(!sendbufsize(initialize_buffers())) return -2;
         float* zeros=(float*)calloc(sizeof(float),n_zero_samples);

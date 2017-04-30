@@ -845,13 +845,23 @@ For example, `csdr repeat_u8 1 1 0 0` will output:
 
 ----
 
-### [noise_f](#noise_f)
+### [uniform_noise_f](#uniform_noise_f)
 
 Syntax:
 
-	csdr noise_f
+	csdr uniform_noise_f
 
-It outputs white noise within the range [-1.0, 1.0].
+It outputs uniform white noise. All samples are within the range [-1.0, 1.0].
+
+----
+
+### [gaussian_noise_c](#gaussian_noise_c)
+
+Syntax:
+
+	csdr gaussian_noise_c
+
+It outputs Gaussian white noise. All samples are within the unit circle.
 
 ----
 

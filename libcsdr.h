@@ -369,4 +369,4 @@ void get_random_gaussian_samples_c(complexf* output, int output_size, FILE* stat
 int deinit_get_random_samples_f(FILE* status);
 float* add_ff(float* input1, float* input2, float* output, int input_size);
 float total_logpower_cf(complexf* input, int input_size);
-float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_size, int samples_per_symbol, int initial_sample_offset);
+float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_size, int samples_per_symbol, int initial_sample_offset, int debug_print);

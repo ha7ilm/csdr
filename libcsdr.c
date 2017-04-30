@@ -2169,7 +2169,7 @@ int apply_fir_cc(complexf* input, complexf* output, int input_size, complexf* ta
 	return i;
 }
 
-float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_size, int samples_per_symbol, int initial_sample_offset)
+float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_size, int samples_per_symbol, int initial_sample_offset, int debug_print)
 {
 	float *ndiff_rad = temp;
 	float ndiff_rad_mean = 0;
@@ -2185,7 +2185,7 @@ float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_s
 
         ndiff_rad[i] = ndiff*PI;
 		ndiff_rad_mean = ndiff_rad_mean*(((float)i)/(i+1))+(ndiff_rad[i]/(i+1));
-		//fprintf(stderr, "input[%d] = %u, sinearest = %u, socorrect = %u, sodiff = %u, ndiff = %f, ndiff_rad[i] = %f, ndiff_rad_mean = %f\n", i, input[i], sinearest, socorrect, sodiff, ndiff, ndiff_rad[i], ndiff_rad_mean);
+		if(debug_print) fprintf(stderr, "input[%d] = %u, sinearest = %u, socorrect = %u, sodiff = %u, ndiff = %f, ndiff_rad[i] = %f, ndiff_rad_mean = %f\n", i, input[i], sinearest, socorrect, sodiff, ndiff, ndiff_rad[i], ndiff_rad_mean);
     }
 	fprintf(stderr, "ndiff_rad_mean = %f\n", ndiff_rad_mean);
 
