@@ -1721,6 +1721,33 @@ void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* out
     DEBUG_SERIAL_LINE_DECODER && fprintf(stderr, "sld: >> output_size = %d  (+%d)\n", s->output_size, s->input_used);
 }
 
+void generic_slicer_f_u8(float* input, unsigned char* output, int input_size, int n_symbols)
+{
+    float symbol_distance = 2.0/(n_symbols+1);
+    for(int i=0;i<input_size;i++) 
+        for(int j=0;j<n_symbols;i++)
+        {
+            float symbol_center = -1+j*symbol_distance;
+            float symbol_low_limit = symbol_center-(symbol_distance/2);
+            float symbol_high_limit = symbol_center+(symbol_distance/2);
+            if(j==0)
+            {
+                if(input[i]<symbol_high_limit) output[i]=j;
+                break;
+            }
+            else if (j==n_symbols-1)
+            {
+                if(input[i]>=symbol_low_limit) output[i]=j;
+                break;
+            }
+            else 
+            {
+                if(input[i]>=symbol_low_limit && input[i]<symbol_high_limit) output[i]=j;
+                break;
+            }
+        }
+}
+
 void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
 {
     for(int i=0;i<input_size;i++) output[i] = input[i] > 0;
@@ -2169,6 +2196,24 @@ int apply_fir_cc(complexf* input, complexf* output, int input_size, complexf* ta
     return i;
 }
 
+
+int apply_real_fir_cc(complexf* input, complexf* output, int input_size, float* taps, int taps_length)
+{
+    int i;
+    for(i=0; i<input_size-taps_length+1; i++)
+    {
+        float acci = 0, accq = 0;
+        for(int ti=0;ti<taps_length;ti++)
+        {
+            acci += iof(input,i)*taps[ti];
+            accq += qof(input,i)*taps[ti];
+        }
+        iof(output,i)=acci;
+        qof(output,i)=accq;
+    }
+    return i;
+}
+
 float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_size, int samples_per_symbol, int initial_sample_offset, int debug_print)
 {
     float *ndiff_rad = temp;
@@ -2310,30 +2355,42 @@ void get_random_gaussian_samples_c(complexf* output, int output_size, FILE* stat
     }
 }
 
-/*
-void get_awgn_samples_c(complexf* output, int output_size, FILE* status)
-{
-    int* pioutput = (int*)output;
-    int cnt = 0;
-    for(int i=0;i<output_size;i++)
-    {
-        do
-        {
-            fread(pioutput+2*i, sizeof(complexf), 2, status);
-            iof(output, i)=((float)pioutput[2*i])/((float)INT_MAX); 
-            qof(output, i)=((float)pioutput[2*i+1])/((float)INT_MAX); 
-        }
-        while(sqrt(iof(output, i)*iof(output, i)+qof(output, i)*qof(output, i))>1);
-        iof(output, i)=(1/0.82)*iof(output, i);
-        qof(output, i)=(1/0.82)*qof(output, i);
-    }
-}
-*/
-
-
 int deinit_get_random_samples_f(FILE* status)
 {
     return fclose(status);
+}
+
+int firdes_cosine_f(float* taps, int taps_length, int samples_per_symbol)
+{
+    //needs a taps_length 2 × samples_per_symbol + 1
+    int middle_i=taps_length/2;
+    for(int i=0;i<samples_per_symbol;i++) taps[middle_i+i]=taps[middle_i-i]=(1+cos(PI*i/(float)samples_per_symbol))/2;
+}
+
+int firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float beta)
+{
+    //needs an odd taps_length
+    int middle_i=taps_length/2;
+    taps[middle_i]=(1/samples_per_symbol)*(1+beta*(4/PI-1));
+    for(int i=1;i<taps_length/2;i++) 
+    {
+        if(i==samples_per_symbol/(4*beta)) 
+            taps[middle_i+i]=taps[middle_i-i]=(beta/(samples_per_symbol*sqrt(2)))*((1+(2/PI))*sin(PI/(4*beta))+(1-(2/PI)*cos(PI/(4*beta))));
+        else
+            taps[middle_i+i]=taps[middle_i-i]=(1/samples_per_symbol)*
+                (sin(PI*(i/(float)samples_per_symbol)*(1-beta)) + 4*beta*(i/(float)samples_per_symbol)*cos(PI*(i/(float)samples_per_symbol)*(1+beta)))/
+                (PI*(i/(float)samples_per_symbol)*(1-powf(4*beta*(i/(float)samples_per_symbol),2)));
+    }
+}
+
+#define MMATCHEDFILT_GAS(NAME) \
+    if(!strcmp( #NAME , input )) return MATCHED_FILTER_ ## NAME;
+
+matched_filter_type_t matched_filter_get_type_from_string(char* input)
+{
+    MMATCHEDFILT_GAS(RRC);
+    MMATCHEDFILT_GAS(COSINE);
+    return MATCHED_FILTER_DEFAULT;
 }
 
 float* add_ff(float* input1, float* input2, float* output, int input_size)

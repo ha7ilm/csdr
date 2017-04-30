@@ -3030,26 +3030,76 @@ int main(int argc, char *argv[])
         fwrite(zeros, sizeof(float), n_zero_samples, stdout);
         clone_(the_bufsize);
     }
-/*
-    if(!strcmp(argv[1], "matched_filter_cc")) //<matched_filter_type> <samples_per_symbol> <num_taps>
+
+    int matched_filter_which = 0;
+    if(
+            (!strcmp(argv[1], "firdes_matched_filter_f") && (matched_filter_which = 1)) ||
+            (!strcmp(argv[1], "matched_filter_cc") && (matched_filter_which = 2))
+    ) //(RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)
     {
+        if(argc<=2) return badsyntax("required parameter <matched_filter_type> is missing.");
+        matched_filter_type_t type = matched_filter_get_type_from_string(argv[2]);
         int samples_per_symbol = 0;
-        if(argc<=2) return badsyntax("required parameter <samples_per_symbol> is missing.");
-        sscanf(argv[2],"%d",&samples_per_symbol);
+
+        if(argc<=3) return badsyntax("required parameter <samples_per_symbol> is missing.");
+        sscanf(argv[3],"%d",&samples_per_symbol);
+
         int num_taps = 0;
-        if(argc<=2) return badsyntax("required parameter <num_taps> is missing.");
-        sscanf(argv[2],"%d",&num_taps);
+        if(argc<=4 && type!=MATCHED_FILTER_COSINE) 
+            return badsyntax("required parameter <num_taps> is missing.");
+        sscanf(argv[4],"%d",&num_taps);
+
+        float beta = 0;
+        if(argc<=5 && type==MATCHED_FILTER_RRC) 
+            return badsyntax("required parameter <beta> is missing.");
+        sscanf(argv[5],"%f",&beta);
+
+        if(type==MATCHED_FILTER_COSINE) num_taps = (2*samples_per_symbol)+1;
+        float* taps = (float*)malloc(sizeof(float)*num_taps);
+        switch(type)
+        {
+        case MATCHED_FILTER_RRC:
+            firdes_rrc_f(taps, num_taps, samples_per_symbol, beta);
+            break;
+        case MATCHED_FILTER_COSINE:
+            firdes_cosine_f(taps, num_taps, samples_per_symbol);
+            break;
+        }
+
+        if(!sendbufsize(initialize_buffers())) return -2;
+
+        if(matched_filter_which==1)
+        {
+            for(int i=0;i<num_taps;i++) printf("%f ", taps[i]);
+            return 0;
+        }
+
+        for(;;)
+        {
+            FEOF_CHECK;
+            FREAD_C;
+            apply_real_fir_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, taps, num_taps);
+            FWRITE_C;
+            TRY_YIELD;
+        }
+    }
+
+    if(!strcmp(argv[1], "generic_slicer_f_u8")) //<n_symbols>
+    {
+        int n_symbols = 0;
+        if(argc<=2) return badsyntax("required parameter <n_symbols> is missing.");
+        sscanf(argv[2],"%d",&n_symbols);
         if(!sendbufsize(initialize_buffers())) return -2;
         for(;;)
         {
             FEOF_CHECK;
-            FREAD_C; 
-
-            FWRITE_C; 
+            if(!FREAD_R) break;
+            generic_slicer_f_u8(input_buffer, (unsigned char*)output_buffer, the_bufsize, n_symbols);
+            FWRITE_U8;
             TRY_YIELD;
         }
+        return 0;
     }
-*/
 
     if(!strcmp(argv[1],"none"))
     {
