@@ -143,7 +143,11 @@ char usage[]=
 "    gaussian_noise_c\n"
 "    awgn_cc <snr_db> [--snrshow]\n"
 "    pack_bits_8to1_u8_u8\n"
+"    firdes_matched_filter_f (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)\n"
+"    matched_filter_cc (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)\n"
 "    add_n_zero_samples_at_beginning_f <n_zero_samples>\n"
+"    generic_slicer_f_u8 <n_symbols>\n"
+"    plain_interpolate_cc <n_symbols>\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -3101,6 +3105,24 @@ int main(int argc, char *argv[])
             if(!FREAD_R) break;
             generic_slicer_f_u8(input_buffer, (unsigned char*)output_buffer, the_bufsize, n_symbols);
             FWRITE_U8;
+            TRY_YIELD;
+        }
+        return 0;
+    }
+
+    if(!strcmp(argv[1], "plain_interpolate_cc")) //<interpolation>
+    {
+        int interpolation = 0;
+        if(argc<=2) return badsyntax("required parameter <interpolation> is missing.");
+        sscanf(argv[2],"%d",&interpolation);
+        if(!sendbufsize(interpolation*initialize_buffers())) return -2;
+        complexf* plainint_output_buffer = (complexf*)malloc(sizeof(complexf)*the_bufsize*interpolation);
+        for(;;)
+        {
+            FEOF_CHECK;
+            FREAD_C;
+            plain_interpolate_cc((complexf*)input_buffer, plainint_output_buffer, the_bufsize, interpolation);
+            fwrite(plainint_output_buffer, sizeof(float)*2, the_bufsize*interpolation, stdout);
             TRY_YIELD;
         }
         return 0;

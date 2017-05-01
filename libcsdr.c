@@ -2383,6 +2383,15 @@ int firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float bet
     }
 }
 
+void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation)
+{
+    for(int i=0;i<input_size;i++)
+    {
+        output[i*interpolation]=input[i];
+        bzero(output+(interpolation*i)+1, (interpolation-1)*sizeof(complexf));
+    }
+}
+
 #define MMATCHEDFILT_GAS(NAME) \
     if(!strcmp( #NAME , input )) return MATCHED_FILTER_ ## NAME;
 
@@ -2408,3 +2417,4 @@ int trivial_vectorize()
     }
     return c[0];
 }
+void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);

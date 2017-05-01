@@ -384,3 +384,4 @@ int firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float bet
 matched_filter_type_t matched_filter_get_type_from_string(char* input);
 int apply_real_fir_cc(complexf* input, complexf* output, int input_size, float* taps, int taps_length);
 void generic_slicer_f_u8(float* input, unsigned char* output, int input_size, int n_symbols);
+void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);;
