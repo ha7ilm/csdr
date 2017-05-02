@@ -2122,7 +2122,7 @@ int main(int argc, char *argv[])
 		prevp = *shm_p;
 		if(prevp >= bufsize_bytes) return badsyntax("bad pointer value in shm buffer");
 
-		outsize = 0x4000;
+		outsize = 0x400;
 		insize = outsize * factor; // make it integer multiple of factor
 		sendbufsize(outsize);
 		if(complex_cic) insize *= 2;
@@ -2135,29 +2135,43 @@ int main(int argc, char *argv[])
 		bufsize_bufs = bufsize_bytes / insize_bytes;
 		writepoint_bufs = readpoint_bufs = prevp / insize_bytes;
 
-		int16_t *input_buffer /*= malloc(sizeof(int16_t) * insize)*/;
+		int16_t *input_buffer = malloc(sizeof(int16_t) * insize);
 		complexf *output_buffer = malloc(sizeof(complexf) * outsize);
 
 		void *state = cicddc_init(factor);
+		size_t extradelay = 0;
 		for(;;)
 		{
-			fprintf(stderr, "%d %d\n", writepoint_bufs, readpoint_bufs);
+			//fprintf(stderr, "%d %d\n", writepoint_bufs, readpoint_bufs);
 			if(writepoint_bufs != readpoint_bufs) {
-				//memcpy(input_buffer, shm_buf + insize_bytes * readpoint_bufs, insize_bytes);
-				input_buffer = (int16_t*)(shm_buf + insize_bytes * readpoint_bufs);
+				int r;
+				ssize_t readpoint_bufs1 = (ssize_t)readpoint_bufs - extradelay;
+				while(readpoint_bufs1 < 0) readpoint_bufs1 += bufsize_bufs;
+
+				//input_buffer = (int16_t*)(shm_buf + insize_bytes * readpoint_bufs1);
+
+				/* It seems strange but memcpying small blocks and reading from there
+				   is faster than reading directly from the SHM buffer during processing
+				   (at least on the server I tested it on). */
+				memcpy(input_buffer, shm_buf + insize_bytes * readpoint_bufs1, insize_bytes);
+
 				if(complex_cic)
 					cicddc_cs16_c(state, input_buffer, output_buffer, outsize, rate);
 				else
 					cicddc_s16_c(state, input_buffer, output_buffer, outsize, rate);
 				fwrite(output_buffer, sizeof(complexf), outsize, stdout);
-				fflush(stdout);
+				//fflush(stdout);
 
 				// advance pointer:
 				readpoint_bufs++;
 				if(readpoint_bufs >= bufsize_bufs) readpoint_bufs = 0;
 			} else {
+				ssize_t newdelay = -1;
 				usleep(50000);
-				read_fifo_ctl(fd,"%g\n",&rate);
+				read_fifo_ctl(fd,"%g %zd\n",&rate, &newdelay);
+				if(newdelay >= 0 && newdelay < bufsize_bytes)
+					extradelay = newdelay / insize_bytes;
+
 				writepoint_bufs = (*shm_p) / insize_bytes;
 			}
 			/*TRY_YIELD;*/
