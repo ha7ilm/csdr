@@ -2778,6 +2778,7 @@ int main(int argc, char *argv[])
         sscanf(argv[4],"%f",&gain);
 
         int decision_directed = !!(argc>5 && (!strcmp(argv[5], "--dd") || !strcmp(argv[5], "--decision_directed")));
+        if(decision_directed) fprintf(stderr, "csdr bpsk_costas_loop_cc: decision directed mode\n");
 
         bpsk_costas_loop_state_t state;
         init_bpsk_costas_loop_cc(&state, decision_directed, damping_factor, loop_bandwidth, gain);

@@ -2100,10 +2100,12 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk
         else error = iof(output,i)*qof(output,i);
         s->dphase = error * s->alpha + s->iir_temp;
         s->iir_temp += error * s->beta;
+        fprintf(stderr, "  error = %f, dphase = %f, nco_phase = %f\n", error, s->dphase, s->nco_phase);
 
         //step NCO
         s->nco_phase += s->dphase;
         while(s->nco_phase>2*PI) s->nco_phase-=2*PI;
+        while(s->nco_phase<=0) s->nco_phase+=2*PI;
     }
 }
 
