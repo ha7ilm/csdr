@@ -114,6 +114,16 @@ float (*firdes_get_window_kernel(window_t window))(float)
                                                                    |___/
 */
 
+void normalize_fir_f(float* input, float* output, int length)
+{
+    //Normalize filter kernel
+    float sum=0;
+    for(int i=0;i<length;i++) //@normalize_fir_f: normalize pass 1
+        sum+=input[i];
+    for(int i=0;i<length;i++) //@normalize_fir_f: normalize pass 2
+        output[i]=input[i]/sum;
+}
+
 void firdes_lowpass_f(float *output, int length, float cutoff_rate, window_t window)
 {   //Generates symmetric windowed sinc FIR filter real taps
     //  length should be odd
@@ -128,17 +138,7 @@ void firdes_lowpass_f(float *output, int length, float cutoff_rate, window_t win
         output[middle-i]=output[middle+i]=(sin(2*PI*cutoff_rate*i)/i)*window_function((float)i/middle);
         //printf("%g %d %d %d %d | %g\n",output[middle-i],i,middle,middle+i,middle-i,sin(2*PI*cutoff_rate*i));
     }
-
-    //Normalize filter kernel
-    float sum=0;
-    for(int i=0;i<length;i++) //@firdes_lowpass_f: normalize pass 1
-    {
-        sum+=output[i];
-    }
-    for(int i=0;i<length;i++) //@firdes_lowpass_f: normalize pass 2
-    {
-        output[i]/=sum;
-    }
+    normalize_fir_f(output,output,length);
 }
 
 void firdes_bandpass_c(complexf *output, int length, float lowcut, float highcut, window_t window)
@@ -1930,11 +1930,13 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error
     free(points_color);
 }
 
-timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q)
+timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q, float loop_gain, float max_error)
 {
     timing_recovery_state_t to_return;
     to_return.algorithm = algorithm;
     to_return.decimation_rate = decimation_rate;
+    to_return.loop_gain = loop_gain;
+    to_return.max_error = max_error;
     to_return.use_q = use_q;
     to_return.debug_phase = -1;
     to_return.debug_count = 3;
@@ -1952,7 +1954,7 @@ void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_pha
 
 #define MTIMINGR_HDEBUG 0
 
-void timing_recovery_cc(complexf* input, complexf* output, int input_size, float* timing_error, int* sampled_indexes,  timing_recovery_state_t* state)
+void timing_recovery_cc(complexf* input, complexf* output, int input_size, float* timing_error, int* sampled_indexes, timing_recovery_state_t* state)
 {
     //We always assume that the input starts at center of the first symbol cross before the first symbol.
     //Last time we consumed that much from the input samples that it is there.
@@ -2015,8 +2017,8 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, float
 
             if(timing_error) timing_error[si-1]=error; //it is not written if NULL
             
-            if(error>2) error=2;
-            if(error<-2) error=-2;
+            if(error>state->max_error) error=state->max_error;
+            if(error<-state->max_error) error=-state->max_error;
             if( state->debug_force || (state->debug_phase >= si && debug_i) )
             {
                 debug_i--;
@@ -2033,7 +2035,7 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, float
                     0);
             }
             int error_sign = (state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER) ? -1 : 1;
-            correction_offset = num_samples_halfbit * error_sign * (error/2);
+            correction_offset = num_samples_halfbit * error_sign * error * state->loop_gain;
             current_bitstart_index += num_samples_bit + correction_offset;
             if(si>=input_size) 
             { 
@@ -2067,6 +2069,45 @@ char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algo
     return "INVALID";
 }
 
+void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed, float damping_factor, float bandwidth, float gain)
+{
+    float bandwidth_omega = 2*M_PI*bandwidth;
+    s->alpha = (damping_factor*2*bandwidth_omega)/gain;
+    float sampling_rate = 1; //the bandwidth is normalized to the sampling rate
+    s->beta = (bandwidth_omega*bandwidth_omega)/(sampling_rate*gain);
+    s->iir_temp = s->dphase = s->nco_phase = 0;
+}
+
+void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* s)
+{
+    for(int i=0;i<input_size;i++)
+    {
+        complexf nco_sample;
+        e_powj(&nco_sample, -s->nco_phase);
+        cmult(&output[i], &input[i], &nco_sample);
+        float error = 0;
+        if(s->decision_directed)
+        {
+            float output_phase = atan2(qof(output,i),iof(output,i));
+            if (fabs(output_phase)<PI/2) 
+                error = -output_phase;
+            else
+            {
+                error = PI-output_phase;
+                while(error>PI) error -= 2*PI;
+            }
+        }
+        else error = iof(output,i)*qof(output,i);
+        s->dphase = error * s->alpha + s->iir_temp;
+        s->iir_temp += error * s->beta;
+
+        //step NCO
+        s->nco_phase += s->dphase;
+        while(s->nco_phase>2*PI) s->nco_phase-=2*PI;
+    }
+}
+
+#if 0
 bpsk_costas_loop_state_t init_bpsk_costas_loop_cc(float samples_per_bits) 
 { 
     bpsk_costas_loop_state_t state;
@@ -2088,7 +2129,7 @@ bpsk_costas_loop_state_t init_bpsk_costas_loop_cc(float samples_per_bits)
     return state;
 }
 
-void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* state)
+void bpsk_costas_loop_c1mc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* state)
 {
     int debug = 0;
     if(debug) fprintf(stderr, "costas:\n");
@@ -2121,6 +2162,8 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk
         cmult(&output[i], &input[i], &vco_sample);
     }
 }
+
+#endif
 
 void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate, float reference, float max_gain, float* current_gain)
 {
@@ -2205,8 +2248,8 @@ int apply_real_fir_cc(complexf* input, complexf* output, int input_size, float* 
         float acci = 0, accq = 0;
         for(int ti=0;ti<taps_length;ti++)
         {
-            acci += iof(input,i)*taps[ti];
-            accq += qof(input,i)*taps[ti];
+            acci += iof(input,i+ti)*taps[ti];
+            accq += qof(input,i+ti)*taps[ti];
         }
         iof(output,i)=acci;
         qof(output,i)=accq;
@@ -2365,6 +2408,8 @@ int firdes_cosine_f(float* taps, int taps_length, int samples_per_symbol)
     //needs a taps_length 2 × samples_per_symbol + 1
     int middle_i=taps_length/2;
     for(int i=0;i<samples_per_symbol;i++) taps[middle_i+i]=taps[middle_i-i]=(1+cos(PI*i/(float)samples_per_symbol))/2;
+    //for(int i=0;i<taps_length;i++) taps[i]=powf(taps[i],2);
+    normalize_fir_f(taps, taps, taps_length);
 }
 
 int firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float beta)
@@ -2381,6 +2426,7 @@ int firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float bet
                 (sin(PI*(i/(float)samples_per_symbol)*(1-beta)) + 4*beta*(i/(float)samples_per_symbol)*cos(PI*(i/(float)samples_per_symbol)*(1+beta)))/
                 (PI*(i/(float)samples_per_symbol)*(1-powf(4*beta*(i/(float)samples_per_symbol),2)));
     }
+    normalize_fir_f(taps, taps, taps_length);
 }
 
 void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation)
@@ -2407,6 +2453,15 @@ float* add_ff(float* input1, float* input2, float* output, int input_size)
     for(int i=0;i<input_size;i++) output[i]=input1[i]+input2[i];
 }
 
+float* add_const_cc(complexf* input, complexf* output, int input_size, complexf x)
+{
+    for(int i=0;i<input_size;i++)
+    {
+        iof(output,i)=iof(input,i)+iofv(x);
+        qof(output,i)=iof(input,i)+qofv(x);
+    }
+}
+
 int trivial_vectorize()
 {
     //this function is trivial to vectorize and should pass on both NEON and SSE
@@ -2417,4 +2472,3 @@ int trivial_vectorize()
     }
     return c[0];
 }
-void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);

@@ -124,7 +124,7 @@ char usage[]=
 "    rtty_baudot2ascii_u8_u8\n"
 "    serial_line_decoder_u8_u8\n"
 "    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
-"    timing_recovery_cc <algorithm> <decimation> [--add_q [--output_error | --output_indexes | --octave <debug_n>]] \n"
+"    timing_recovery_cc <algorithm> <decimation> [mu [--add_q [--output_error | --output_indexes | --octave <debug_n>]]] \n"
 "    psk31_varicode_encoder_u8_u8\n"
 "    psk31_varicode_decoder_u8_u8\n"
 "    differential_encoder_u8_u8\n"
@@ -133,7 +133,7 @@ char usage[]=
 "    psk_modulator_u8_c <n_psk>\n"
 "    psk31_interpolate_sine_cc <interpolation>\n"
 "    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
-"    bpsk_costas_loop_cc <samples_per_bits>\n"
+"    bpsk_costas_loop_cc <loop_bandwidth> <damping_factor> <gain> [--dd | --decision_directed]\n"
 "    binary_slicer_f_u8\n"
 "    simple_agc_cc <rate> [reference [max_gain]]\n"
 "    firdes_resonator_c <rate> <length> [window [--octave]]\n"
@@ -148,6 +148,7 @@ char usage[]=
 "    add_n_zero_samples_at_beginning_f <n_zero_samples>\n"
 "    generic_slicer_f_u8 <n_symbols>\n"
 "    plain_interpolate_cc <n_symbols>\n"
+"    add_const_cc <i> <q>\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -396,7 +397,7 @@ int main(int argc, char *argv[])
         clone_(the_bufsize); //After sending the buffer size out, just copy stdin to stdout
     }
 
-    if(!strcmp(argv[1],"clone"))
+    if(!strcmp(argv[1],"clone") || !strcmp(argv[1],"REM"))
     {
         if(!sendbufsize(initialize_buffers())) return -2;
         clone_(the_bufsize);
@@ -2525,7 +2526,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [--add_q [--output_error | --output_indexes | --octave <debug_n>]] 
+    if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [loop_gain [max_error [--add_q] [--output_error | --output_indexes | --octave <debug_n>]]] 
     {
         if(argc<=2) return badsyntax("need required parameter (algorithm)");
         timing_recovery_algorithm_t algorithm = timing_recovery_get_algorithm_from_string(argv[2]);
@@ -2536,26 +2537,32 @@ int main(int argc, char *argv[])
         sscanf(argv[3],"%d",&decimation);
         if(decimation<=4 || decimation&3) return badsyntax("decimation factor should be a positive integer divisible by 4");
 
-        int add_q = (argc>=5 && !strcmp(argv[4], "--add_q"));
+        float loop_gain = 0.5;
+        if(argc>4) sscanf(argv[4],"%f",&loop_gain);
+
+        float max_error = 2;
+        if(argc>5) sscanf(argv[5],"%f",&max_error);
+
+        int add_q = !!(argc>=7 && !strcmp(argv[6], "--add_q"));
 
         int debug_n = 0;
         int output_error = 0;
         int output_indexes = 0;
-        if(argc>=7 && !strcmp(argv[5], "--octave")) debug_n = atoi(argv[6]);
+        if(argc+add_q>=8 && !strcmp(argv[6+add_q], "--octave")) debug_n = atoi(argv[7+add_q]);
         if(debug_n<0) return badsyntax("debug_n should be >= 0");
 
-        if(argc>=6 && !strcmp(argv[5], "--output_error")) output_error = 1;
+        if(argc>=(8+add_q) && !strcmp(argv[7+add_q], "--output_error")) output_error = 1;
         float* timing_error = NULL;
         if(output_error) timing_error = (float*)malloc(sizeof(float)*the_bufsize);
 
-        if(argc>=6 && !strcmp(argv[5], "--output_indexes")) output_indexes = 1;
+        if(argc>=(8+add_q) && !strcmp(argv[7+add_q], "--output_indexes")) output_indexes = 1;
         unsigned* sampled_indexes = NULL;
         if(output_indexes) sampled_indexes = (unsigned*)malloc(sizeof(float)*the_bufsize);
 
         if(!initialize_buffers()) return -2;
         sendbufsize(the_bufsize/decimation);
 
-        timing_recovery_state_t state = timing_recovery_init(algorithm, decimation, add_q);
+        timing_recovery_state_t state = timing_recovery_init(algorithm, decimation, add_q, loop_gain, max_error);
 
         int debug_i=0;
         state.debug_writefiles = 1;
@@ -2756,14 +2763,24 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(!strcmp(argv[1],"bpsk_costas_loop_cc")) //<samples_per_bits>
+    if(!strcmp(argv[1],"bpsk_costas_loop_cc")) //<loop_bandwidth> <damping_factor> <gain> [--dd | --decision_directed]
     {
-        float samples_per_bits;
-        if(argc<=2) return badsyntax("need required parameter (samples_per_bits)");
-        sscanf(argv[2],"%f",&samples_per_bits);
-        if(samples_per_bits<=0) return badsyntax("samples_per_bits should be > 0");
+        float loop_bandwidth;
+        if(argc<=2) return badsyntax("need required parameter (loop_bandwidth)");
+        sscanf(argv[2],"%f",&loop_bandwidth);
 
-        bpsk_costas_loop_state_t state = init_bpsk_costas_loop_cc(samples_per_bits);
+        float damping_factor;
+        if(argc<=3) return badsyntax("need required parameter (damping_factor)");
+        sscanf(argv[3],"%f",&damping_factor);
+
+        float gain;
+        if(argc<=4) return badsyntax("need required parameter (gain)");
+        sscanf(argv[4],"%f",&gain);
+
+        int decision_directed = !!(argc>5 && (!strcmp(argv[5], "--dd") || !strcmp(argv[5], "--decision_directed")));
+
+        bpsk_costas_loop_state_t state;
+        init_bpsk_costas_loop_cc(&state, decision_directed, damping_factor, loop_bandwidth, gain);
 
         if(!initialize_buffers()) return -2;
         sendbufsize(the_bufsize);
@@ -3083,13 +3100,17 @@ int main(int argc, char *argv[])
             return 0;
         }
 
+        int output_size=0;
+        FREAD_C;
         for(;;)
         {
             FEOF_CHECK;
-            FREAD_C;
-            apply_real_fir_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, taps, num_taps);
-            FWRITE_C;
+            output_size = apply_real_fir_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, taps, num_taps);
+            fwrite(output_buffer, sizeof(complexf), output_size, stdout);
+            //fprintf(stderr, "os = %d, is = %d, num_taps = %d\n", output_size, the_bufsize, num_taps);
             TRY_YIELD;
+            memmove((complexf*)input_buffer,((complexf*)input_buffer)+output_size,(the_bufsize-output_size)*sizeof(complexf)); 
+            fread(((complexf*)input_buffer)+(the_bufsize-output_size), sizeof(complexf), output_size, stdin);
         }
     }
 
@@ -3123,6 +3144,26 @@ int main(int argc, char *argv[])
             FREAD_C;
             plain_interpolate_cc((complexf*)input_buffer, plainint_output_buffer, the_bufsize, interpolation);
             fwrite(plainint_output_buffer, sizeof(float)*2, the_bufsize*interpolation, stdout);
+            TRY_YIELD;
+        }
+        return 0;
+    }
+
+    if(!strcmp(argv[1], "add_const_cc")) //<i> <q>
+    {
+        complexf x;
+        if(argc<=2) return badsyntax("required parameter <add_i> is missing.");
+        sscanf(argv[2],"%f",&iofv(x));
+        if(argc<=2) return badsyntax("required parameter <add_q> is missing.");
+        sscanf(argv[2],"%f",&qofv(x));
+
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            FREAD_C;
+            add_const_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, x);
+            FWRITE_C;
             TRY_YIELD;
         }
         return 0;

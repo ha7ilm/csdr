@@ -98,3 +98,5 @@ emcc-beautify:
 	bash -c 'type js-beautify >/dev/null 2>&1; if [ $$? -eq 0 ]; then js-beautify sdr.js/sdr.js >sdr.js/sdr.js.beautiful; mv sdr.js/sdr.js.beautiful sdr.js/sdr.js; fi'
 codequality:
 	@bash -c 'if [ `cat csdr.c | grep badsyntax | grep -v return | wc -l` -ne 1 ]; then echo "error at code quality check: badsyntax() used in csdr.c without return."; exit 1; else exit 0; fi'
+v:
+	vim csdr.c libcsdr.c

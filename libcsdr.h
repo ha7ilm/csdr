@@ -331,9 +331,11 @@ typedef struct timing_recovery_state_s
     int debug_writefiles;
     int last_correction_offset;
     float earlylate_ratio;
+    float loop_gain;
+    float max_error;
 } timing_recovery_state_t;
 
-timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q);
+timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q, float loop_gain, float max_error);
 void timing_recovery_cc(complexf* input, complexf* output, int input_size, float* timing_error, int* sampled_indexes,  timing_recovery_state_t* state);
 timing_recovery_algorithm_t timing_recovery_get_algorithm_from_string(char* input);
 char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algorithm);
@@ -346,6 +348,7 @@ void pack_bits_8to1_u8_u8(unsigned char* input, unsigned char* output, int input
 void psk31_varicode_encoder_u8_u8(unsigned char* input, unsigned char* output, int input_size, int output_max_size, int* input_processed, int* output_size);
 unsigned char differential_codec(unsigned char* input, unsigned char* output, int input_size, int encode, unsigned char state);
 
+#if 0
 typedef struct bpsk_costas_loop_state_s
 {
     float rc_filter_alpha;
@@ -358,6 +361,21 @@ typedef struct bpsk_costas_loop_state_s
 
 bpsk_costas_loop_state_t init_bpsk_costas_loop_cc(float samples_per_bits);
 void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* state);
+#endif 
+
+typedef struct bpsk_costas_loop_state_s
+{
+    float alpha;
+    float beta;
+    int decision_directed;
+    float iir_temp;
+    float dphase;
+    float nco_phase;
+} bpsk_costas_loop_state_t;
+
+void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);
+void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* state);
+
 void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate, float reference, float max_gain, float* current_gain);
 void firdes_add_resonator_c(complexf* output, int length, float rate, window_t window, int add, int normalize);
 int apply_fir_cc(complexf* input, complexf* output, int input_size, complexf* taps, int taps_length);
@@ -385,3 +403,6 @@ matched_filter_type_t matched_filter_get_type_from_string(char* input);
 int apply_real_fir_cc(complexf* input, complexf* output, int input_size, float* taps, int taps_length);
 void generic_slicer_f_u8(float* input, unsigned char* output, int input_size, int n_symbols);
 void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);;
+void normalize_fir_f(float* input, float* output, int length);
+void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed, float damping_factor, float bandwidth, float gain);
+float* add_const_cc(complexf* input, complexf* output, int input_size, complexf x);
