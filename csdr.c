@@ -49,6 +49,9 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <sched.h>
 #include <math.h>
 #include <errno.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 char usage[]=
 "csdr - a simple commandline tool for Software Defined Radio receiver DSP.\n\n"
@@ -2039,10 +2042,12 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"cicddc_s16_c")) {
+	int complex_cic;
+	if((!strcmp(argv[1],"cicddc_s16_c")) | (complex_cic=!strcmp(argv[1],"cicddc_cs16_c"))) {
 		float rate=0;
 		int fd;
 		int factor=0, insize, outsize;
+		bigbufs = 1;
 
 		if(argc<=2) return badsyntax("need required parameter(s) (decimation factor, [rate])");
 		sscanf(argv[2],"%d",&factor);
@@ -2060,6 +2065,7 @@ int main(int argc, char *argv[])
 		outsize = the_bufsize / factor;
 		insize = outsize * factor; // make it integer multiple of factor
 		sendbufsize(outsize);
+		if(complex_cic) insize *= 2;
 
 		int16_t *input_buffer = malloc(sizeof(int16_t) * insize);
 		complexf *output_buffer = malloc(sizeof(complexf) * outsize);
@@ -2069,11 +2075,92 @@ int main(int argc, char *argv[])
 		{
 			FEOF_CHECK;
 			fread(input_buffer, sizeof(int16_t), insize, stdin);
-			cicddc_s16_c(state, input_buffer, output_buffer, outsize, rate);
+			if(complex_cic)
+				cicddc_cs16_c(state, input_buffer, output_buffer, outsize, rate);
+			else
+				cicddc_s16_c(state, input_buffer, output_buffer, outsize, rate);
 			fwrite(output_buffer, sizeof(complexf), outsize, stdout);
 			fflush(stdout);
 			read_fifo_ctl(fd,"%g\n",&rate);
 			TRY_YIELD;
+		}
+		cicddc_free(state);
+	}
+
+	if((!strcmp(argv[1],"shm_cicddc_s16_c")) | (complex_cic=!strcmp(argv[1],"shm_cicddc_cs16_c"))) {
+		float rate=0;
+		int fd, shm_fd;
+		int factor=0, insize, outsize;
+		//bigbufs = 1;
+
+		if(argc<=3) return badsyntax("need required parameter(s) (shm name, decimation factor, [rate])");
+		sscanf(argv[3],"%d",&factor);
+		if(fd=init_fifo(argc,argv))
+		{
+			while(!read_fifo_ctl(fd,"%g\n",&rate)) usleep(10000);
+		}
+		else
+		{
+			if(argc<=4) return badsyntax("need required parameters (shm name, decimation factor, rate)");
+			sscanf(argv[4],"%g",&rate);
+		}
+
+		// some code from shmread:
+		void *shm_buf;
+		size_t *shm_p;
+		size_t readpoint_bufs = 0, writepoint_bufs = 0, bufsize_bufs;
+		size_t shm_size, bufsize_bytes, insize_bytes, prevp;
+		struct stat shm_stat;
+		shm_fd = shm_open(argv[2], O_RDONLY, 0644);
+		if(shm_fd < 0) { perror("shm_open failed"); return 1; }
+		if(fstat(shm_fd, &shm_stat) < 0) { perror("fstat failed"); return 1; }
+		shm_size = shm_stat.st_size;
+		bufsize_bytes = shm_size - sizeof(size_t);
+		shm_buf = mmap(0, shm_size, PROT_READ, MAP_SHARED, shm_fd, 0);
+		if(shm_buf == MAP_FAILED) { perror("mmap failed"); return 1; }
+		shm_p = shm_buf + bufsize_bytes;
+		prevp = *shm_p;
+		if(prevp >= bufsize_bytes) return badsyntax("bad pointer value in shm buffer");
+
+		outsize = 0x4000;
+		insize = outsize * factor; // make it integer multiple of factor
+		sendbufsize(outsize);
+		if(complex_cic) insize *= 2;
+
+		insize_bytes = sizeof(int16_t) * insize;
+		/* We don't need modulo or memory mapping tricks if wrap-around occurs at input block boundary.
+		   This needs the SHM buffer size to be a multiple of insize. */
+		if(bufsize_bytes % insize_bytes != 0) return badsyntax("SHM size should be multiple of CIC processing block size");
+
+		bufsize_bufs = bufsize_bytes / insize_bytes;
+		writepoint_bufs = readpoint_bufs = prevp / insize_bytes;
+
+		int16_t *input_buffer /*= malloc(sizeof(int16_t) * insize)*/;
+		complexf *output_buffer = malloc(sizeof(complexf) * outsize);
+
+		void *state = cicddc_init(factor);
+		for(;;)
+		{
+			fprintf(stderr, "%d %d\n", writepoint_bufs, readpoint_bufs);
+			if(writepoint_bufs != readpoint_bufs) {
+				//memcpy(input_buffer, shm_buf + insize_bytes * readpoint_bufs, insize_bytes);
+				input_buffer = (int16_t*)(shm_buf + insize_bytes * readpoint_bufs);
+				if(complex_cic)
+					cicddc_cs16_c(state, input_buffer, output_buffer, outsize, rate);
+				else
+					cicddc_s16_c(state, input_buffer, output_buffer, outsize, rate);
+				fwrite(output_buffer, sizeof(complexf), outsize, stdout);
+				fflush(stdout);
+
+				// advance pointer:
+				readpoint_bufs++;
+				if(readpoint_bufs >= bufsize_bufs) readpoint_bufs = 0;
+			} else {
+				usleep(50000);
+				read_fifo_ctl(fd,"%g\n",&rate);
+				writepoint_bufs = (*shm_p) / insize_bytes;
+			}
+			/*TRY_YIELD;*/
 		}
 		cicddc_free(state);
 	}
