@@ -2083,7 +2083,7 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk
     for(int i=0;i<input_size;i++)
     {
         complexf nco_sample;
-        e_powj(&nco_sample, -s->nco_phase);
+        e_powj(&nco_sample, s->nco_phase);
         cmult(&output[i], &input[i], &nco_sample);
         float error = 0;
         if(s->decision_directed)
