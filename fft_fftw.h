@@ -22,6 +22,7 @@ struct fft_plan_s
 #include "libcsdr.h"
 
 FFT_PLAN_T* make_fft_c2c(int size, complexf* input, complexf* output, int forward, int benchmark);
+FFT_PLAN_T* make_fft_r2c(int size, float* input, complexf* output, int benchmark);
 void fft_execute(FFT_PLAN_T* plan);
 void fft_destroy(FFT_PLAN_T* plan);
 

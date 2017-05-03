@@ -1246,6 +1246,13 @@ void apply_precalculated_window_c(complexf* input, complexf* output, int size, f
 	}
 }
 
+void apply_precalculated_window_f(float* input, float* output, int size, float *windowt)
+{
+	for(int i=0;i<size;i++) //@apply_precalculated_window_f
+	{
+		output[i] = input[i] * windowt[i];
+	}
+}
 
 void apply_window_f(float* input, float* output, int size, window_t window)
 {
