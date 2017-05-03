@@ -1306,6 +1306,8 @@ int main(int argc, char *argv[])
 		int octave=0;
 		window_t window = WINDOW_DEFAULT;
 
+		int int_in=0;
+		int16_t *input_int;
 		// for averaging:
 		float add_db=0;
 		int avgnumber=0, n_averaged=0;
@@ -1319,6 +1321,8 @@ int main(int argc, char *argv[])
 			output2 = malloc(sizeof(float) * fft_size);
 
 			add_db -= 10.0*log10(avgnumber);
+			if(argc >= 7 && !strcmp(argv[6], "--cs16_in"))
+				int_in = 1;
 		} else {
 			if(argc>=5)
 			{
@@ -1349,23 +1353,37 @@ int main(int argc, char *argv[])
 		if(octave) printf("setenv(\"GNUTERM\",\"X11 noraise\");y=zeros(1,%d);semilogy(y,\"ydatasource\",\"y\");\n",fft_size);
 		float *windowt;
 		windowt = precalculate_window(fft_size, window);
+		size_t sizeof_in = sizeof(complexf);
+		if(int_in) {
+			sizeof_in = 2*sizeof(int16_t);
+			input_int = (int16_t*)malloc(sizeof(int16_t)*fft_size*2);
+		}
 		for(;;)
 		{
 			FEOF_CHECK;
 			if(every_n_samples>fft_size)
 			{
-				fread(input, sizeof(complexf), fft_size, stdin);
+				fread(int_in ?(void*)input_int :(void*)input, sizeof_in, fft_size, stdin);
+				if(int_in)
+				convert_i16_f(input_int, (float*)input, 2*fft_size);
+
 				//skipping samples before next FFT (but fseek doesn't work for pipes)
 				for(int seek_remain=every_n_samples-fft_size;seek_remain>0;seek_remain-=the_bufsize)
 				{
-					fread(temp_f, sizeof(complexf), MIN_M(the_bufsize,seek_remain), stdin);
+					fread(temp_f, sizeof_in, MIN_M(the_bufsize,seek_remain), stdin);
 				}
 			}
 			else
 			{
 				//overlapped FFT
 				for(int i=0;i<fft_size-every_n_samples;i++) input[i]=input[i+every_n_samples];
-				fread(input+fft_size-every_n_samples, sizeof(complexf), every_n_samples, stdin);
+				fread(int_in ?(void*)(input_int+2*(fft_size-every_n_samples))
+				             :(void*)(       input+fft_size-every_n_samples),
+				      sizeof_in, every_n_samples, stdin);
+
+				if(int_in)
+				convert_i16_f(input_int +2*(fft_size-every_n_samples),
+				         ((float*)input)+2*(fft_size-every_n_samples), 2*every_n_samples);
 			}
 			//apply_window_c(input,windowed,fft_size,window);
 			apply_precalculated_window_c(input,windowed,fft_size,windowt);
