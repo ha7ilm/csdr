@@ -1293,7 +1293,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(!strcmp(argv[1],"fft_cc"))
+	int combined_logavg;
+	if((!strcmp(argv[1],"fft_cc")) || (combined_logavg = !strcmp(argv[1],"fft_cc_logavg")) )
 	{
 		if(argc<=3) return badsyntax("need required parameters (fft_size, out_of_every_n_samples)");
 		int fft_size;
@@ -1304,19 +1305,35 @@ int main(int argc, char *argv[])
 		int benchmark=0;
 		int octave=0;
 		window_t window = WINDOW_DEFAULT;
-		if(argc>=5)
-		{
-			window=firdes_get_window_from_string(argv[4]);
-		}
-		if(argc>=6)
-		{
-			benchmark|=!strcmp("--benchmark",argv[5]);
-			octave|=!strcmp("--octave",argv[5]);
-		}
-		if(argc>=7)
-		{
-			benchmark|=!strcmp("--benchmark",argv[6]);
-			octave|=!strcmp("--octave",argv[6]);
+
+		// for averaging:
+		float add_db=0;
+		int avgnumber=0, n_averaged=0;
+		float *output2;
+		if(combined_logavg) {
+			if(argc<=5) return badsyntax("need required parameters (fft_size, out_of_every_n_samples, add_db, avgnumber)");
+
+			sscanf(argv[4],"%g",&add_db);
+			sscanf(argv[5],"%d",&avgnumber);
+
+			output2 = malloc(sizeof(float) * fft_size);
+
+			add_db -= 10.0*log10(avgnumber);
+		} else {
+			if(argc>=5)
+			{
+				window=firdes_get_window_from_string(argv[4]);
+			}
+			if(argc>=6)
+			{
+				benchmark|=!strcmp("--benchmark",argv[5]);
+				octave|=!strcmp("--octave",argv[5]);
+			}
+			if(argc>=7)
+			{
+				benchmark|=!strcmp("--benchmark",argv[6]);
+				octave|=!strcmp("--octave",argv[6]);
+			}
 		}
 
 		if(!initialize_buffers()) return -2;
@@ -1353,6 +1370,20 @@ int main(int argc, char *argv[])
 			//apply_window_c(input,windowed,fft_size,window);
 			apply_precalculated_window_c(input,windowed,fft_size,windowt);
 			fft_execute(plan);
+			if(combined_logavg) {
+				int i;
+				accumulate_power_cf((complexf*)output, output2, fft_size);
+				n_averaged++;
+				if(n_averaged >= avgnumber) {
+					log_ff(output2, output2, fft_size, add_db);
+					fwrite (output2, sizeof(float), fft_size, stdout);
+					TRY_YIELD;
+					for(i = 0; i < fft_size; i++) {
+						output2[i] = 0;
+					}
+					n_averaged = 0;
+				}
+			} else
 			if(octave)
 			{
 				printf("fftdata=[");
@@ -2160,7 +2191,7 @@ int main(int argc, char *argv[])
 				else
 					cicddc_s16_c(state, input_buffer, output_buffer, outsize, rate);
 				fwrite(output_buffer, sizeof(complexf), outsize, stdout);
-				//fflush(stdout);
+				fflush(stdout);
 
 				// advance pointer:
 				readpoint_bufs++;
@@ -2169,8 +2200,10 @@ int main(int argc, char *argv[])
 				ssize_t newdelay = -1;
 				usleep(50000);
 				read_fifo_ctl(fd,"%g %zd\n",&rate, &newdelay);
-				if(newdelay >= 0 && newdelay < bufsize_bytes)
+				if(newdelay >= 0 && newdelay < bufsize_bytes) {
 					extradelay = newdelay / insize_bytes;
+					fprintf(stderr, "delaying: %zd %zd\n", extradelay, newdelay);
+				}
 
 				writepoint_bufs = (*shm_p) / insize_bytes;
 			}
