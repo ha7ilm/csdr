@@ -2091,7 +2091,7 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	int complex_cic;
+	{int complex_cic, cu8_cic;
 	if((!strcmp(argv[1],"cicddc_s16_c")) | (complex_cic=!strcmp(argv[1],"cicddc_cs16_c"))) {
 		float rate=0;
 		int fd;
@@ -2136,7 +2136,10 @@ int main(int argc, char *argv[])
 		cicddc_free(state);
 	}
 
-	if((!strcmp(argv[1],"shm_cicddc_s16_c")) | (complex_cic=!strcmp(argv[1],"shm_cicddc_cs16_c"))) {
+	/* For now, complex uint8 is handled similarly to real int16 because the size is the same.
+	   (Two 8-bit numbers in one "int16_t") */
+	if((!strcmp(argv[1],"shm_cicddc_s16_c")) | (complex_cic=!strcmp(argv[1],"shm_cicddc_cs16_c"))
+	| (cu8_cic=!strcmp(argv[1],"shm_cicddc_cu8_c"))) {
 		float rate=0;
 		int fd, shm_fd;
 		int factor=0, insize, outsize;
@@ -2204,7 +2207,9 @@ int main(int argc, char *argv[])
 				   (at least on the server I tested it on). */
 				memcpy(input_buffer, shm_buf + insize_bytes * readpoint_bufs1, insize_bytes);
 
-				if(complex_cic)
+				if(cu8_cic)
+					cicddc_cu8_c(state, (uint8_t*)input_buffer, output_buffer, outsize, rate);
+				else if(complex_cic)
 					cicddc_cs16_c(state, input_buffer, output_buffer, outsize, rate);
 				else
 					cicddc_s16_c(state, input_buffer, output_buffer, outsize, rate);
@@ -2228,7 +2233,7 @@ int main(int argc, char *argv[])
 			/*TRY_YIELD;*/
 		}
 		cicddc_free(state);
-	}
+	}}
 
 	if(!strcmp(argv[1],"none"))
 	{
