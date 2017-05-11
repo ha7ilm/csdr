@@ -3,7 +3,11 @@ nmux
 ddcd
 *.o
 *.so
+*.so.*
 tags
 dumpvect.*.vect
 grc_tests/top_block.py
 *.swp
+csdrpy.i
+csdrpy.py*
+csdrpy_wrap.*

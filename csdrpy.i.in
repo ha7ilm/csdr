@@ -1,0 +1,21 @@
+%module csdrpy
+
+%{
+#define SWIG_FILE_WITH_INIT
+#define LIBCSDR_GPL
+#define USE_FFTW
+#define USE_IMA_ADPCM
+
+#include "predefined.h"
+#include "fastddc.h"
+#include "libcsdr.h"
+#include "libcsdr_gpl.h"
+#include "fft_fftw.h"
+#include "fft_rpi.h"
+#include "ima_adpcm.h"
+%}
+
+%feature("autodoc", "2");
+
+/* contents of libcsdr.h will be appended below for processing by swig */
+
