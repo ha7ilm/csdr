@@ -52,7 +52,8 @@ libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastd
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
 	rm -f dumpvect*.vect
-	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -Wl,-soname,libcsdr.so.$(SOVERSION) -o libcsdr.so
+	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -Wl,-soname,libcsdr.so.$(SOVERSION) -o libcsdr.so.$(SOVERSION)
+	@ln -fs libcsdr.so.$(SOVERSION) libcsdr.so
 	-./parsevect dumpvect*.vect
 csdr: csdr.c libcsdr.so
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
@@ -66,19 +67,19 @@ arm-cross: clean-vect
 clean-vect:
 	rm -f dumpvect*.vect
 clean: clean-vect
-	rm -f libcsdr.so csdr ddcd nmux
+	rm -f libcsdr.so.$(SOVERSION) csdr ddcd nmux *.o *.so
 install: all 
-	install -m 0755 libcsdr.so $(PREFIX)/lib
+	install -m 0755 libcsdr.so.$(SOVERSION) $(PREFIX)/lib
 	install -m 0755 csdr $(PREFIX)/bin
 	install -m 0755 csdr-fm $(PREFIX)/bin
 	install -m 0755 nmux $(PREFIX)/bin
 	#-install -m 0755 ddcd $(PREFIX)/bin
 	@ldconfig || echo please run ldconfig
 uninstall:
-	rm $(PREFIX)/lib/libcsdr.so $(PREFIX)/bin/csdr $(PREFIX)/bin/csdr-fm
+	rm $(PREFIX)/lib/libcsdr.so.$(SOVERSION) $(PREFIX)/bin/csdr $(PREFIX)/bin/csdr-fm
 	ldconfig
 disasm:
-	objdump -S libcsdr.so > libcsdr.disasm
+	objdump -S libcsdr.so.$(SOVERSION) > libcsdr.disasm
 emcc-clean:
 	-rm sdr.js/sdr.js
 	-rm sdr.js/sdrjs-compiled.js
