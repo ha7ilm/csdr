@@ -43,6 +43,7 @@ PARAMS_MISC = -Wno-unused-result
 #PARAMS_DEBUG = $(if $(DEBUG_ON),-g,)
 FFTW_PACKAGE = fftw-3.3.3
 PREFIX ?= /usr
+SOVERSION = 0.15
 
 .PHONY: clean-vect clean
 all: csdr nmux
@@ -51,7 +52,7 @@ libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastd
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
 	rm -f dumpvect*.vect
-	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -o libcsdr.so
+	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -Wl,-soname,libcsdr.so.$(SOVERSION) -o libcsdr.so
 	-./parsevect dumpvect*.vect
 csdr: csdr.c libcsdr.so
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
