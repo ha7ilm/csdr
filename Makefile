@@ -42,6 +42,7 @@ PARAMS_MISC = -Wno-unused-result
 #DEBUG_ON = 0 #debug is always on by now (anyway it could be compiled with `make DEBUG_ON=1`)
 #PARAMS_DEBUG = $(if $(DEBUG_ON),-g,)
 FFTW_PACKAGE = fftw-3.3.3
+PREFIX ?= /usr
 
 .PHONY: clean-vect clean
 all: csdr nmux
@@ -66,14 +67,14 @@ clean-vect:
 clean: clean-vect
 	rm -f libcsdr.so csdr ddcd nmux
 install: all 
-	install -m 0755 libcsdr.so /usr/lib
-	install -m 0755 csdr /usr/bin
-	install -m 0755 csdr-fm /usr/bin
-	install -m 0755 nmux /usr/bin
-	#-install -m 0755 ddcd /usr/bin
-	ldconfig
+	install -m 0755 libcsdr.so $(PREFIX)/lib
+	install -m 0755 csdr $(PREFIX)/bin
+	install -m 0755 csdr-fm $(PREFIX)/bin
+	install -m 0755 nmux $(PREFIX)/bin
+	#-install -m 0755 ddcd $(PREFIX)/bin
+	ldconfig || echo please run ldconfig
 uninstall:
-	rm /usr/lib/libcsdr.so /usr/bin/csdr /usr/bin/csdr-fm
+	rm $(PREFIX)/lib/libcsdr.so $(PREFIX)/bin/csdr $(PREFIX)/bin/csdr-fm
 	ldconfig
 disasm:
 	objdump -S libcsdr.so > libcsdr.disasm
