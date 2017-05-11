@@ -93,7 +93,7 @@
     </param>
     <param>
       <key>value</key>
-      <value>100e3</value>
+      <value>1e3</value>
     </param>
   </block>
   <block>
@@ -344,7 +344,7 @@
     </param>
     <param>
       <key>samples_per_second</key>
-      <value>samp_rate</value>
+      <value>samp_rate*10</value>
     </param>
     <param>
       <key>type</key>
@@ -363,7 +363,7 @@
     </param>
     <param>
       <key>commandline</key>
-      <value>csdr resonators_fir_cc 101 -0.2 -0.1 0 0.1 0.2</value>
+      <value>csdr peaks_fir_cc 101 -0.2 -0.1 0 0.1 0.2</value>
     </param>
     <param>
       <key>comment</key>

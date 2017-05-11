@@ -125,7 +125,7 @@ char usage[]=
 "    invert_u8_u8\n"
 "    rtty_line_decoder_u8_u8\n"
 "    rtty_baudot2ascii_u8_u8\n"
-"    serial_line_decoder_u8_u8\n"
+"    serial_line_decoder_f_u8 <samples_per_bits> [databits [stopbits]]\n"
 "    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
 "    timing_recovery_cc <algorithm> <decimation> [mu [--add_q [--output_error | --output_indexes | --octave <debug_n>]]] \n"
 "    psk31_varicode_encoder_u8_u8\n"
@@ -139,20 +139,21 @@ char usage[]=
 "    bpsk_costas_loop_cc <loop_bandwidth> <damping_factor> <gain> [--dd | --decision_directed]\n"
 "    binary_slicer_f_u8\n"
 "    simple_agc_cc <rate> [reference [max_gain]]\n"
-"    firdes_resonator_c <rate> <length> [window [--octave]]\n"
-"    resonators_fir_cc <taps_length> [resonator_rate × N]\n"
+"    firdes_peak_c <rate> <length> [window [--octave]]\n"
+"    peaks_fir_cc <taps_length> [peak_rate × N]\n"
 "    repeat_u8 <data_bytes × N>\n"
 "    uniform_noise_f\n"
 "    gaussian_noise_c\n"
 "    awgn_cc <snr_db> [--snrshow]\n"
 "    pack_bits_8to1_u8_u8\n"
-"    firdes_matched_filter_f (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)\n"
-"    matched_filter_cc (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)\n"
+"    firdes_pulse_shaping_filter_f (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)\n"
+"    pulse_shaping_filter_cc (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)\n"
 "    add_n_zero_samples_at_beginning_f <n_zero_samples>\n"
 "    generic_slicer_f_u8 <n_symbols>\n"
-"    plain_interpolate_cc <n_symbols>\n"
+"    plain_interpolate_cc <interpolation>\n"
 "    add_const_cc <i> <q>\n"
 "    tee <path> [buffers]\n"
+"    pll_cc (1 [alpha] |2 [bandwidth [damping_factor [ko [kd]]]])\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -2465,7 +2466,7 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    if(!strcmp(argv[1],"serial_line_decoder_f_u8"))
+    if(!strcmp(argv[1],"serial_line_decoder_f_u8")) //<samples_per_bits> [databits [stopbits]]
     {
         bigbufs=1;
 
@@ -2848,7 +2849,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(!strcmp(argv[1],"firdes_resonator_c")) //<rate> <length> [window [--octave]]
+    if(!strcmp(argv[1],"firdes_peak_c")) //<rate> <length> [window [--octave]]
     {
         //Process the params
         if(argc<=3) return badsyntax("need required parameters (rate, length)");
@@ -2891,7 +2892,7 @@ int main(int argc, char *argv[])
         return 0;
     }
  
-    if(!strcmp(argv[1],"resonators_fir_cc")) //<taps_length> <resonator_rate × N>
+    if(!strcmp(argv[1],"peaks_fir_cc")) //<taps_length> <peak_rate × N>
     {
         //rule of thumb: bw = 2/taps_length,   which does not equal to transition_bw
 
@@ -2899,12 +2900,12 @@ int main(int argc, char *argv[])
         int taps_length;
         sscanf(argv[2],"%d",&taps_length);
 
-        int num_resonators = argc-3;
-        float* resonator_rate = (float*)malloc(sizeof(float)*num_resonators);
-        for(int i=0;i<num_resonators;i++)
-            sscanf(argv[3+i], "%f", resonator_rate+i);
-        if(num_resonators<=0) return badsyntax("need required parameter (resonator_rate) once or multiple times");
-        //for(int i=0;i<num_resonators;i++) fprintf(stderr, "%f\n", resonator_rate[i]);
+        int num_peaks = argc-3;
+        float* peak_rate = (float*)malloc(sizeof(float)*num_peaks);
+        for(int i=0;i<num_peaks;i++)
+            sscanf(argv[3+i], "%f", peak_rate+i);
+        if(num_peaks<=0) return badsyntax("need required parameter (peak_rate) once or multiple times");
+        //for(int i=0;i<num_peaks;i++) fprintf(stderr, "%f\n", peak_rate[i]);
         fflush(stderr);
 
         window_t window = WINDOW_DEFAULT;
@@ -2914,10 +2915,10 @@ int main(int argc, char *argv[])
         if(the_bufsize - taps_length <= 0 ) return badsyntax("taps_length is below buffer size, decrease taps_length");
 
         complexf* taps = (complexf*)calloc(sizeof(complexf),taps_length);
-        for(int i=0; i<num_resonators; i++)
+        for(int i=0; i<num_peaks; i++)
         {
-            //fprintf(stderr, "nr = %d\n", i==num_resonators-1);
-            firdes_add_resonator_c(taps, taps_length, resonator_rate[i], window, 1, i==num_resonators-1);
+            //fprintf(stderr, "nr = %d\n", i==num_peaks-1);
+            firdes_add_resonator_c(taps, taps_length, peak_rate[i], window, 1, i==num_peaks-1);
         }
 
         int output_size=0;
@@ -3075,13 +3076,13 @@ int main(int argc, char *argv[])
         clone_(the_bufsize);
     }
 
-    int matched_filter_which = 0;
+    int pulse_shaping_filter_which = 0;
     if(
-            (!strcmp(argv[1], "firdes_matched_filter_f") && (matched_filter_which = 1)) ||
-            (!strcmp(argv[1], "matched_filter_cc") && (matched_filter_which = 2))
+            (!strcmp(argv[1], "firdes_pulse_shaping_filter_f") && (pulse_shaping_filter_which = 1)) ||
+            (!strcmp(argv[1], "pulse_shaping_filter_cc") && (pulse_shaping_filter_which = 2))
     ) //(RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)
     {
-        if(argc<=2) return badsyntax("required parameter <matched_filter_type> is missing.");
+        if(argc<=2) return badsyntax("required parameter <pulse_shaping_filter_type> is missing.");
         matched_filter_type_t type = matched_filter_get_type_from_string(argv[2]);
 
         int samples_per_symbol = 0;
@@ -3117,7 +3118,7 @@ int main(int argc, char *argv[])
 
         if(!sendbufsize(initialize_buffers())) return -2;
 
-        if(matched_filter_which==1)
+        if(pulse_shaping_filter_which==1)
         {
             for(int i=0;i<num_taps;i++) printf("%f ", taps[i]);
             return 0;
