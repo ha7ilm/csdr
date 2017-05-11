@@ -72,7 +72,7 @@ install: all
 	install -m 0755 csdr-fm $(PREFIX)/bin
 	install -m 0755 nmux $(PREFIX)/bin
 	#-install -m 0755 ddcd $(PREFIX)/bin
-	ldconfig || echo please run ldconfig
+	@ldconfig || echo please run ldconfig
 uninstall:
 	rm $(PREFIX)/lib/libcsdr.so $(PREFIX)/bin/csdr $(PREFIX)/bin/csdr-fm
 	ldconfig
