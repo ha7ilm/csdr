@@ -136,7 +136,7 @@ char usage[]=
 "    psk_modulator_u8_c <n_psk>\n"
 "    psk31_interpolate_sine_cc <interpolation>\n"
 "    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
-"    bpsk_costas_loop_cc <loop_bandwidth> <damping_factor> [--dd | --decision_directed] [--output_error | --output_dphase | --output_nco | --octave]\n"
+"    bpsk_costas_loop_cc //<loop_bandwidth> <damping_factor> [--dd | --decision_directed] [--output_error | --output_dphase | --output_nco | --output_combined <error_file> <dphase_file> <nco_file>]\n"
 "    binary_slicer_f_u8\n"
 "    simple_agc_cc <rate> [reference [max_gain]]\n"
 "    firdes_peak_c <rate> <length> [window [--octave]]\n"
@@ -2786,7 +2786,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(!strcmp(argv[1],"bpsk_costas_loop_cc")) //<loop_bandwidth> <damping_factor> [--dd | --decision_directed] [--output_error | --output_dphase | --output_nco | --octave]
+    if(!strcmp(argv[1],"bpsk_costas_loop_cc")) //<loop_bandwidth> <damping_factor> [--dd | --decision_directed] [--output_error | --output_dphase | --output_nco | --output_combined <error_file> <dphase_file> <nco_file>]
     {
         float loop_bandwidth;
         if(argc<=2) return badsyntax("need required parameter (loop_bandwidth)");
@@ -2797,13 +2797,13 @@ int main(int argc, char *argv[])
         sscanf(argv[3],"%f",&damping_factor);
 
         int decision_directed = !!(argc>4 && (!strcmp(argv[4], "--dd") || !strcmp(argv[5], "--decision_directed")));
+        if(decision_directed) { errhead(); fprintf(stderr, "decision directed mode\n"); }
 
-        int output_error  =                  !!(argc>4+decision_directed && (!strcmp(argv[4+decision_directed], "--output_error")));
-        int output_dphase = !output_error  & !!(argc>4+decision_directed && (!strcmp(argv[4+decision_directed], "--output_dphase")));
-        int output_nco    = !output_dphase & !!(argc>4+decision_directed && (!strcmp(argv[4+decision_directed], "--output_nco")));
-        int octave        = !output_nco    & !!(argc>4+decision_directed && (!strcmp(argv[4+decision_directed], "--octave")));
+        int output_error    =                  !!(argc>4+decision_directed && (!strcmp(argv[4+decision_directed], "--output_error")));
+        int output_dphase   = !output_error  & !!(argc>4+decision_directed && (!strcmp(argv[4+decision_directed], "--output_dphase")));
+        int output_nco      = !output_dphase & !!(argc>4+decision_directed && (!strcmp(argv[4+decision_directed], "--output_nco")));
+        int output_combined = !output_nco    & !!(argc>4+decision_directed && (!strcmp(argv[4+decision_directed], "--output_combined")));
 
-        if(decision_directed && !octave) { errhead(); fprintf(stderr, "decision directed mode\n"); }
 
         bpsk_costas_loop_state_t state;
         init_bpsk_costas_loop_cc(&state, decision_directed, damping_factor, loop_bandwidth);
@@ -2811,11 +2811,21 @@ int main(int argc, char *argv[])
         if(!initialize_buffers()) return -2;
         sendbufsize(the_bufsize);
 
-        float* buffer_output_error  = (!(octave || output_error))  ? NULL : (float*)malloc(sizeof(float)*the_bufsize);
-        float* buffer_output_dphase = (!(octave || output_dphase)) ? NULL : (float*)malloc(sizeof(float)*the_bufsize);
-        complexf* buffer_output_nco = (!(octave || output_nco))    ? NULL : (complexf*)malloc(sizeof(complexf)*the_bufsize);
+        float* buffer_output_error  = (!(output_combined || output_error))  ? NULL : (float*)malloc(sizeof(float)*the_bufsize);
+        float* buffer_output_dphase = (!(output_combined || output_dphase)) ? NULL : (float*)malloc(sizeof(float)*the_bufsize);
+        complexf* buffer_output_nco = (!(output_combined || output_nco))    ? NULL : (complexf*)malloc(sizeof(complexf)*the_bufsize);
 
-        if(octave) fprintf(stderr, "error=[]; dphase=[]; nco=[];\n");
+        FILE* file_output_error = NULL;
+        FILE* file_output_dphase = NULL;
+        FILE* file_output_nco = NULL;
+        if(!(argc>4+decision_directed+3)) { errhead(); return badsyntax("need required parameters after --output_combined: <error_file> <dphase_file> <nco_file>"); }
+        if(output_combined)
+        {
+            file_output_error  = fopen(argv[4+decision_directed+1], "w");
+            file_output_dphase = fopen(argv[4+decision_directed+2], "w");
+            file_output_nco    = fopen(argv[4+decision_directed+3], "w");
+        }
+
         for(;;)
         {
             FEOF_CHECK;
@@ -2826,19 +2836,21 @@ int main(int argc, char *argv[])
             if(output_error) fwrite(buffer_output_error, sizeof(float), the_bufsize, stdout);
             else if(output_dphase) fwrite(buffer_output_dphase, sizeof(float), the_bufsize, stdout);
             else if(output_nco) fwrite(buffer_output_nco, sizeof(complexf), the_bufsize, stdout);
-            else if(octave) 
+            else 
             {
-                fprintf(stderr, "error=[error ");
-                for(int i=0; i<the_bufsize; i++) fprintf(stderr, "%f ", buffer_output_error[i]);
-                fprintf(stderr, "]; dphase=[dphase ");
-                for(int i=0; i<the_bufsize; i++) fprintf(stderr, "%f ", buffer_output_dphase[i]);
-                fprintf(stderr, "]; nco=[nco ");
-                for(int i=0; i<the_bufsize; i++) fprintf(stderr, "(%f)+(%f)*i", buffer_output_nco[i].i, buffer_output_nco[i].q);
-                fprintf(stderr, "];\n");
+                if(output_combined) 
+                {
+                    fwrite(buffer_output_error, sizeof(float), the_bufsize, file_output_error);
+                    fwrite(buffer_output_dphase, sizeof(float), the_bufsize, file_output_dphase);
+                    fwrite(buffer_output_nco, sizeof(complexf), the_bufsize, file_output_nco);
+                }
+                FWRITE_C; 
             }
-            else { FWRITE_C; }
             TRY_YIELD;
         }
+        fclose(file_output_error);
+        fclose(file_output_dphase);
+        fclose(file_output_nco);
     }
 
     if(!strcmp(argv[1],"simple_agc_cc")) //<rate> [reference [max_gain]] 
