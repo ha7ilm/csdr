@@ -2076,21 +2076,23 @@ char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algo
     return "INVALID";
 }
 
-void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed, float damping_factor, float bandwidth, float gain)
+void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed, float damping_factor, float bandwidth)
 {
-    float bandwidth_omega = 2*M_PI*bandwidth;
-    s->alpha = (damping_factor*2*bandwidth_omega)/gain;
-    float sampling_rate = 1; //the bandwidth is normalized to the sampling rate
-    s->beta = (bandwidth_omega*bandwidth_omega)/(sampling_rate*gain);
+    //based on: http://gnuradio.squarespace.com/blog/2011/8/13/control-loop-gain-values.html
+    float bandwidth_omega = 2*M_PI*bandwidth; //so that the bandwidth should be around 0.01 by default (2pi/100), and the damping_factor should be default 0.707
+    float denomiator = 1+2*damping_factor*bandwidth_omega+bandwidth_omega*bandwidth_omega;
+    s->alpha = (4*damping_factor*bandwidth_omega)/denomiator;
+    s->beta = (4*bandwidth_omega*bandwidth_omega)/denomiator;
     s->iir_temp = s->dphase = s->nco_phase = 0;
 }
 
-void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* s)
+void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, float* output_error, float* output_dphase, complexf* output_nco, bpsk_costas_loop_state_t* s)
 {
     for(int i=0;i<input_size;i++)
     {
         complexf nco_sample;
-        e_powj(&nco_sample, s->nco_phase);
+        e_powj(&nco_sample, -s->nco_phase);
+        if(output_nco) output_nco[i]=nco_sample;
         cmult(&output[i], &input[i], &nco_sample);
         float error = 0;
         if(s->decision_directed)
@@ -2104,10 +2106,14 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk
                 while(error>PI) error -= 2*PI;
             }
         }
-        else error = iof(output,i)*qof(output,i);
+        else error = PI*iof(output,i)*qof(output,i);
+        if(output_error) output_error[i]=error;
         s->dphase = error * s->alpha + s->iir_temp;
-        s->iir_temp += error * s->beta;
-        //fprintf(stderr, "  error = %f, dphase = %f, nco_phase = %f\n", error, s->dphase, s->nco_phase);
+        s->iir_temp += error * s->beta; //iir_temp could be named current_freq. See Tom Rondeau's article for better understanding.
+        if(s->dphase>PI) s->dphase=PI;
+        if(s->dphase<-PI) s->dphase=-PI;
+        if(output_dphase) output_dphase[i]=s->dphase;
+        //fprintf(stderr, "  error = %f; dphase = %f; nco_phase = %f;\n", error, s->dphase, s->nco_phase);
 
         //step NCO
         s->nco_phase += s->dphase;
@@ -2171,7 +2177,6 @@ void bpsk_costas_loop_c1mc(complexf* input, complexf* output, int input_size, bp
         cmult(&output[i], &input[i], &vco_sample);
     }
 }
-
 #endif
 
 void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate, float reference, float max_gain, float* current_gain)

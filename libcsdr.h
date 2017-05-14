@@ -375,7 +375,8 @@ typedef struct bpsk_costas_loop_state_s
 } bpsk_costas_loop_state_t;
 
 void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);
-void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, bpsk_costas_loop_state_t* state);
+void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, float* output_error, float* output_dphase, complexf* output_nco, bpsk_costas_loop_state_t* s);
+void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed, float damping_factor, float bandwidth);
 
 void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate, float reference, float max_gain, float* current_gain);
 void firdes_add_resonator_c(complexf* output, int length, float rate, window_t window, int add, int normalize);
@@ -405,5 +406,4 @@ int apply_real_fir_cc(complexf* input, complexf* output, int input_size, float* 
 void generic_slicer_f_u8(float* input, unsigned char* output, int input_size, int n_symbols);
 void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);;
 void normalize_fir_f(float* input, float* output, int length);
-void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed, float damping_factor, float bandwidth, float gain);
 float* add_const_cc(complexf* input, complexf* output, int input_size, complexf x);
