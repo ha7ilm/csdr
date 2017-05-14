@@ -2807,6 +2807,7 @@ int main(int argc, char *argv[])
 
         bpsk_costas_loop_state_t state;
         init_bpsk_costas_loop_cc(&state, decision_directed, damping_factor, loop_bandwidth);
+        errhead(); fprintf(stderr, "alpha = %f, beta = %f\n", state.alpha, state.beta);
 
         if(!initialize_buffers()) return -2;
         sendbufsize(the_bufsize);

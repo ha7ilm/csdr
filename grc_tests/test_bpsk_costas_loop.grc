@@ -693,7 +693,7 @@
     </param>
     <param>
       <key>commandline</key>
-      <value>tee /s/costas_input | csdr bpsk_costas_loop_cc 0.01 0.707 --dd --output_combined /s/costas_error /s/costas_dphase /s/costas_nco | tee /s/costas_output</value>
+      <value>tee /s/costas_input | csdr bpsk_costas_loop_cc 0.1 0.707 --output_combined /s/costas_error /s/costas_dphase /s/costas_nco | tee /s/costas_output</value>
     </param>
     <param>
       <key>comment</key>

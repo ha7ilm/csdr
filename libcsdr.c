@@ -2078,8 +2078,9 @@ char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algo
 
 void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed, float damping_factor, float bandwidth)
 {
+    //fprintf(stderr, "init_bpsk_costas_loop_cc: bandwidth = %f, damping_factor = %f\n", bandwidth, damping_factor);
     //based on: http://gnuradio.squarespace.com/blog/2011/8/13/control-loop-gain-values.html
-    float bandwidth_omega = 2*M_PI*bandwidth; //so that the bandwidth should be around 0.01 by default (2pi/100), and the damping_factor should be default 0.707
+    float bandwidth_omega = 2*PI*bandwidth; //so that the bandwidth should be around 0.01 by default (2pi/100), and the damping_factor should be default 0.707
     float denomiator = 1+2*damping_factor*bandwidth_omega+bandwidth_omega*bandwidth_omega;
     s->alpha = (4*damping_factor*bandwidth_omega)/denomiator;
     s->beta = (4*bandwidth_omega*bandwidth_omega)/denomiator;
@@ -2091,9 +2092,9 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, floa
     for(int i=0;i<input_size;i++)
     {
         complexf nco_sample;
-        e_powj(&nco_sample, -s->nco_phase);
-        if(output_nco) output_nco[i]=nco_sample;
+        e_powj(&nco_sample, s->nco_phase);
         cmult(&output[i], &input[i], &nco_sample);
+        if(output_nco) output_nco[i]=nco_sample;
         float error = 0;
         if(s->decision_directed)
         {
