@@ -49,7 +49,7 @@ end
 
 function variance=run_var(snr, which_ted)
     disp('ran a command')
-    out_vect=shrun(sprintf('cat /tmp/psk31-raw-data | csdr awgn_cc %d --awgnfile /tmp/psk31-gaussian-noise | csdr timing_recovery_cc %s 256 --add_q --output_indexes | CSDR_FIXED_BUFSIZE=1048576 csdr normalized_timing_variance_u32_f 256 85', snr, which_ted), 'float32', 1);
+    out_vect=shrun(sprintf('cat /tmp/psk31-raw-data | csdr awgn_cc %d --awgnfile /tmp/psk31-gaussian-noise | csdr timing_recovery_cc %s 256 0.5 2 --add_q --output_indexes | CSDR_FIXED_BUFSIZE=1048576 csdr normalized_timing_variance_u32_f 256 85', snr, which_ted), 'float32', 1);
     disp('run_var output:');
     out_vect'
     variance=out_vect(1);

@@ -127,7 +127,7 @@ char usage[]=
 "    rtty_baudot2ascii_u8_u8\n"
 "    serial_line_decoder_f_u8 <samples_per_bits> [databits [stopbits]]\n"
 "    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
-"    timing_recovery_cc <algorithm> <decimation> [mu [--add_q [--output_error | --output_indexes | --octave <show_every_nth> | --octave_save <show_every_nth> <directory> ]]] \n"
+"    timing_recovery_cc <algorithm> <decimation> [mu [max_error [--add_q [--output_error | --output_indexes | --octave <show_every_nth> | --octave_save <show_every_nth> <directory> ]]]] \n"
 "    psk31_varicode_encoder_u8_u8\n"
 "    psk31_varicode_decoder_u8_u8\n"
 "    differential_encoder_u8_u8\n"
@@ -2585,11 +2585,11 @@ int main(int argc, char *argv[])
         }
         if(debug_every_nth<0) { errhead(); fprintf(stderr, "--add_q mode on\n"); }
 
-        if(argc>=(8+add_q) && !strcmp(argv[7+add_q], "--output_error")) output_error = 1;
+        if(argc>=(7+add_q) && !strcmp(argv[6+add_q], "--output_error")) output_error = 1;
         float* timing_error = NULL;
         if(output_error) timing_error = (float*)malloc(sizeof(float)*the_bufsize);
 
-        if(argc>=(8+add_q) && !strcmp(argv[7+add_q], "--output_indexes")) output_indexes = 1;
+        if(argc>=(7+add_q) && !strcmp(argv[6+add_q], "--output_indexes")) output_indexes = 1;
         unsigned* sampled_indexes = NULL;
         if(output_indexes) sampled_indexes = (unsigned*)malloc(sizeof(float)*the_bufsize);
 
