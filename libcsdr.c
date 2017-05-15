@@ -1894,7 +1894,7 @@ void pll_cc(pll_t* p, complexf* input, float* output_dphase, complexf* output_nc
     }
 }
 
-void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int correction_offset, int writefiles, int points_size, ...)
+void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int correction_offset, char* writefiles_path, int points_size, ...)
 {
     static int figure_output_counter = 0;
     int* points_z = (int*)malloc(sizeof(int)*points_size);
@@ -1906,7 +1906,7 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error
         points_z[i] = va_arg(vl, int);
         points_color[i] = va_arg(vl, int);
     }
-    if(writefiles && !figure_output_counter) fprintf(stderr, "cf=figure();\n");
+    if(writefiles_path && !figure_output_counter) fprintf(stderr, "cf=figure();\n");
     fprintf(stderr, "N = %d;\nisig = [", signal_size);
     for(int i=0;i<signal_size;i++) fprintf(stderr, "%f ", iof(signal,i));
     fprintf(stderr, "];\nqsig = [");
@@ -1931,13 +1931,13 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error
             (char)points_color[i]&0xff, (i<points_size-1)?',':' '
         );
     fprintf(stderr, ");\n");
-    if(writefiles) fprintf(stderr, "print(cf, \"figs/%05d.png\", \"-S1024,1024\");\n", figure_output_counter++); 
+    if(writefiles_path) fprintf(stderr, "print(cf, \"%s/%05d.png\", \"-S1024,1024\");\n", writefiles_path, figure_output_counter++); 
     fflush(stderr);
     free(points_z);
     free(points_color);
 }
 
-timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q, float loop_gain, float max_error)
+timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q, float loop_gain, float max_error, int debug_every_nth, char* debug_writefiles_path)
 {
     timing_recovery_state_t to_return;
     to_return.algorithm = algorithm;
@@ -1945,18 +1945,11 @@ timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorit
     to_return.loop_gain = loop_gain;
     to_return.max_error = max_error;
     to_return.use_q = use_q;
-    to_return.debug_phase = -1;
-    to_return.debug_count = 3;
-    to_return.debug_force = 0;
-    to_return.debug_writefiles = 0;
+    to_return.debug_phase = to_return.debug_every_nth = debug_every_nth; //debug is effective if it is >=0
     to_return.last_correction_offset = 0;
     to_return.earlylate_ratio = 0.25; //0..0.5
+    to_return.debug_writefiles_path = debug_writefiles_path;
     return to_return;
-}
-
-void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_phase)
-{
-    state->debug_phase=debug_phase;
 }
 
 #define MTIMINGR_HDEBUG 0
@@ -1971,11 +1964,10 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, float
     int num_samples_halfbit = state->decimation_rate / 2;
     int num_samples_quarterbit = state->decimation_rate / 4;
     int num_samples_earlylate_wing = num_samples_bit * state->earlylate_ratio;
-    int debug_i = state->debug_count;
     float error;
     int el_point_left_index, el_point_right_index, el_point_mid_index;
     int si = 0;
-    if(state->debug_force) fprintf(stderr, "disp(\"begin timing_recovery_cc\");\n");
+    if(state->debug_every_nth>=0) fprintf(stderr, "disp(\"begin timing_recovery_cc\");\n");
     if(MTIMINGR_HDEBUG) fprintf(stderr, "timing_recovery_cc started, nsb = %d, nshb = %d, nsqb = %d\n", num_samples_bit, num_samples_halfbit, num_samples_quarterbit);
     {
         for(;;)
@@ -2026,20 +2018,23 @@ void timing_recovery_cc(complexf* input, complexf* output, int input_size, float
             
             if(error>state->max_error) error=state->max_error;
             if(error<-state->max_error) error=-state->max_error;
-            if( state->debug_force || (state->debug_phase >= si && debug_i) )
+            if(state->debug_every_nth>=0)
             {
-                debug_i--;
-                if(!debug_i) state->debug_phase = -1;
-                octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, 
-                    error, 
-                    current_bitstart_index, 
-                    correction_offset,
-                    state->debug_writefiles,
-                    3,
-                    el_point_left_index - current_bitstart_index,  'r',
-                    el_point_right_index - current_bitstart_index, 'r',
-                    el_point_mid_index - current_bitstart_index,   'r',
-                    0);
+                if(state->debug_every_nth==0 || state->debug_phase==0) 
+                {
+                    state->debug_phase = state->debug_every_nth;
+                    octave_plot_point_on_cplxsig(input+current_bitstart_index, state->decimation_rate*2, 
+                        error, 
+                        current_bitstart_index, 
+                        correction_offset,
+                        state->debug_writefiles_path,
+                        3,
+                        el_point_left_index - current_bitstart_index,  'r',
+                        el_point_right_index - current_bitstart_index, 'r',
+                        el_point_mid_index - current_bitstart_index,   'r',
+                        0);
+                }
+                else state->debug_phase--;
             }
             int error_sign = (state->algorithm == TIMING_RECOVERY_ALGORITHM_GARDNER) ? -1 : 1;
             correction_offset = num_samples_halfbit * error_sign * error * state->loop_gain;
@@ -2085,6 +2080,7 @@ void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed
     s->alpha = (4*damping_factor*bandwidth_omega)/denomiator;
     s->beta = (4*bandwidth_omega*bandwidth_omega)/denomiator;
     s->iir_temp = s->dphase = s->nco_phase = 0;
+    s->dphase_max=0.9*PI; //if it reached PI or -PI then it might actually hang and not come back
 }
 
 void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, float* output_error, float* output_dphase, complexf* output_nco, bpsk_costas_loop_state_t* s)
@@ -2111,8 +2107,8 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, floa
         if(output_error) output_error[i]=error;
         s->dphase = error * s->alpha + s->iir_temp;
         s->iir_temp += error * s->beta; //iir_temp could be named current_freq. See Tom Rondeau's article for better understanding.
-        if(s->dphase>PI) s->dphase=PI;
-        if(s->dphase<-PI) s->dphase=-PI;
+        if(s->dphase>s->dphase_max) s->dphase=s->dphase_max;
+        if(s->dphase<-s->dphase_max) s->dphase=-s->dphase_max;
         if(output_dphase) output_dphase[i]=s->dphase;
         //fprintf(stderr, "  error = %f; dphase = %f; nco_phase = %f;\n", error, s->dphase, s->nco_phase);
 

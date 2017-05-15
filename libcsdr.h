@@ -327,21 +327,19 @@ typedef struct timing_recovery_state_s
     int input_processed;
     int use_q; //use both I and Q for calculating the error
     int debug_phase;
-    int debug_count;
-    int debug_force;
-    int debug_writefiles;
+    int debug_every_nth;
+    char* debug_writefiles_path;
     int last_correction_offset;
     float earlylate_ratio;
     float loop_gain;
     float max_error;
 } timing_recovery_state_t;
 
-timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q, float loop_gain, float max_error);
+timing_recovery_state_t timing_recovery_init(timing_recovery_algorithm_t algorithm, int decimation_rate, int use_q, float loop_gain, float max_error, int debug_every_nth, char* debug_writefiles_path);
 void timing_recovery_cc(complexf* input, complexf* output, int input_size, float* timing_error, int* sampled_indexes,  timing_recovery_state_t* state);
 timing_recovery_algorithm_t timing_recovery_get_algorithm_from_string(char* input);
 char* timing_recovery_get_string_from_algorithm(timing_recovery_algorithm_t algorithm);
-void timing_recovery_trigger_debug(timing_recovery_state_t* state, int debug_phase);
-void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int correction_offset, int writefiles, int points_size, ...);
+void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error, int index, int correction_offset, char* writefiles_path, int points_size, ...);
 void psk_modulator_u8_c(unsigned char* input, complexf* output, int input_size, int n_psk);
 void duplicate_samples_ntimes_u8_u8(unsigned char* input, unsigned char* output, int input_size_bytes, int sample_size_bytes, int ntimes);
 complexf psk31_interpolate_sine_cc(complexf* input, complexf* output, int input_size, int interpolation, complexf last_input);
@@ -372,6 +370,7 @@ typedef struct bpsk_costas_loop_state_s
     float iir_temp;
     float dphase;
     float nco_phase;
+    float dphase_max;
 } bpsk_costas_loop_state_t;
 
 void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);

@@ -127,7 +127,7 @@ char usage[]=
 "    rtty_baudot2ascii_u8_u8\n"
 "    serial_line_decoder_f_u8 <samples_per_bits> [databits [stopbits]]\n"
 "    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
-"    timing_recovery_cc <algorithm> <decimation> [mu [--add_q [--output_error | --output_indexes | --octave <debug_n>]]] \n"
+"    timing_recovery_cc <algorithm> <decimation> [mu [--add_q [--output_error | --output_indexes | --octave <show_every_nth> | --octave_save <show_every_nth> <directory> ]]] \n"
 "    psk31_varicode_encoder_u8_u8\n"
 "    psk31_varicode_decoder_u8_u8\n"
 "    differential_encoder_u8_u8\n"
@@ -136,7 +136,7 @@ char usage[]=
 "    psk_modulator_u8_c <n_psk>\n"
 "    psk31_interpolate_sine_cc <interpolation>\n"
 "    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
-"    bpsk_costas_loop_cc //<loop_bandwidth> <damping_factor> [--dd | --decision_directed] [--output_error | --output_dphase | --output_nco | --output_combined <error_file> <dphase_file> <nco_file>]\n"
+"    bpsk_costas_loop_cc <loop_bandwidth> <damping_factor> [--dd | --decision_directed] [--output_error | --output_dphase | --output_nco | --output_combined <error_file> <dphase_file> <nco_file>]\n"
 "    binary_slicer_f_u8\n"
 "    simple_agc_cc <rate> [reference [max_gain]]\n"
 "    firdes_peak_c <rate> <length> [window [--octave]]\n"
@@ -2549,7 +2549,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [loop_gain [max_error [--add_q] [--output_error | --output_indexes | --octave <debug_n>]]] 
+    if(!strcmp(argv[1],"timing_recovery_cc")) //<algorithm> <decimation> [mu [max_error [--add_q [--output_error | --output_indexes | --octave <show_every_nth> | --octave_save <show_every_nth> <directory> ]]]] \n"
     {
         if(argc<=2) return badsyntax("need required parameter (algorithm)");
         timing_recovery_algorithm_t algorithm = timing_recovery_get_algorithm_from_string(argv[2]);
@@ -2568,11 +2568,22 @@ int main(int argc, char *argv[])
 
         int add_q = !!(argc>=7 && !strcmp(argv[6], "--add_q"));
 
-        int debug_n = 0;
+        int debug_every_nth = -1;
         int output_error = 0;
         int output_indexes = 0;
-        if(argc+add_q>=8 && !strcmp(argv[6+add_q], "--octave")) debug_n = atoi(argv[7+add_q]);
-        if(debug_n<0) return badsyntax("debug_n should be >= 0");
+        int octave_save = 0;
+        char* octave_save_path = NULL;
+        if(argc>=8+add_q && (!strcmp(argv[6+add_q], "--octave") || (octave_save = !strcmp(argv[6+add_q], "--octave_save")))) 
+        {
+            debug_every_nth = atoi(argv[7+add_q]);
+            if(debug_every_nth<0) return badsyntax("debug_every_nth should be >= 0");
+        }
+        if(octave_save)
+        {
+            if(argc>=9+add_q) octave_save_path = argv[8+add_q]; 
+            else octave_save_path = "figs";
+        }
+        if(debug_every_nth<0) { errhead(); fprintf(stderr, "--add_q mode on\n"); }
 
         if(argc>=(8+add_q) && !strcmp(argv[7+add_q], "--output_error")) output_error = 1;
         float* timing_error = NULL;
@@ -2585,17 +2596,13 @@ int main(int argc, char *argv[])
         if(!initialize_buffers()) return -2;
         sendbufsize(the_bufsize/decimation);
 
-        timing_recovery_state_t state = timing_recovery_init(algorithm, decimation, add_q, loop_gain, max_error);
+        timing_recovery_state_t state = timing_recovery_init(algorithm, decimation, add_q, loop_gain, max_error, debug_every_nth, octave_save_path);
 
-        int debug_i=0;
-        state.debug_writefiles = 1;
-        state.debug_force = !!debug_n; //should remove that later
         FREAD_C;
         unsigned buffer_start_counter = 0;
         for(;;)
         {
             FEOF_CHECK;
-            if(debug_n && ++debug_i%debug_n==0) timing_recovery_trigger_debug(&state, 3);
             timing_recovery_cc((complexf*)input_buffer, (complexf*)output_buffer, the_bufsize, timing_error, (int*)sampled_indexes, &state);
             //fprintf(stderr, "trcc is=%d, os=%d, ip=%d\n",the_bufsize, state.output_size, state.input_processed);
             if(timing_error) fwrite(timing_error, sizeof(float), state.output_size, stdout);
@@ -2819,9 +2826,9 @@ int main(int argc, char *argv[])
         FILE* file_output_error = NULL;
         FILE* file_output_dphase = NULL;
         FILE* file_output_nco = NULL;
-        if(!(argc>4+decision_directed+3)) { errhead(); return badsyntax("need required parameters after --output_combined: <error_file> <dphase_file> <nco_file>"); }
         if(output_combined)
         {
+            if(!(argc>4+decision_directed+3)) { return badsyntax("need required parameters after --output_combined: <error_file> <dphase_file> <nco_file>"); }
             file_output_error  = fopen(argv[4+decision_directed+1], "w");
             file_output_dphase = fopen(argv[4+decision_directed+2], "w");
             file_output_nco    = fopen(argv[4+decision_directed+3], "w");
