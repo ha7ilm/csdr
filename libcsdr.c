@@ -2077,10 +2077,11 @@ void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed
     //based on: http://gnuradio.squarespace.com/blog/2011/8/13/control-loop-gain-values.html
     float bandwidth_omega = 2*PI*bandwidth; //so that the bandwidth should be around 0.01 by default (2pi/100), and the damping_factor should be default 0.707
     float denomiator = 1+2*damping_factor*bandwidth_omega+bandwidth_omega*bandwidth_omega;
+    fprintf(stderr, "damp = %f, bw = %f, bwomega = %f\n", damping_factor, bandwidth, bandwidth_omega);
     s->alpha = (4*damping_factor*bandwidth_omega)/denomiator;
     s->beta = (4*bandwidth_omega*bandwidth_omega)/denomiator;
-    s->iir_temp = s->dphase = s->nco_phase = 0;
-    s->dphase_max=0.9*PI; //if it reached PI or -PI then it might actually hang and not come back
+    s->current_freq = s->dphase = s->nco_phase = 0;
+    s->dphase_max=bandwidth*PI; //this has been determined by experiment: if dphase is out of [-dphase_max; dphase_max] it might actually hang and not come back 
 }
 
 void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, float* output_error, float* output_dphase, complexf* output_nco, bpsk_costas_loop_state_t* s)
@@ -2105,8 +2106,8 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, floa
         }
         else error = PI*iof(output,i)*qof(output,i);
         if(output_error) output_error[i]=error;
-        s->dphase = error * s->alpha + s->iir_temp;
-        s->iir_temp += error * s->beta; //iir_temp could be named current_freq. See Tom Rondeau's article for better understanding.
+        s->current_freq += error * s->beta; 
+        s->dphase = error * s->alpha + s->current_freq;
         if(s->dphase>s->dphase_max) s->dphase=s->dphase_max;
         if(s->dphase<-s->dphase_max) s->dphase=-s->dphase_max;
         if(output_dphase) output_dphase[i]=s->dphase;
@@ -2187,7 +2188,7 @@ void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate
         if(ideal_gain>max_gain) ideal_gain = max_gain;
         if(ideal_gain<=0) ideal_gain = 0;
         //*current_gain += (ideal_gain-(*current_gain))*rate;
-        *current_gain = (ideal_gain-(*current_gain))*rate + (*current_gain); //*rate_1minus;
+        *current_gain = (ideal_gain-(*current_gain))*rate + (*current_gain)*rate_1minus;
         //if(debugn<100) fprintf(stderr, "cgain: %g\n", *current_gain), debugn++;
         output[i].i=(*current_gain)*input[i].i;
         output[i].q=(*current_gain)*input[i].q;

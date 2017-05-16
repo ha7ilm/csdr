@@ -367,7 +367,7 @@ typedef struct bpsk_costas_loop_state_s
     float alpha;
     float beta;
     int decision_directed;
-    float iir_temp;
+    float current_freq;
     float dphase;
     float nco_phase;
     float dphase_max;

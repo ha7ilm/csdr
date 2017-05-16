@@ -49,7 +49,7 @@ end
 
 function variance=run_var(snr, which_ted)
     disp('ran a command')
-    out_vect=shrun(sprintf('cat /tmp/psk31-raw-data | csdr awgn_cc %d --awgnfile /tmp/psk31-gaussian-noise | csdr timing_recovery_cc %s 256 0.5 2 --add_q --output_indexes | CSDR_FIXED_BUFSIZE=1048576 csdr normalized_timing_variance_u32_f 256 85', snr, which_ted), 'float32', 1);
+    out_vect=shrun(sprintf('cat /tmp/psk31-raw-data | csdr awgn_cc %d --awgnfile /tmp/psk31-gaussian-noise | csdr bandpass_fir_fft_cc $(csdr "=-31.25/8e3") $(csdr "=31.25/8e3") $(csdr "=31.25/8e3") | csdr simple_agc_cc 0.0001 0.5 | csdr timing_recovery_cc %s 256 0.5 2 --add_q --output_indexes | CSDR_FIXED_BUFSIZE=1048576 csdr normalized_timing_variance_u32_f 256 85', snr, which_ted), 'float32', 1);
     disp('run_var output:');
     out_vect'
     variance=out_vect(1);
@@ -77,7 +77,7 @@ function fmtplot(h)
     ylabel('Phase error variance [rad^2]');
 end
 
-snrs=-5:5:30
+snrs=-15:5:20
 %snrs=[10]
 error_values_gardner=mkvarplot('GARDNER',snrs);
 %{
