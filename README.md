@@ -832,7 +832,7 @@ For this input, the output of `psk31_varicode_encoder_u8_u8` will be the followi
 
 Syntax:
 
-    csdr repeat_u8 <taps_length> [resonator_rate × N]\n"
+    csdr repeat_u8 <data_bytes × N>
 
 It repeatedly outputs a set of data bytes (given with decimal numbers).
 
@@ -870,6 +870,16 @@ It outputs Gaussian white noise. All samples are within the unit circle.
 Syntax:
 
     csdr pack_bits_8to1_u8_u8 
+
+TODO 
+
+----
+
+### [pack_bits_1to8_u8_u8](#pack_bits_1to8_u8_u8)
+
+Syntax:
+
+    csdr pack_bits_1to8_u8_u8 
 
 It serializes the bytes on the input: it outputs each bit of the input byte as a single byte valued 0x00 or 0x01, starting from the lowest bit and going to the highest bit.
 

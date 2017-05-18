@@ -42,6 +42,7 @@ PARAMS_MISC = -Wno-unused-result
 #DEBUG_ON = 0 #debug is always on by now (anyway it could be compiled with `make DEBUG_ON=1`)
 #PARAMS_DEBUG = $(if $(DEBUG_ON),-g,)
 FFTW_PACKAGE = fftw-3.3.3
+PARSEVECT ?= yes
 
 .PHONY: clean-vect clean codequality
 all: codequality csdr nmux
@@ -51,7 +52,9 @@ libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastd
 	@echo
 	rm -f dumpvect*.vect
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -o libcsdr.so
+ifeq ($(PARSEVECT),yes)
 	-./parsevect dumpvect*.vect
+endif
 csdr: csdr.c libcsdr.so
 	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
 ddcd: ddcd.cpp libcsdr.so ddcd.h

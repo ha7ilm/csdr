@@ -343,7 +343,6 @@ void octave_plot_point_on_cplxsig(complexf* signal, int signal_size, float error
 void psk_modulator_u8_c(unsigned char* input, complexf* output, int input_size, int n_psk);
 void duplicate_samples_ntimes_u8_u8(unsigned char* input, unsigned char* output, int input_size_bytes, int sample_size_bytes, int ntimes);
 complexf psk31_interpolate_sine_cc(complexf* input, complexf* output, int input_size, int interpolation, complexf last_input);
-void pack_bits_8to1_u8_u8(unsigned char* input, unsigned char* output, int input_size);
 void psk31_varicode_encoder_u8_u8(unsigned char* input, unsigned char* output, int input_size, int output_max_size, int* input_processed, int* output_size);
 unsigned char differential_codec(unsigned char* input, unsigned char* output, int input_size, int encode, unsigned char state);
 
@@ -371,6 +370,7 @@ typedef struct bpsk_costas_loop_state_s
     float dphase;
     float nco_phase;
     float dphase_max;
+    int dphase_max_reset_to_zero;
 } bpsk_costas_loop_state_t;
 
 void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);
@@ -378,7 +378,7 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, floa
 void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed, float damping_factor, float bandwidth);
 
 void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate, float reference, float max_gain, float* current_gain);
-void firdes_add_resonator_c(complexf* output, int length, float rate, window_t window, int add, int normalize);
+void firdes_add_peak_c(complexf* output, int length, float rate, window_t window, int add, int normalize);
 int apply_fir_cc(complexf* input, complexf* output, int input_size, complexf* taps, int taps_length);
 
 
@@ -406,3 +406,7 @@ void generic_slicer_f_u8(float* input, unsigned char* output, int input_size, in
 void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);;
 void normalize_fir_f(float* input, float* output, int length);
 float* add_const_cc(complexf* input, complexf* output, int input_size, complexf x);
+void pack_bits_1to8_u8_u8(unsigned char* input, unsigned char* output, int input_size);
+unsigned char pack_bits_8to1_u8_u8(unsigned char* input);
+void dbpsk_decoder_c_u8(complexf* input, unsigned char* output, int input_size);
+int bfsk_demod_cf(complexf* input, float* output, int input_size, complexf* mark_filter, complexf* space_filter, int taps_length);

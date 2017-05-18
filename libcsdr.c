@@ -1798,13 +1798,24 @@ complexf psk31_interpolate_sine_cc(complexf* input, complexf* output, int input_
     return last_input;
 }
 
-void pack_bits_8to1_u8_u8(unsigned char* input, unsigned char* output, int input_size)
+void pack_bits_1to8_u8_u8(unsigned char* input, unsigned char* output, int input_size)
 { //output size should be input_size × 8
     for(int i=0; i<input_size; i++)
         for(int bi=0; bi<8; bi++) //bi: bit index
             *(output++)=(input[i]>>bi)&1;
 }
 
+
+unsigned char pack_bits_8to1_u8_u8(unsigned char* input)
+{
+    unsigned char output;
+    for(int i=0;i<8;i++)
+    {
+        output<<=1;
+        output|=!!input[i];
+    }
+    return output;
+}
 unsigned char differential_codec(unsigned char* input, unsigned char* output, int input_size, int encode, unsigned char state)
 {
     if(!encode)
@@ -2081,7 +2092,8 @@ void init_bpsk_costas_loop_cc(bpsk_costas_loop_state_t* s, int decision_directed
     s->alpha = (4*damping_factor*bandwidth_omega)/denomiator;
     s->beta = (4*bandwidth_omega*bandwidth_omega)/denomiator;
     s->current_freq = s->dphase = s->nco_phase = 0;
-    s->dphase_max=bandwidth*PI; //this has been determined by experiment: if dphase is out of [-dphase_max; dphase_max] it might actually hang and not come back 
+    s->dphase_max=bandwidth_omega; //this has been determined by experiment: if dphase is out of [-dphase_max; dphase_max] it might actually hang and not come back 
+    s->dphase_max_reset_to_zero=0;
 }
 
 void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, float* output_error, float* output_dphase, complexf* output_nco, bpsk_costas_loop_state_t* s)
@@ -2106,10 +2118,10 @@ void bpsk_costas_loop_cc(complexf* input, complexf* output, int input_size, floa
         }
         else error = PI*iof(output,i)*qof(output,i);
         if(output_error) output_error[i]=error;
-        s->current_freq += error * s->beta; 
+        s->current_freq += error * s->beta;
         s->dphase = error * s->alpha + s->current_freq;
-        if(s->dphase>s->dphase_max) s->dphase=s->dphase_max;
-        if(s->dphase<-s->dphase_max) s->dphase=-s->dphase_max;
+        if(s->dphase>s->dphase_max)  s->dphase = (s->dphase_max_reset_to_zero) ? 0 : s->dphase_max;
+        if(s->dphase<-s->dphase_max) s->dphase = (s->dphase_max_reset_to_zero) ? 0 : -s->dphase_max;
         if(output_dphase) output_dphase[i]=s->dphase;
         //fprintf(stderr, "  error = %f; dphase = %f; nco_phase = %f;\n", error, s->dphase, s->nco_phase);
 
@@ -2195,7 +2207,7 @@ void simple_agc_cc(complexf* input, complexf* output, int input_size, float rate
     }
 }
 
-void firdes_add_resonator_c(complexf* output, int length, float rate, window_t window, int add, int normalize)
+void firdes_add_peak_c(complexf* output, int length, float rate, window_t window, int add, int normalize)
 {
     //add=0: malloc output previously
     //add=1: calloc output previously
@@ -2203,7 +2215,7 @@ void firdes_add_resonator_c(complexf* output, int length, float rate, window_t w
     int middle=length/2;
     float phase = 0, phase_addition = -rate*M_PI*2;
     float (*window_function)(float) = firdes_get_window_kernel(window);
-    for(int i=0; i<length; i++) //@@firdes_add_resonator_c: calculate taps
+    for(int i=0; i<length; i++) //@@firdes_add_peak_c: calculate taps
     {
         e_powj(&taps[i], phase);
         float window_multiplier = window_function(fabs((float)(middle-i)/middle));
@@ -2225,11 +2237,11 @@ void firdes_add_resonator_c(complexf* output, int length, float rate, window_t w
     if(normalize)
     {
         float sum=0;
-        for(int i=0;i<length;i++) //@firdes_add_resonator_c: normalize pass 1
+        for(int i=0;i<length;i++) //@firdes_add_peak_c: normalize pass 1
         {
             sum+=sqrt(output[i].i*output[i].i + output[i].q*output[i].q);
         }
-        for(int i=0;i<length;i++) //@firdes_add_resonator_c: normalize pass 2
+        for(int i=0;i<length;i++) //@firdes_add_peak_c: normalize pass 2
         {
             output[i].i/=sum;
             output[i].q/=sum;
@@ -2293,6 +2305,40 @@ float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_s
     for(int i=0;i<input_size;i++) result+=(powf(ndiff_rad[i]-ndiff_rad_mean,2))/(input_size-1);
     //fprintf(stderr, "nv = %f\n", result);
     return result;
+}
+
+void dbpsk_decoder_c_u8(complexf* input, unsigned char* output, int input_size)
+{
+    static complexf last_input;
+    for(int i=0;i<input_size;i++)
+    {
+        float phase = atan2(qof(input,i), iof(input,i));
+        float last_phase = atan2(qofv(last_input), iofv(last_input));
+        float dphase = phase-last_phase;
+        while(dphase<-PI) dphase+=2*PI;
+        while(dphase>=PI) dphase-=2*PI;
+        if( (dphase>(PI/2)) || (dphase<(-PI/2)) ) output[i]=0;
+        else output[i]=1;
+        last_input = input[i];
+    }
+}
+
+int bfsk_demod_cf(complexf* input, float* output, int input_size, complexf* mark_filter, complexf* space_filter, int taps_length)
+{
+    complexf acc_space, acc_mark;
+    for(int i=0; i<input_size-taps_length+1; i++)
+    {
+        csetnull(&acc_space);
+        csetnull(&acc_mark);
+        for(int ti=0;ti<taps_length;ti++)
+        {
+            cmultadd(&acc_space, &input[i+ti], &space_filter[ti]);
+            cmultadd(&acc_mark,  &input[i+ti], &mark_filter[ti]);
+        }
+        output[i] = - ( iofv(acc_space)*iofv(acc_space)+qofv(acc_space)*qofv(acc_space) ) +
+            ( iofv(acc_mark)*iofv(acc_mark)+qofv(acc_mark)*qofv(acc_mark) );
+    }
+    return input_size-taps_length+1;
 }
 
 /*

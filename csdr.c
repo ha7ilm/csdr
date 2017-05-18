@@ -146,6 +146,7 @@ char usage[]=
 "    gaussian_noise_c\n"
 "    awgn_cc <snr_db> [--snrshow]\n"
 "    pack_bits_8to1_u8_u8\n"
+"    pack_bits_1to8_u8_u8\n"
 "    firdes_pulse_shaping_filter_f (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)\n"
 "    pulse_shaping_filter_cc (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)\n"
 "    add_n_zero_samples_at_beginning_f <n_zero_samples>\n"
@@ -154,6 +155,9 @@ char usage[]=
 "    add_const_cc <i> <q>\n"
 "    tee <path> [buffers]\n"
 "    pll_cc (1 [alpha] |2 [bandwidth [damping_factor [ko [kd]]]])\n"
+"    pattern_search_u8_u8 <values_after> <pattern_values × N>\n" 
+"    dbpsk_decoder_c_u8\n" 
+"    bfsk_demod_cf <spacing> <filter_length>\n"
 "    ?<search_the_function_list>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
@@ -2723,7 +2727,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if(!strcmp(argv[1],"pack_bits_8to1_u8_u8")) 
+    if(!strcmp(argv[1],"pack_bits_1to8_u8_u8")) 
     {
         if(!initialize_buffers()) return -2;
         sendbufsize(the_bufsize*8);
@@ -2733,8 +2737,23 @@ int main(int argc, char *argv[])
         {
             FEOF_CHECK;
             fread((void*)local_input_buffer, sizeof(unsigned char), the_bufsize, stdin);
-            pack_bits_8to1_u8_u8(local_input_buffer, local_output_buffer, the_bufsize);
+            pack_bits_1to8_u8_u8(local_input_buffer, local_output_buffer, the_bufsize);
             fwrite((void*)local_output_buffer, sizeof(unsigned char), the_bufsize*8, stdout);
+            TRY_YIELD;
+        }
+    }
+
+    if(!strcmp(argv[1],"pack_bits_8to1_u8_u8")) 
+    {
+        if(!initialize_buffers()) return -2;
+        sendbufsize(1);
+        char local_input_buffer[8];
+        for(;;)
+        {
+            FEOF_CHECK;
+            fread((void*)local_input_buffer, sizeof(unsigned char), 8, stdin);
+            unsigned char c = pack_bits_8to1_u8_u8(local_input_buffer);
+            fwrite(&c, sizeof(unsigned char), 1, stdout);
             TRY_YIELD;
         }
     }
@@ -2914,7 +2933,7 @@ int main(int argc, char *argv[])
         complexf* taps=(complexf*)malloc(sizeof(complexf)*length);
 
         //Make the filter
-        firdes_add_resonator_c(taps, length, rate, window, 0, 1);
+        firdes_add_peak_c(taps, length, rate, window, 0, 1);
 
         //Do the output
         if(octave) printf("taps=[");
@@ -2960,7 +2979,7 @@ int main(int argc, char *argv[])
         for(int i=0; i<num_peaks; i++)
         {
             //fprintf(stderr, "nr = %d\n", i==num_peaks-1);
-            firdes_add_resonator_c(taps, taps_length, peak_rate[i], window, 1, i==num_peaks-1);
+            firdes_add_peak_c(taps, taps_length, peak_rate[i], window, 1, i==num_peaks-1);
         }
 
         int output_size=0;
@@ -3215,6 +3234,53 @@ int main(int argc, char *argv[])
         return 0;
     }
 
+    if(!strcmp(argv[1], "dbpsk_decoder_c_u8")) 
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        unsigned char* local_output_buffer = (unsigned char*)malloc(sizeof(unsigned char)*the_bufsize);
+        for(;;)
+        {
+            FEOF_CHECK;
+            FREAD_C;
+            dbpsk_decoder_c_u8((complexf*)input_buffer, local_output_buffer, the_bufsize);
+            fwrite(local_output_buffer, sizeof(unsigned char), the_bufsize, stdout);
+            TRY_YIELD;
+        }
+        return 0;
+    }
+
+    if(!strcmp(argv[1], "bfsk_demod_cf")) //<spacing> <filter_length> 
+    {
+        float frequency_shift = 0;
+        if(argc<=2) return badsyntax("required parameter <frequency_shift> is missing.");
+        sscanf(argv[2],"%f",&frequency_shift);
+
+        int filter_length = 0;
+        if(argc<=3) return badsyntax("required parameter <filter_length> is missing.");
+        sscanf(argv[3],"%d",&filter_length);
+
+        complexf* mark_filter = (complexf*)malloc(sizeof(complexf)*filter_length);
+        complexf* space_filter = (complexf*)malloc(sizeof(complexf)*filter_length);
+        firdes_add_peak_c(mark_filter, filter_length, frequency_shift/2, WINDOW_DEFAULT, 0, 1);
+        firdes_add_peak_c(space_filter, filter_length, -frequency_shift/2, WINDOW_DEFAULT, 0, 1);
+
+        if(!sendbufsize(initialize_buffers())) return -2;
+
+        int input_skip=0;
+        int output_size=0;
+        FREAD_C;
+        for(;;)
+        {
+            FEOF_CHECK;
+            output_size=bfsk_demod_cf((complexf*)input_buffer, output_buffer, the_bufsize, mark_filter, space_filter, filter_length);
+            fwrite(output_buffer, sizeof(float), output_size, stdout);
+            TRY_YIELD;
+            memmove((complexf*)input_buffer,((complexf*)input_buffer)+output_size,(the_bufsize-output_size)*sizeof(complexf));
+            fread(((complexf*)input_buffer)+(the_bufsize-output_size), sizeof(complexf), output_size, stdin);
+        }
+        return 0;
+    }
+
     if(!strcmp(argv[1], "add_const_cc")) //<i> <q>
     {
         complexf x;
@@ -3408,6 +3474,105 @@ int main(int argc, char *argv[])
 #endif
             }
             else fwrite(output, sizeof(complexf), fft_out_size, stdout);
+            TRY_YIELD;
+        }
+    }
+/*
+    if(!strcmp(argv[1],"syncword_search"))
+    {
+        if(argc<3) return badsyntax("need required parameter (syncword)");
+        unsigned long syncword=0UL;
+        int syncword_length=strlen(argv[2]);
+        for(int i=0; i<sycword_len;i++)
+        {
+            syncword<<=4;
+            char c=argv[2][i];
+            unsigned char cval = 0;
+            if(c<='9'&&c>='0') cval = c-'0';
+            if(c<='f'&&c>='a') cval = c-'a'+10;
+            syncword|=cval;
+        }
+        errhead(); fprintf("syncword = 0x%0x, syncword_length=%d\n", syncword, syncword_length);
+        if(argc<4) return badsyntax("need required parameter (bits_after)");
+        int bits_after = 0;
+        sscanf(argv[3], &bits_after);
+        if(bits_after<0) return badsyntax("bits_after should be >0");
+        unsigned char* syncword_bits = malloc(sizeof(unsigned char)*syncword_length*4);
+        int k=0;
+        for(int i=0;i<syncword_length;i++)
+        {
+            for(int j=7;j;j--)
+            {
+                syncword_bits[k++]=syncword[i]>>j
+            }
+        }
+        malloc
+
+    }
+*/
+    if(!strcmp(argv[1],"pattern_search_u8_u8")) //<values_after> <pattern_values × N>
+    {
+        if(argc<3) return badsyntax("need required parameter (values_after)");
+        int values_after = 0;
+        sscanf(argv[2], "%d", &values_after);
+        if(argc<4) return badsyntax("need required parameter (pattern_values × N)");
+        int pattern_values_length = argc-3;
+        unsigned* pattern_values = (unsigned*)malloc(sizeof(unsigned)*pattern_values_length);
+        for(int i=0;i<pattern_values_length;i++)
+            sscanf(argv[3+i],"%u",pattern_values+i);
+
+        errhead(); fprintf(stderr,"pattern values: ");
+        for(int i=0;i<pattern_values_length;i++)
+            fprintf(stderr, "%x ", *(pattern_values+i));
+        fprintf(stderr,"\n");
+
+        unsigned char* input_buffer = (unsigned char*)malloc(sizeof(unsigned char)*pattern_values_length); //circular buffer
+        unsigned char* output_buffer = (unsigned char*)malloc(sizeof(unsigned char)*values_after);
+        int input_index = 0;
+        int valid_values = 0;
+        for(;;)
+        {
+            FEOF_CHECK;
+            unsigned char cchar = input_buffer[input_index++]=(unsigned char)fgetc(stdin);
+            if(valid_values<pattern_values_length) { valid_values++; continue; }
+            if(input_index>=pattern_values_length) input_index=0;
+            int match=1;
+            //fprintf(stderr, "ov1: ");
+            //for(int i=0;i<pattern_values_length;i++) fprintf(stderr, "%02x ",  input_buffer[i]);
+            //fprintf(stderr, "\nov2: ");
+            //for(int i=0;i<pattern_values_length;i++) fprintf(stderr, "%02x ",  pattern_values[i]);
+            //fprintf(stderr, "\n");
+
+            //fprintf(stderr, "v1: ");
+            //for(int i=input_index;i<pattern_values_length;i++) fprintf(stderr, "%s%02x ", ((input_buffer[i])?"\x1B[34m":"\x1B[0m"), input_buffer[i]);
+            //for(int i=0;i<input_index;i++) fprintf(stderr, "%s%02x ", ((input_buffer[i])?"\x1B[34m":"\x1B[0m"), input_buffer[i]);
+            //fprintf(stderr, "\x1B[0m  %02x\n", cchar);
+
+            //fprintf(stderr, "========\n");
+            int j=0;
+            for(int i=input_index;i<pattern_values_length;i++) 
+            {
+                //fprintf(stderr, "%02x ~ %02x\n",  input_buffer[i], pattern_values[j]);
+                if(input_buffer[i]!=pattern_values[j++]) { match=0; break;}
+            }
+            //fprintf(stderr, "~~~~~~~~\n");
+            if(input_index!=0 && match) 
+            {
+                for(int i=0;i<input_index;i++) 
+                {
+                    //fprintf(stderr, "%02x ~ %02x\n",  input_buffer[i], pattern_values[j]);
+                    if(input_buffer[i]!=pattern_values[j++]) { match=0; break;}
+                }
+            }
+           
+            //if(match) fprintf(stderr, "j=%d\n", j);
+            if(match ) 
+            {
+                valid_values = 0;
+                //fprintf(stderr,"matched!\n");
+                fread(output_buffer, sizeof(unsigned char), values_after, stdin);
+                fwrite(output_buffer, sizeof(unsigned char), values_after, stdout);
+            }
             TRY_YIELD;
         }
     }
