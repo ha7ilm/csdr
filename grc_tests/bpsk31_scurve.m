@@ -46,20 +46,22 @@ function fmtplot(h)
     ylabel('Error value (TED output)');
 end
 
-skips_gardner=0:256
+skips_gardner=0:16:256
 error_values_gardner=mkscurve('GARDNER',skips_gardner);
-skips_earlylate=0:256
+skips_earlylate=0:16:256
 error_values_earlylate=mkscurve('EARLYLATE',skips_earlylate);
 
 %graphics_toolkit("gnuplot")
 h=figure(1);
 
-plot(skips_gardner, error_values_gardner, 'linewidth', 2);
+plot((skips_gardner-128)/256, -error_values_gardner, 'linewidth', 2);
 title('S-curve for Gardner TED');
 fmtplot(h)
+grid on
 pause
 
-plot(skips_earlylate, error_values_earlylate, 'linewidth', 2);
+plot((skips_earlylate-128)/256, error_values_earlylate, 'linewidth', 2);
 title('S-curve for early-late TED');
 fmtplot(h)
+grid on
 pause

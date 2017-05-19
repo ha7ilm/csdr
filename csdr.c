@@ -2592,6 +2592,7 @@ int main(int argc, char *argv[])
         if(argc>=(7+add_q) && !strcmp(argv[6+add_q], "--output_error")) output_error = 1;
         float* timing_error = NULL;
         if(output_error) timing_error = (float*)malloc(sizeof(float)*the_bufsize);
+        errhead(); fprintf(stderr, "--output_error mode\n");
 
         if(argc>=(7+add_q) && !strcmp(argv[6+add_q], "--output_indexes")) output_indexes = 1;
         unsigned* sampled_indexes = NULL;
