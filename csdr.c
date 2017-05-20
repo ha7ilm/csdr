@@ -144,7 +144,7 @@ char usage[]=
 "    repeat_u8 <data_bytes × N>\n"
 "    uniform_noise_f\n"
 "    gaussian_noise_c\n"
-"    awgn_cc <snr_db> [--snrshow]\n"
+"    awgn_cc <snr_db> [--awgnfile <file>] [--snrshow]\n"
 "    pack_bits_8to1_u8_u8\n"
 "    pack_bits_1to8_u8_u8\n"
 "    firdes_pulse_shaping_filter_f (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)\n"
@@ -158,7 +158,9 @@ char usage[]=
 "    pattern_search_u8_u8 <values_after> <pattern_values × N>\n" 
 "    dbpsk_decoder_c_u8\n" 
 "    bfsk_demod_cf <spacing> <filter_length>\n"
+"    normalized_timing_variance_u32_f <samples_per_symbol> <initial_sample_offset> [--debug]\n"
 "    ?<search_the_function_list>\n"
+"    ??<jump_to_function_docs_on_github>\n"
 "    =<evaluate_python_expression>\n"
 "    \n"
 ;
@@ -2592,11 +2594,12 @@ int main(int argc, char *argv[])
         if(argc>=(7+add_q) && !strcmp(argv[6+add_q], "--output_error")) output_error = 1;
         float* timing_error = NULL;
         if(output_error) timing_error = (float*)malloc(sizeof(float)*the_bufsize);
-        errhead(); fprintf(stderr, "--output_error mode\n");
+        if(output_error) { errhead(); fprintf(stderr, "--output_error mode\n"); }
 
         if(argc>=(7+add_q) && !strcmp(argv[6+add_q], "--output_indexes")) output_indexes = 1;
         unsigned* sampled_indexes = NULL;
         if(output_indexes) sampled_indexes = (unsigned*)malloc(sizeof(float)*the_bufsize);
+        if(output_indexes) { errhead(); fprintf(stderr, "--output_indexes mode\n"); }
 
         if(!initialize_buffers()) return -2;
         sendbufsize(the_bufsize/decimation);
@@ -3595,7 +3598,7 @@ int main(int argc, char *argv[])
     if(argv[1][0]=='?')
     {
         char buffer[1000];
-        snprintf(buffer, 1000-1, "csdr 2>&1 | grep %s", argv[1]+1);
+        snprintf(buffer, 1000-1, "csdr 2>&1 | grep -i %s", argv[1]+1);
         fprintf(stderr, "csdr ?: %s\n", buffer);
         system(buffer);
         return 0;

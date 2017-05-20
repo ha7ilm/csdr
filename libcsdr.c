@@ -1730,27 +1730,36 @@ void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* out
 
 void generic_slicer_f_u8(float* input, unsigned char* output, int input_size, int n_symbols)
 {
-    float symbol_distance = 2.0/(n_symbols+1);
+    float symbol_distance = 2.0/(n_symbols-1);
     for(int i=0;i<input_size;i++) 
-        for(int j=0;j<n_symbols;i++)
+        for(int j=0;j<n_symbols;j++)
         {
             float symbol_center = -1+j*symbol_distance;
             float symbol_low_limit = symbol_center-(symbol_distance/2);
             float symbol_high_limit = symbol_center+(symbol_distance/2);
             if(j==0)
             {
-                if(input[i]<symbol_high_limit) output[i]=j;
-                break;
+                if(input[i]<symbol_high_limit) 
+                {
+                    output[i]=j;
+                    break;
+                }
             }
             else if (j==n_symbols-1)
             {
-                if(input[i]>=symbol_low_limit) output[i]=j;
-                break;
+                if(input[i]>=symbol_low_limit) 
+                {
+                    output[i]=j;
+                    break;
+                }
             }
             else 
             {
-                if(input[i]>=symbol_low_limit && input[i]<symbol_high_limit) output[i]=j;
-                break;
+                if(input[i]>=symbol_low_limit && input[i]<symbol_high_limit) 
+                {
+                    output[i]=j;
+                    break;
+                }
             }
         }
 }

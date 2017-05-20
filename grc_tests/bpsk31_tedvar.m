@@ -15,11 +15,13 @@ function y=inarg(x)
     y=0;
 end
 
+bpfcmd="csdr bandpass_fir_fft_cc $(csdr \"=-31.25/8e3\") $(csdr \"=31.25/8e3\") $(csdr \"=31.25/8e3\") | ";
+
 if !inarg('--nogen')
     fwrite(stdout, "===========================================\nGenerating baseband signal from random data\n===========================================\n");
-    system('cat /dev/urandom | csdr pack_bits_8to1_u8_u8 | csdr psk_modulator_u8_c 2 | csdr gain_ff 0.25 | csdr psk31_interpolate_sine_cc 256 | csdr add_n_zero_samples_at_beginning_f 170 | pv -ps 2g | dd iflag=fullblock bs=128M count=16 of=/tmp/psk31-raw-data');
+    system(["cat /dev/urandom | csdr pack_bits_8to1_u8_u8 | csdr psk_modulator_u8_c 2 | csdr gain_ff 0.25 | csdr psk31_interpolate_sine_cc 256 | " bpfcmd "csdr add_n_zero_samples_at_beginning_f 170 | pv -ps 2g | dd iflag=fullblock bs=128M count=16 of=/tmp/psk31-raw-data"]);
     fwrite(stdout, "===========================================\nGenerating Gaussian white noise for agwn_cc\n===========================================\n");
-    system('csdr gaussian_noise_c | pv -ps 256m | dd of=/tmp/psk31-gaussian-noise iflag=fullblock bs=256M count=1');
+    system(["csdr gaussian_noise_c | " bpfcmd "pv -ps 256m | dd of=/tmp/psk31-gaussian-noise iflag=fullblock bs=256M count=1"]);
 end
 if inarg('--onlygen') 
     exit(0)
@@ -49,7 +51,7 @@ end
 
 function variance=run_var(snr, which_ted)
     disp('ran a command')
-    out_vect=shrun(sprintf('cat /tmp/psk31-raw-data | csdr awgn_cc %d --awgnfile /tmp/psk31-gaussian-noise | csdr bandpass_fir_fft_cc $(csdr "=-31.25/8e3") $(csdr "=31.25/8e3") $(csdr "=31.25/8e3") | csdr simple_agc_cc 0.0001 0.5 | csdr timing_recovery_cc %s 256 0.5 2 --add_q --output_indexes | CSDR_FIXED_BUFSIZE=1048576 csdr normalized_timing_variance_u32_f 256 85', snr, which_ted), 'float32', 1);
+    out_vect=shrun(sprintf('cat /tmp/psk31-raw-data | csdr awgn_cc %d --awgnfile /tmp/psk31-gaussian-noise | csdr simple_agc_cc 0.0001 0.5 | csdr timing_recovery_cc %s 256 0.5 2 --add_q --output_indexes | CSDR_FIXED_BUFSIZE=1048576 csdr normalized_timing_variance_u32_f 256 85', snr, which_ted), 'float32', 1);
     disp('run_var output:');
     out_vect'
     variance=out_vect(1);
@@ -77,32 +79,20 @@ function fmtplot(h)
     ylabel('Phase error variance [rad^2]');
 end
 
-snrs=-15:5:20
+%snrs=-10:5:10
+snrs=-10:5:25
 %snrs=[10]
-error_values_gardner=mkvarplot('GARDNER',snrs);
-%{
-snrs_earlylate=0:256
-error_values_earlylate=mkvarplot('EARLYLATE',snrs_earlylate);
-%}
+error_values=mkvarplot('EARLYLATE',snrs);
 
 %graphics_toolkit("gnuplot")
 h=figure(1);
 
-ebn0=snrs-13.26-10*log10(1/256.)
-%13.56 dB is the difference between the real (measured) SNR and the number input to awgn_cc.
-%This is because agwn_cc assumes a signal with 0dB power at te input, while our BPSK31 baseband signal is of -13.26 dB.
+ebn0=snrs+9.7
 
-semilogy(ebn0, error_values_gardner, 'linewidth', 2);
+semilogy(ebn0, error_values, 'linewidth', 2);
 title('Estimation variance');
 fmtplot(h)
 pause
-
-%{
-semilogy(snrs_earlylate, error_values_earlylate, 'linewidth', 2);
-title('S-curve for early-late TED');
-fmtplot(h)
-pause
-%}
 
 if !inarg('--nogen')
     system('rm /tmp/psk31-raw-data /tmp/psk31-gaussian-noise');
