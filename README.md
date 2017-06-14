@@ -1,14 +1,20 @@
-libcsdr
-=======
+CSDR
+====
 
-*libcsdr* is a set of simple DSP routines for Software Defined Radio.  
-It is mostly useful for AM/FM/SSB demodulation and spectrum display.  
+`csdr` is a command line tool to carry out DSP tasks for Software Defined Radio.
+
+It can be used to build simple signal processing flow graphs, right from the command line. 
+
+The included `libcsdr` library contains the DSP functions that `csdr` makes use of. It was designed to use auto-vectorization available in `gcc`, and also has some functions optimized with inline assembly for ARM NEON to achieve some speedup by taking advantage of SIMD command sets available in today's CPUs.
+
 Feel free to use it in your projects.  
 Most of the code is available under the permissive BSD license, with some optional parts under GPL. For additional details, see <a href="#licensing">licensing</a>.
 
-- The package comes with a command-line tool `csdr`, which lets you build DSP processing chains by shell pipes.
-- The code of *libcsdr* was intended to be easy to follow.
-- *libcsdr* was designed to use auto-vectorization available in *gcc*. It means that it can achieve some speedup by taking advantage of SIMD command sets available in today's CPUs (e.g. SSE on x86 and NEON on ARM).
+`csdr` has already been used to build:
+
+- AM/FM/SSB/CW demodulators, BPSK31 decoder and waterfall display in [OpenWebRX](https://github.com/simonyiszk/openwebrx),
+- AM/FM/SSB modulators in [qtcsdr](https://github.com/ha7ilm/qtcsdr) that can also be used standalone with [rpitx](https://github.com/ha7ilm/rpitx-app-note),
+- a decoder for FSK transmissions sent with the CC1111 wireless MCU, and also a standalone RTTY demodulator. 
 
 How to compile
 --------------
@@ -22,11 +28,11 @@ If you compile on ARM, please edit the Makefile and tailor `PARAMS_NEON` for you
 
 To run the examples, you will also need <a href="http://sdr.osmocom.org/trac/wiki/rtl-sdr">rtl_sdr</a> from Osmocom, and the following packages (at least on Debian): `mplayer octave gnuplot gnuplot-x11`
 
-If you compile *fftw3* from sources for use with *libcsdr*, you need to configure it with 32-bit float support enabled: 
+If you compile `fftw3` from sources for use with `libcsdr`, you need to configure it with 32-bit float support enabled: 
 
     ./configure --enable-float
 
-(This is for *fftw3*, not *libcsdr*. You do not need to run the configure script before compiling *libcsdr*.)
+(This is for `fftw3`, not `libcsdr`. You do not need to run the configure script before compiling `libcsdr`.)
 
 Credits
 -------
