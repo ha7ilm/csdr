@@ -126,7 +126,7 @@ char usage[]=
 "    rtty_line_decoder_u8_u8\n"
 "    rtty_baudot2ascii_u8_u8\n"
 "    serial_line_decoder_f_u8 <samples_per_bits> [databits [stopbits]]\n"
-"    octave_complex_c <samples_to_plot> <out_of_n_samples>\n"
+"    octave_complex_c <samples_to_plot> <out_of_n_samples> [--2d]\n"
 "    timing_recovery_cc <algorithm> <decimation> [mu [max_error [--add_q [--output_error | --output_indexes | --octave <show_every_nth> | --octave_save <show_every_nth> <directory> ]]]] \n"
 "    psk31_varicode_encoder_u8_u8\n"
 "    psk31_varicode_decoder_u8_u8\n"
@@ -162,6 +162,21 @@ char usage[]=
 "    ?<search_the_function_list>\n"
 "    ??<jump_to_function_docs_on_github>\n"
 "    =<evaluate_python_expression>\n"
+"    shift_addfast_cc <rate>   #only if system supports NEON \n"
+"    shift_unroll_cc <rate>\n"
+"    logaveragepower_cf <add_db> <fft_size> <avgnumber>\n"
+"    fft_one_side_ff <fft_size>\n"
+"    convert_f_samplerf <wait_for_this_sample>\n"
+"    add_dcoffset_cc\n"
+"    fastddc_fwd_cc <decimation> [transition_bw [window]]\n"
+"    fastddc_inv_cc <shift_rate> <decimation> [transition_bw [window]]\n"
+"    _fft2octave <fft_size>\n"
+"    convert_f_i16             #deprecated, use instead: convert_f_s16\n"
+"    convert_i16_f             #deprecated, use instead: convert_s16_f\n"
+"    floatdump_f               #deprecated, use instead: dump_f\n"
+"    mono2stereo_i16           #deprecated, use instead: mono2stereo_s16\n"
+"    decode_ima_adpcm_u8_i16   #deprecated, use instead: decode_ima_adpcm_u8_s16\n"
+"    encode_ima_adpcm_i16_u8   #deprecated, use instead: encode_ima_adpcm_i16_u8\n"
 "    \n"
 ;
 
@@ -1648,7 +1663,7 @@ int main(int argc, char *argv[])
     if(!strcmp(argv[1],"logaveragepower_cf"))
     {
         bigbufs=1;
-        if(argc<=4) return badsyntax("need required parameters (add_db, table_size, avgnumber)"); 
+        if(argc<=4) return badsyntax("need required parameters (add_db, fft_size, avgnumber)"); 
         float add_db=0;
         int avgnumber=0;
         int fft_size=0;

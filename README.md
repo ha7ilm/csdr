@@ -140,11 +140,14 @@ The following commands are available:
 - `csdr convert_f_s8`
 - `csdr convert_s16_f`
 - `csdr convert_f_s16`
+- `csdr convert_s24_f [--bigendian]`
+- `csdr convert_f_s24 [--bigendian]`
 
 How to interpret: `csdr convert_<src>_<dst>`
 You can use these commands on complex streams, too, as they are only interleaved values (I,Q,I,Q,I,Q... coming after each other).
 
 > Note: The the functions with `i16` in their names have been renamed, but still work (e.g. `csdr convert_f_i16`).
+
 
 ### csdr commands
 
@@ -378,6 +381,16 @@ Syntax:
 It shifts the input signal in the frequency domain, and also decimates it, without filtering. It will be useful as a part of the FFT channelizer implementation (to be done).
 
 It cannot be used as a channelizer by itself, use `fir_decimate_cc` instead.
+
+----
+
+### [shift_addition_fc](#shift_addition_fc)
+
+Syntax:
+
+    csdr shift_addition_fc <rate>
+
+It converts the real input signal to complex, and then shifts it in the frequency domain by `rate`.
 
 ----
 
@@ -638,6 +651,20 @@ It performs an FFT on the first `fft_size` samples out of `out_of_every_n_sample
 It can draw the spectrum by using `--octave`, for more information, look at the [Usage by example] section.
 
 FFTW can be faster if we let it optimalize a while before starting the first transform, hence the `--benchmark` switch.
+
+----
+
+### [fft_fc](#fft_fc)
+
+Syntax:
+
+    csdr fft_fc <fft_out_size> <out_of_every_n_samples> [--benchmark]
+
+It works similarly to <a href="#fft_cc">fft_cc</a>, but on real input samples. 
+
+For real FFT, the `fft_out_size` parameter is the number of output complex bins instead of the actual FFT size.
+
+Number of input samples used for each FFT is `2 × fft_out_size`. This makes it easier to replace `fft_cc` by `fft_fc` in some applications.
 
 ----
 
@@ -928,6 +955,388 @@ Syntax:
 When the function is executed, it furst writes `<n_zero_samples>` 32-bit floating point zeros at the output, after that it just clones the input at the output. 
 
 ----
+
+### [fft_one_side_ff](#fft_one_side_ff)
+
+Syntax:
+
+    csdr fft_one_side_ff <fft_size>
+
+If the frequency domain signal spans between frequencies -fs/2 to fs/2, this function removes the part from -fs/2 to DC. This can be useful if the FFT of a real signal has been taken (so that the spectrum is mirrored to DC).  
+
+----
+
+### [logaveragepower_cf](#logaveragepower_cf)
+
+Syntax:
+
+    csdr logaveragepower_cf <add_db> <fft_size> <avgnumber>
+
+It works like <a href="#logpower_cf">logpower_cf </a>, but it calculates the average of every `avgnumber` FFTs. 
+
+----
+
+### [mono2stereo_s16](#mono2stereo_s16)
+
+Syntax:
+
+    csdr mono2stereo_s16
+
+It duplicates each 16-bit integer input sample.
+
+----
+
+### [psk31_varicode_decoder_u8_u8](#psk31_varicode_decoder_u8_u8)
+
+Syntax:
+
+    csdr psk31_varicode_decoder_u8_u8
+
+It expects symbols encoded as 0x00 and 0x01 bytes on the input, and extracts Varicode characters from them.  
+
+----
+
+### [_fft2octave](#_fft2octave)
+
+Syntax:
+
+    csdr _fft2octave <fft_size>
+
+It is used for plotting FFT data with a GNU Octave session, piping its output to `octave -i`.
+
+----
+
+### [invert_u8_u8](#invert_u8_u8)
+
+Syntax:
+
+    csdr invert_u8_u8
+
+It maps
+
+* each 0x00 to 0x01,
+* each 0x01 to 0x00.
+
+----
+
+### [rtty_baudot2ascii_u8_u8](#rtty_baudot2ascii_u8_u8)
+
+Syntax:
+
+    csdr rtty_baudot2ascii_u8_u8
+
+This function awaits baudot code characters on its input (ranging from 0b00000000 to 0b00011111), and converts them into ASCII characters. It has an internal state to switch between letters and figures. 
+
+----
+
+### [binary_slicer_f_u8](#binary_slicer_f_u8)
+
+Syntax:
+
+    csdr binary_slicer_f_u8
+
+* If the input sample is below or equals to 0.0, it outputs a 0x00.
+* If the input sample is above 0.0, it outputs a 0x01.
+
+----
+
+### [serial_line_decoder_f_u8](#serial_line_decoder_f_u8)
+
+Syntax:
+
+    csdr serial_line_decoder_f_u8 <samples_per_bits> [databits [stopbits]]
+
+It decodes bits from a sampled serial line. It does so by finding the appropriate start and stop bits, and extracts the data bits in between.
+
+----
+
+### [pll_cc](#pll_cc)
+
+Syntax:
+
+    csdr pll_cc (1 [alpha] |2 [bandwidth [damping_factor [ko [kd]]]])
+
+It implements a PLL that can lock onto a sinusoidal input signal. 
+
+The first parameter corresponds to the order of the PLL loop filter (first or second order), others are parameters of the loop filter.
+
+----
+
+### [timing_recovery_cc](#timing_recovery_cc)
+
+Syntax:
+
+    csdr timing_recovery_cc  <algorithm> <decimation> [mu [max_error [--add_q [--output_error | --output_indexes |  --octave <show_every_nth> |  --octave_save <show_every_nth> <directory> ]]]] 
+
+It implements non-data aided timing recovery (Gardner and early-late gate algorithms). 
+
+[More information](http://openwebrx.org/msc-thesis.pdf#page=34) (section 4.4 from page 34)
+
+----
+
+### [octave_complex_c](#octave_complex_c)
+
+Syntax:
+
+    csdr octave_complex_c <samples_to_plot> <out_of_n_samples> [--2d]
+
+It generates octave commands to plot a complex time domain signal. Its output can be piped into `octave -i`. It plots every `samples_to_plot` samples `out_of_n_samples`.
+
+----
+
+### [psk_modulator_u8_c](#psk_modulator_u8_c)
+
+Syntax:
+
+    csdr psk_modulator_u8_c <n_psk>
+
+It generates an N-PSK modulated signal from the input symbols. 
+
+As an example, for `n_psk`=4, it will translate:
+
+* any 0x00 byte on the input into 1+0j on the output,
+* any 0x01 byte on the input into 0+1j on the output,
+* any 0x02 byte on the input into -1+0j on the output,
+* any 0x03 byte on the input into 0-1j on the output.
+
+----
+
+### [duplicate_samples_ntimes_u8_u8](#duplicate_samples_ntimes_u8_u8)
+
+Syntax:
+
+    csdr duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>
+
+It duplicates each sample of `sample_size_bytes` the given `ntimes` times.
+
+----
+
+### [psk31_interpolate_sine_cc](#psk31_interpolate_sine_cc)
+
+Syntax:
+
+    csdr psk31_interpolate_sine_cc <interpolation>
+
+The input to this function is one complex sample per symbol, the output is `interpolation` samples per symbol, interpolated using a cosine envelope (which is used for PSK31). 
+
+----
+
+### [differential_encoder_u8_u8](#differential_encoder_u8_u8)
+
+Syntax:
+
+    csdr differential_encoder_u8_u8
+
+It can be used while generating e.g. differential BPSK modulation. 
+
+* If the input is 0x01, the output remains the same as the last output.
+* If the input is 0x00, the output changes from 0x00 to 0x01, or 0x01 to 0x00.
+
+----
+
+### [differential_decoder_u8_u8](#differential_decoder_u8_u8)
+
+Syntax:
+
+    csdr differential_decoder_u8_u8
+
+It can be used while demodulating e.g. differential BPSK modulation. The following table show the logic function it performs:
+
+| Last input | Current input | Output | 
+| ---------- | ------------- | ------ |
+| 0x00       | 0x00          | 0x01   |
+| 0x00       | 0x01          | 0x00   |
+| 0x01       | 0x00          | 0x00   |
+| 0x01       | 0x01          | 0x01   |
+
+----
+
+### [bpsk_costas_loop_cc](#bpsk_costas_loop_cc)
+
+Syntax:
+
+    csdr bpsk_costas_loop_cc <loop_bandwidth> <damping_factor> [--dd | --decision_directed] [--output_error | --output_dphase | --output_nco | --output_combined <error_file> <dphase_file> <nco_file>]
+
+It implements a Costas loop for BPSK signals. 
+
+[More information](http://openwebrx.org/msc-thesis.pdf#page=55) (section 5.4 from page 55)
+
+----
+
+### [simple_agc_cc](#simple_agc_cc)
+
+Syntax:
+
+    csdr simple_agc_cc <rate> [reference [max_gain]] 
+
+It is an automatic gain control function with a single pole IIR loop filter.
+
+- `reference` is the reference level for the AGC. It tries to keep the amplitude of the output signal close to that.
+- AGC won't increase the gain over `max_gain`.
+- `rate` is the parameter of the loop filter.
+
+The block diagram of this function follows:
+
+![simple_agc_cc block diagram](https://raw.githubusercontent.com/wiki/simonyiszk/csdr/simple-agc-dataflow.png)
+
+----
+
+### [peaks_fir_cc](#peaks_fir_cc)
+
+Syntax:
+
+    csdr peaks_fir_cc <taps_length> <peak_rate × N>
+
+It applies a peak filter to the input signal. The peak filter is a very narrow bandpass filter, the opposite of a notch filter. The higher the `taps_length` is, the sharper the filter frequency transfer function is. 
+
+`peak_rate` is the center of the passband, in proportion to the sampling rate. 
+
+----
+
+### [firdes_peak_c](#firdes_peak_c)
+
+Syntax:
+
+    csdr firdes_peak_c <rate> <length> [window [--octave]]
+
+It designs a FIR peak filter, and writes the taps to the output. More about this filter at <a href="#peaks_fir_cc">peaks_fir_cc</a>. 
+
+This command also supports GNU Octave-friendly output that can be piped into the Octave interpreter `octave -i`.
+
+----
+
+### [normalized_timing_variance_u32_f](#normalized_timing_variance_u32_f)
+
+Syntax:
+
+    csdr normalized_timing_variance_u32_f <samples_per_symbol> <initial_sample_offset> [--debug]
+
+It calculates the normalized timing variance. It works on the sample indexes output from the `timing_recovery_cc` function. 
+
+----
+
+### [pulse_shaping_filter_cc](#pulse_shaping_filter_cc)
+
+Syntax:
+
+    csdr pulse_shaping_filter_cc (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)
+
+It runs a pulse shaping FIR filter on the signal.
+
+* `RRC` stands for Root-Raised-Cosine filter, a design parameter of which is `beta`.
+* The `COSINE` filter is the one used for BPSK31. 
+* `samples_per_symbol` is the number of input samples per symbol.
+* `num_taps` is the filter length.
+
+----
+
+### [firdes_pulse_shaping_filter_f](#firdes_pulse_shaping_filter_f)
+
+Syntax:
+
+    csdr firdes_pulse_shaping_filter_f (RRC <samples_per_symbol> <num_taps> <beta> | COSINE <samples_per_symbol>)
+
+It designs a pulse shaping filter, and outputs the taps. It has the same parameters as `pulse_shaping_filter_cc`. 
+
+----
+
+### [generic_slicer_f_u8](#generic_slicer_f_u8)
+
+Syntax:
+
+    csdr generic_slicer_f_u8 <n_symbols>
+
+It decides which symbol the sample corresponds to, where the highest symbol corresponds to 1.0, and the lowest symbol corresponds to -1.0.
+
+As an example, if N=3, the 3 symbols to choose from are: -1, 0, 1. The algorithm will output:
+
+* 0x00 for any input sample between -infinity and -0.5.
+* 0x01 for any input sample between -0.5 and 0.5.
+* 0x02 for any input sample between 0.5 and infinity. 
+
+----
+
+### [plain_interpolate_cc](#plain_interpolate_cc)
+
+Syntax:
+
+    csdr plain_interpolate_cc <interpolation>
+
+It interpolates the signal by writing `interpolation - 1` zero samples between each input sample. You need to run an anti-aliasing filter on its output.
+
+----
+
+### [dbpsk_decoder_c_u8](#dbpsk_decoder_c_u8)
+
+Syntax:
+
+    csdr dbpsk_decoder_c_u8
+
+It implements a differential BPSK demodulator, with the following data flow:
+
+![DBPSK dataflow](https://raw.githubusercontent.com/wiki/simonyiszk/csdr/dbpsk-dataflow.png)
+
+The output is 0x00 or 0x01.
+
+----
+
+### [bfsk_demod_cf](#bfsk_demod_cf)
+
+Syntax:
+
+    csdr bfsk_demod_cf <spacing> <filter_length>
+
+It implements a 2-FSK demodulator, with the following data flow:
+
+![BFSK dataflow](https://raw.githubusercontent.com/wiki/simonyiszk/csdr/bfsk-dataflow.png)
+
+You can calculate the expected frequencies of the two tones on the input by the following formulas: `+(spacing/sampling_rate)` and `-(spacing/sampling_rate)`.
+
+Filter length is the length of the peak filters (FIR) applied to the input för each tone.
+
+----
+
+### [add_const_cc](#add_const_cc)
+
+Syntax:
+
+    csdr add_const_cc <i> <q>
+
+It adds a constant value of `i+q*j` to each input sample.
+
+----
+
+### [pattern_search_u8_u8](#pattern_search_u8_u8)
+
+Syntax: 
+
+    csdr pattern_search_u8_u8 <values_after> <pattern_values × N>
+
+It can be used for preamble search. It looks for a given sequence of N bytes (`<pattern_values × N>`) in the input data, and if the sequence is found, it reads the following `<values_after>` bytes and outputs them. The `<pattern_values × N>` parameter is read as unsigned integers.
+
+----
+
+### [tee](#tee)
+
+Syntax:
+
+    csdr tee <path> [buffers]
+
+Similarly to the `tee` command, it reads data from the standard input, and writes it to both a file and the standard output. 
+
+Unlike `tee`, if it fails to flush the data to the file, it still flushes it to the standard output. This allows us to have less glitches / better response time if we use this as a way to put branches in the data flow. Example:
+
+    mkfifo /tmp/csdr_fifo
+    rtl_sdr - | csdr tee /tmp/csdr_fifo | csdr dump_u8
+    cat /tmp/csdr_fifo | csdr convert_u8_f | csdr dump_f
+
+How the data flow looks like:
+
+    rtl_sdr --> tee --> dump_u8
+                 |
+                \/
+             convert_u8_f --> dump_f
+
 
 ### [?](#search_the_function_list)
 

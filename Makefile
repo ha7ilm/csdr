@@ -44,7 +44,7 @@ PARAMS_MISC = -Wno-unused-result
 FFTW_PACKAGE = fftw-3.3.3
 PARSEVECT ?= yes
 
-.PHONY: clean-vect clean codequality
+.PHONY: clean-vect clean codequality checkdocs v
 all: codequality csdr nmux
 libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastddc.c fastddc.h  fft_fftw.h  fft_rpi.h  ima_adpcm.h  libcsdr_gpl.h  libcsdr.h  predefined.h
 	@echo NOTE: you may have to manually edit Makefile to optimize for your CPU \(especially if you compile on ARM, please edit PARAMS_NEON\).
@@ -101,5 +101,10 @@ emcc-beautify:
 	bash -c 'type js-beautify >/dev/null 2>&1; if [ $$? -eq 0 ]; then js-beautify sdr.js/sdr.js >sdr.js/sdr.js.beautiful; mv sdr.js/sdr.js.beautiful sdr.js/sdr.js; fi'
 codequality:
 	@bash -c 'if [ `cat csdr.c | grep badsyntax | grep -v return | wc -l` -ne 1 ]; then echo "error at code quality check: badsyntax() used in csdr.c without return."; exit 1; else exit 0; fi'
+checkdocs:
+	@cat csdr.c | grep strcmp | egrep 'argv\[1\]' | awk -F'"' '$$0=$$2' > /tmp/csdr-list-of-functions
+	@cat /tmp/csdr-list-of-functions | xargs -I{} bash -c 'if ! cat csdr.c | grep \"\ \ \ \ {} >/dev/null ; then echo "warning: \"{}\"  is in csdr.c code, but not in usage string"; fi'
+	@cat /tmp/csdr-list-of-functions | xargs -I{} bash -c 'if ! cat README.md | grep {} >/dev/null ; then echo "warning: \"{}\"  is in csdr.c code, but not in README.md"; fi'
+	@rm /tmp/csdr-list-of-functions
 v:
 	vim csdr.c libcsdr.c
