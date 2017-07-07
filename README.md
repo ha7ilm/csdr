@@ -12,9 +12,14 @@ Most of the code is available under the permissive BSD license, with some option
 
 `csdr` has already been used to build:
 
-- AM/FM/SSB/CW demodulators, BPSK31 decoder and waterfall display in [OpenWebRX](https://github.com/simonyiszk/openwebrx),
-- AM/FM/SSB modulators in [qtcsdr](https://github.com/ha7ilm/qtcsdr) that can also be used standalone with [rpitx](https://github.com/ha7ilm/rpitx-app-note),
-- a decoder for FSK transmissions sent with the CC1111 wireless MCU, and also a standalone RTTY demodulator. 
+- AM, FM, SSB, CW and BPSK31 demodulators and waterfall display in [OpenWebRX](https://github.com/simonyiszk/openwebrx),
+- AM, FM, SSB modulators in [qtcsdr](https://github.com/ha7ilm/qtcsdr) that can also be used standalone with [rpitx](https://github.com/ha7ilm/rpitx-app-note),
+- a demodulator for FSK transmissions sent with the CC1111 wireless MCU, and also a standalone RTTY demodulator. 
+
+This animation shows the Gardner timing recovery algorithm in `csdr` locking on a baseband BPSK signal:
+
+![Gardner](https://raw.githubusercontent.com/wiki/simonyiszk/csdr/gardner.gif)
+
 
 How to compile
 --------------
