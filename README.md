@@ -20,6 +20,7 @@ This animation shows the Gardner timing recovery algorithm in `csdr` locking on 
 
 ![Gardner](https://raw.githubusercontent.com/wiki/simonyiszk/csdr/gardner.gif)
 
+(The symbol is sampled at the left red dot. The algorithm moves the middle dot as close to the symbol transition center, as possible.)
 
 How to compile
 --------------
@@ -695,12 +696,6 @@ Calculates `10*log10(i^2+q^2)+add_db` for the input complex samples. It is usefu
 ----
 
 ### [encode_ima_adpcm_i16_u8](#encode_ima_adpcm_i16_u8)
-
-Syntax: 
-
-----
-
-### [csdr](#csdr)
 
 Syntax: 
 
