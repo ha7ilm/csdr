@@ -5,5 +5,5 @@ ddcd
 *.so
 tags
 dumpvect.*.vect
-grc_tests/top_block.py
 *.swp
+grc_tests/top_block.py
