@@ -28,23 +28,44 @@
 
 LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c 
 #SOURCES = csdr.c $(LIBSOURCES)
-cpufeature = $(if $(findstring $(1),$(shell cat /proc/cpuinfo)),$(2))
+
+# OSX see:
+#   github.com/sgentle/csdr/blob/osx/Makefile
+#   http://llvm.org/docs/Vectorizers.html
+ifeq ($(shell uname -s),Darwin)
+ CPUFEATURES = $(shell sysctl -a | grep machdep.cpu.features | tr [A-Z] [a-z])
+ PARAMS_CC = -DOSX -D_DARWIN_C_SOURCE -I/usr/local/include
+ PARAMS_LOOPVECT = -O3 -ffast-math -Rpass=loop-vectorize
+ PARAMS_LIBS += -L/usr/local/lib
+ PARAMS_SHLIB = -fpic -shared -o libcsdr.so.$(SOVERSION)
+ PARSEVECT ?= no
+ LDCONFIG =
+ PREFIX ?= /usr/local
+else
+ CPUFEATURES = $(shell cat /proc/cpuinfo)
+ PARAMS_CC =
+ PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
+ PARAMS_LIBS += -lrt
+ PARAMS_SHLIB = -fpic -shared -Wl,-soname,libcsdr.so.$(SOVERSION) -o libcsdr.so.$(SOVERSION)
+ PARSEVECT ?= yes
+ LDCONFIG = ldconfig || echo please run ldconfig
+ PREFIX ?= /usr
+endif
+cpufeature = $(if $(findstring $(1),$(CPUFEATURES)),$(2))
+
 PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4a,-msse4a) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2 -msse4) -mfpmath=sse 
 PARAMS_NEON = -mfloat-abi=hard -march=armv7-a -mtune=cortex-a8 -mfpu=neon -mvectorize-with-neon-quad -funsafe-math-optimizations -Wformat=0 -DNEON_OPTS
 #tnx Jan Szumiec for the Raspberry Pi support
 PARAMS_RASPI = -mfloat-abi=hard -mcpu=arm1176jzf-s -mfpu=vfp -funsafe-math-optimizations -Wformat=0
 PARAMS_ARM = $(if $(call cpufeature,BCM2708,dummy-text),$(PARAMS_RASPI),$(PARAMS_NEON))
 PARAMS_SIMD = $(if $(call cpufeature,sse,dummy-text),$(PARAMS_SSE),$(PARAMS_ARM))
-PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
-PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
+PARAMS_LIBS += -g -lm -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
 PARAMS_SO = -fpic  
 PARAMS_MISC = -Wno-unused-result
 #DEBUG_ON = 0 #debug is always on by now (anyway it could be compiled with `make DEBUG_ON=1`)
 #PARAMS_DEBUG = $(if $(DEBUG_ON),-g,)
 FFTW_PACKAGE = fftw-3.3.3
-PREFIX ?= /usr
 SOVERSION = 0.15
-PARSEVECT ?= yes
 
 .PHONY: clean-vect clean codequality checkdocs v
 all: codequality csdr nmux
@@ -53,17 +74,17 @@ libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastd
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
 	rm -f dumpvect*.vect
-	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -Wl,-soname,libcsdr.so.$(SOVERSION) -o libcsdr.so.$(SOVERSION)
+	gcc $(PARAMS_CC) -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) $(PARAMS_SHLIB)
 	@ln -fs libcsdr.so.$(SOVERSION) libcsdr.so
 ifeq ($(PARSEVECT),yes)
 	-./parsevect dumpvect*.vect
 endif
 csdr: csdr.c libcsdr.so
-	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
+	gcc $(PARAMS_CC) -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
 ddcd: ddcd.cpp libcsdr.so ddcd.h
-	g++ $(PARAMS_LOOPVECT) $(PARAMS_SIMD) ddcd.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o ddcd
+	g++ $(PARAMS_CC) $(PARAMS_LOOPVECT) $(PARAMS_SIMD) ddcd.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o ddcd
 nmux: nmux.cpp libcsdr.so nmux.h tsmpool.cpp tsmpool.h
-	g++ $(PARAMS_LOOPVECT) $(PARAMS_SIMD) nmux.cpp tsmpool.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o nmux
+	g++ $(PARAMS_CC) $(PARAMS_LOOPVECT) $(PARAMS_SIMD) nmux.cpp tsmpool.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o nmux
 arm-cross: clean-vect
 	#note: this doesn't work since having added FFTW
 	arm-linux-gnueabihf-gcc -std=gnu99 -O3 -fshort-double -ffast-math -dumpbase dumpvect-arm -fdump-tree-vect-details -mfloat-abi=softfp -march=armv7-a -mtune=cortex-a9 -mfpu=neon -mvectorize-with-neon-quad -Wno-unused-result -Wformat=0 $(SOURCES) -lm -o ./csdr
@@ -71,15 +92,16 @@ clean-vect:
 	rm -f dumpvect*.vect
 clean: clean-vect
 	rm -f libcsdr.so.$(SOVERSION) csdr ddcd nmux *.o *.so
+	rm -rf *.dSYM
 install: all 
 	install -m 0755 libcsdr.so.$(SOVERSION) $(PREFIX)/lib
 	install -m 0755 csdr $(PREFIX)/bin
 	install -m 0755 csdr-fm $(PREFIX)/bin
 	install -m 0755 nmux $(PREFIX)/bin
 	#-install -m 0755 ddcd $(PREFIX)/bin
-	@ldconfig || echo please run ldconfig
+	@$(LDCONFIG)
 uninstall:
-	rm $(PREFIX)/lib/libcsdr.so.$(SOVERSION) $(PREFIX)/bin/csdr $(PREFIX)/bin/csdr-fm
+	rm $(PREFIX)/lib/libcsdr.so.$(SOVERSION) $(PREFIX)/bin/csdr $(PREFIX)/bin/csdr-fm $(PREFIX)/bin/nmux
 	ldconfig
 disasm:
 	objdump -S libcsdr.so.$(SOVERSION) > libcsdr.disasm
