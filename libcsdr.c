@@ -2301,7 +2301,11 @@ float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_s
         unsigned sinearest_remain = (input[i]-initial_sample_offset) % samples_per_symbol;
         if(sinearest_remain>samples_per_symbol/2) sinearest++;
         unsigned socorrect = initial_sample_offset+(sinearest*samples_per_symbol); //the sample offset which input[i] should have been, in order to sample at the maximum effect point
-        int sodiff = abs(socorrect-input[i]);
+        // FIXME: is this fix correct?
+        // A compiler correctly complains the abs() of the difference of two unsigned quantities has no effect.
+        // But I'm not sure if simply casting the difference to an int gives the correct result. (jks)
+        //int sodiff = abs(socorrect-input[i]);
+        int sodiff = abs((int) (socorrect-input[i]));
         float ndiff = (float)sodiff/samples_per_symbol;
 
         ndiff_rad[i] = ndiff*PI;
