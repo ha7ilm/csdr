@@ -1,5 +1,8 @@
 WSPR TODO
 
+Derive a fractional_decimator_cc from fractional_decimator_ff so WSPR can be used with
+IQ sources other than just the demo file.
+
 Make more "csdr-style"
     use dual-path FFT/demod?
     break into smaller csdr units connected by pipes?
