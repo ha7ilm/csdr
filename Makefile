@@ -29,13 +29,17 @@
 LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c 
 #SOURCES = csdr.c $(LIBSOURCES)
 
+WSPR_SOURCES = $(wildcard wspr/*.c)
+
 # OSX see:
 #   github.com/sgentle/csdr/blob/osx/Makefile
 #   http://llvm.org/docs/Vectorizers.html
 ifeq ($(shell uname -s),Darwin)
  CPUFEATURES = $(shell sysctl -a | grep machdep.cpu.features | tr [A-Z] [a-z])
  PARAMS_CC = -DOSX -D_DARWIN_C_SOURCE -I/usr/local/include
- PARAMS_LOOPVECT = -O3 -ffast-math -Rpass=loop-vectorize
+ PARAMS_LOOPVECT = -O3 -ffast-math
+# uncomment to get messages about vectorization results
+# PARAMS_LOOPVECT += -Rpass=loop-vectorize
  PARAMS_LIBS += -L/usr/local/lib
  PARAMS_SHLIB = -fpic -shared -o libcsdr.so.$(SOVERSION)
  PARSEVECT ?= no
@@ -80,7 +84,7 @@ ifeq ($(PARSEVECT),yes)
 	-./parsevect dumpvect*.vect
 endif
 csdr: csdr.c libcsdr.so
-	gcc $(PARAMS_CC) -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
+	gcc $(PARAMS_CC) -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) csdr.c $(WSPR_SOURCES) $(PARAMS_LIBS) -L. -lcsdr $(PARAMS_MISC) -o csdr
 ddcd: ddcd.cpp libcsdr.so ddcd.h
 	g++ $(PARAMS_CC) $(PARAMS_LOOPVECT) $(PARAMS_SIMD) ddcd.cpp $(PARAMS_LIBS) -L. -lcsdr -lpthread $(PARAMS_MISC) -o ddcd
 nmux: nmux.cpp libcsdr.so nmux.h tsmpool.cpp tsmpool.h

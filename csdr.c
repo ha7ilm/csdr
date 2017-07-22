@@ -124,7 +124,6 @@ char usage[]=
 "    flowcontrol <data_rate> <reads_per_second>\n"
 "    through\n"
 "    dsb_fc [q_value]\n"
-"    convert_f_samperf <wait_for_this_sample> \n"
 "    fmmod_fc\n"
 "    fixed_amplitude_cc <new_amplitude>\n"
 "    mono2stereo_s16\n"
@@ -540,6 +539,99 @@ int main(int argc, char *argv[])
 
     }
 
+    #include "wspr/wspr.h"
+    if(!strcmp(argv[1], "wspr"))
+    {
+        int fft = (argc>2) && !strcmp(argv[2], "--fft");
+        int demod = (argc>2) && !strcmp(argv[2], "--demod");
+        
+        // csdr wspr --file filename data_rate reads_per_second
+        // essentially same scheme as csdr "flowcontrol" with addition of WSPR time sync
+        int file = (argc>3) && !strcmp(argv[2], "--file");
+        time_t t; time(&t); struct tm tm; gmtime_r(&t, &tm);
+        bool sync = false;
+        int last_min = tm.tm_min, last_sec = tm.tm_sec;
+
+        FILE *fp;
+        int flowcontrol_bufsize, flowcontrol_sleep;
+        unsigned char* flowcontrol_buffer;
+
+        if (file) {
+            if(argc<6) return badsyntax("WSPR need required parameters (data_rate, reads_per_seconds)");
+            int data_rate;
+            sscanf(argv[4],"%d",&data_rate);
+            int reads_per_second;
+            sscanf(argv[5],"%d",&reads_per_second);
+            flowcontrol_bufsize=ceil(1.*(double)data_rate/reads_per_second);
+            //if(!getbufsize()) return -2;
+            sendbufsize(flowcontrol_bufsize);
+            flowcontrol_buffer = (unsigned char*)malloc(sizeof(unsigned char)*flowcontrol_bufsize);
+            flowcontrol_sleep=floor(1000000./reads_per_second);
+            errhead(); fprintf(stderr, "WSPR --file flowcontrol_bufsize = %d, flowcontrol_sleep = %d\n", flowcontrol_bufsize, flowcontrol_sleep);
+            fp = fopen(argv[3], "r");
+        } else {
+            if(!sendbufsize(initialize_buffers())) return -2;
+        }
+
+        // csdr wspr --fft demod_pipe_name decimate
+        if (fft) {
+            if(argc<5) return badsyntax("WSPR need required parameter (demod_pipe_name, decimate)");
+            int decimate=0;
+            sscanf(argv[4],"%d",&decimate);
+            SET_NONBLOCK(STDIN_FILENO);
+            wspr_init(argv[3], decimate, the_bufsize);
+            // doesn't return
+        }
+
+        for(;;)
+        {
+            FEOF_CHECK;
+            
+            if (file) {
+            
+                // Allow samples to pass before the time sync so they appear on the FFT display.
+                // Rewind the file on time sync to position the samples correctly.
+                if (!sync) {
+                    time(&t); gmtime_r(&t, &tm);
+                    if (last_sec != tm.tm_sec) {
+                        //fprintf(stderr, "WSPR --file %02d:%02d\n", tm.tm_min, tm.tm_sec); fflush(stderr);
+        
+                        if ((last_min&1) && !(tm.tm_min&1)) {   // wait for WSPR even 2 min boundary
+                            //fprintf(stderr, "WSPR --file %02d:%02d START\n", tm.tm_min, tm.tm_sec); fflush(stderr);
+                            rewind(fp);
+                            sync = true;
+                        }
+
+                        last_min = tm.tm_min;
+                        last_sec = tm.tm_sec;
+                    }
+                }
+                
+                //fprintf(stderr, "WSPR --file read fp=%p\n", fp); fflush(stderr);
+                int n = fread(flowcontrol_buffer, sizeof(unsigned char), flowcontrol_bufsize, fp);
+                //fprintf(stderr, "WSPR --file n=%d\n", n); fflush(stderr);
+                if (n && n != flowcontrol_bufsize) {
+                    //fprintf(stderr, "WSPR --file n=%d != fcbs=%d\n", n, flowcontrol_bufsize); fflush(stderr);
+                }
+                if (n == 0) {
+                    rewind(fp);
+                    continue;
+                }
+                fwrite(flowcontrol_buffer, sizeof(unsigned char), n, stdout);
+                usleep(flowcontrol_sleep);
+            } else
+            
+            if (demod) {
+                // for now just passes the text output from the WSPR decoder on the FFT chain via the "iqtee2_pipe"
+                // (not used currently)
+                FREAD_C;
+                FWRITE_C;
+            } else
+            
+            TRY_YIELD;
+        }
+        return 0;
+    }
 
     if(!strcmp(argv[1],"convert_u8_f"))
     {
@@ -3393,7 +3485,7 @@ int main(int argc, char *argv[])
             while(current_buffer_write_cntr!=current_buffer_read_cntr)
             {
                 int result = fwrite(async_tee_buffers+(the_bufsize*current_buffer_write_cntr)+current_byte_write_cntr, sizeof(unsigned char), the_bufsize-current_byte_write_cntr, teefile);
-                if(!result) { errhead(); fprintf(stderr, "\t fwrite tee zero, next turn\n"); break; }
+                if(!result) { errhead(); fprintf(stderr, "\t fwrite %s tee zero, next turn\n", argv[2]); break; }
                 current_byte_write_cntr += result;
                 //errhead(); fprintf(stderr, "\tfwrite tee, current_byte_write_cntr = %d, current_buffer_write_cntr = %d, current_buffer_read_cntr = %d\n", 
                 //        current_byte_write_cntr, current_buffer_write_cntr, current_buffer_read_cntr);
