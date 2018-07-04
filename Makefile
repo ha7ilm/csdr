@@ -26,9 +26,14 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 # SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+PLATFORM := $(shell uname -s)
 LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c 
 #SOURCES = csdr.c $(LIBSOURCES)
 cpufeature = $(if $(findstring $(1),$(shell cat /proc/cpuinfo)),$(2))
+ifeq ($(PLATFORM),Darwin)
+	CPUFEATURES = $(shell sysctl -a | grep machdep.cpu.features | tr [A-Z] [a-z])
+	cpufeature = $(if $(findstring $(1),$(CPUFEATURES)),$(2))
+endif
 PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4a,-msse4a) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2 -msse4) -mfpmath=sse 
 PARAMS_NEON = -mfloat-abi=hard -march=armv7-a -mtune=cortex-a8 -mfpu=neon -mvectorize-with-neon-quad -funsafe-math-optimizations -Wformat=0 -DNEON_OPTS
 #tnx Jan Szumiec for the Raspberry Pi support
@@ -37,6 +42,10 @@ PARAMS_ARM = $(if $(call cpufeature,BCM2708,dummy-text),$(PARAMS_RASPI),$(PARAMS
 PARAMS_SIMD = $(if $(call cpufeature,sse,dummy-text),$(PARAMS_SSE),$(PARAMS_ARM))
 PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
 PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
+ifeq ($(PLATFORM),Darwin)
+	PARAMS_LOOPVECT = -O3 -ffast-math
+	PARAMS_LIBS = -g -lm -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
+endif
 PARAMS_SO = -fpic  
 PARAMS_MISC = -Wno-unused-result
 #DEBUG_ON = 0 #debug is always on by now (anyway it could be compiled with `make DEBUG_ON=1`)
@@ -45,6 +54,10 @@ FFTW_PACKAGE = fftw-3.3.3
 PREFIX ?= /usr
 SOVERSION = 0.15
 PARSEVECT ?= yes
+SONAME = -soname
+ifeq ($(PLATFORM),Darwin)
+	SONAME = -install_name
+endif
 
 .PHONY: clean-vect clean codequality checkdocs v
 all: codequality csdr nmux
@@ -53,7 +66,7 @@ libcsdr.so: fft_fftw.c fft_rpi.c libcsdr_wrapper.c libcsdr.c libcsdr_gpl.c fastd
 	@echo Auto-detected optimization parameters: $(PARAMS_SIMD)
 	@echo
 	rm -f dumpvect*.vect
-	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -Wl,-soname,libcsdr.so.$(SOVERSION) -o libcsdr.so.$(SOVERSION)
+	gcc -std=gnu99 $(PARAMS_LOOPVECT) $(PARAMS_SIMD) $(LIBSOURCES) $(PARAMS_LIBS) $(PARAMS_MISC) -fpic -shared -Wl,$(SONAME),libcsdr.so.$(SOVERSION) -o libcsdr.so.$(SOVERSION)
 	@ln -fs libcsdr.so.$(SOVERSION) libcsdr.so
 ifeq ($(PARSEVECT),yes)
 	-./parsevect dumpvect*.vect
@@ -77,10 +90,14 @@ install: all
 	install -m 0755 csdr-fm $(PREFIX)/bin
 	install -m 0755 nmux $(PREFIX)/bin
 	#-install -m 0755 ddcd $(PREFIX)/bin
+ifneq ($(PLATFORM),Darwin)
 	@ldconfig || echo please run ldconfig
+endif
 uninstall:
 	rm $(PREFIX)/lib/libcsdr.so.$(SOVERSION) $(PREFIX)/bin/csdr $(PREFIX)/bin/csdr-fm
+ifneq ($(PLATFORM),Darwin)
 	ldconfig
+endif
 disasm:
 	objdump -S libcsdr.so.$(SOVERSION) > libcsdr.disasm
 emcc-clean:

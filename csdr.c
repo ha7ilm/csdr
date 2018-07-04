@@ -53,6 +53,10 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "fastddc.h"
 #include <assert.h>
 
+#ifdef __APPLE__
+#define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
+#endif
+
 char usage[]=
 "csdr - a simple commandline tool for Software Defined Radio receiver DSP.\n\n"
 "usage: \n\n"
@@ -366,20 +370,24 @@ int initialize_buffers()
     buffer_u8 =     (unsigned char*)malloc(the_bufsize*sizeof(unsigned char));
     buffer_i16 =    (short*)        malloc(the_bufsize*sizeof(short));
     temp_f =        (float*)        malloc(the_bufsize*sizeof(float) * 4);
+    #ifndef __APPLE__
     if(the_bufsize<=4096) //this is hacky, should be done correctly
     {
         fcntl(STDIN_FILENO, F_SETPIPE_SZ,  4096);
         fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 4096);
     }
+    #endif
     return the_bufsize;
 }
 
 int sendbufsize(int size)
 {
+    #ifndef __APPLE__
     if(size<=4096)
     {
         fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 4096);
     }
+    #endif
     //The first word is a preamble, "csdr".
     //If the next csdr process detects it, sets the buffer size according to the second word
     if(!env_csdr_dynamic_bufsize_on) return env_csdr_fixed_bufsize;
@@ -424,8 +432,10 @@ int main(int argc, char *argv[])
     if(argc<=1) return badsyntax(0);
     if(!strcmp(argv[1],"--help")) return badsyntax(0);
 
+    #ifndef __APPLE__
     fcntl(STDIN_FILENO, F_SETPIPE_SZ, 65536*32);
     fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 65536*32);
+    #endif
     //fprintf(stderr, "csdr: F_SETPIPE_SZ\n");
 
     if(!strcmp(argv[1],"setbuf"))

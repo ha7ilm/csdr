@@ -296,6 +296,13 @@ void* client_thread (void* param)
 	if(set_nonblocking(this_client->socket))
 		error_exit(MSG_START "cannot set_nonblocking() on this_client->socket");
 
+  #ifdef __APPLE__
+	int sockopt = 1;
+	if( setsockopt(this_client->socket, SOL_SOCKET, SO_NOSIGPIPE, (char *)&sockopt, sizeof(sockopt)) == -1 )
+		error_exit(MSG_START "cannot set SO_NOSIGPIPE");
+	#define MSG_NOSIGNAL 0
+	#endif
+
 	int client_buffer_index = 0;
 	int client_goto_source = 0;
 	char* pool_read_buffer = NULL;
