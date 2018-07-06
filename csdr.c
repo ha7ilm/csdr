@@ -53,9 +53,25 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "fastddc.h"
 #include <assert.h>
 
-#ifdef __APPLE__
-#define CLOCK_MONOTONIC_RAW CLOCK_MONOTONIC
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
 #endif
+
+// Use clock_gettime in linux, clock_get_time in OS X.
+void get_monotonic_time(struct timespec *ts){
+#ifdef __MACH__
+  clock_serv_t cclock;
+  mach_timespec_t mts;
+  host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);
+  clock_get_time(cclock, &mts);
+  mach_port_deallocate(mach_task_self(), cclock);
+  ts->tv_sec = mts.tv_sec;
+  ts->tv_nsec = mts.tv_nsec;
+#else
+  clock_gettime(CLOCK_MONOTONIC_RAW, ts);
+#endif
+}
 
 char usage[]=
 "csdr - a simple commandline tool for Software Defined Radio receiver DSP.\n\n"
@@ -1803,15 +1819,15 @@ int main(int argc, char *argv[])
         //initialize FFT library, and measure time
         errhead(); fprintf(stderr,"initializing... ");
         struct timespec start_time, end_time;
-        clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+        get_monotonic_time(&start_time);
         FFT_PLAN_T* plan=make_fft_c2c(fft_size,input,output,1,benchmark);
-        clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+        get_monotonic_time(&end_time);
         fprintf(stderr,"done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
 
         //do the actual measurement about the FFT
-        clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+        get_monotonic_time(&start_time);
         for(int i=0;i<fft_cycles;i++) fft_execute(plan);
-        clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+        get_monotonic_time(&end_time);
         float time_taken_fft = TIME_TAKEN(start_time,end_time);
         errhead(); fprintf(stderr,"%d transforms of %d processed in %g seconds, %g seconds each.\n",fft_cycles,fft_size,time_taken_fft,time_taken_fft/fft_cycles);
         return 0;
@@ -2014,11 +2030,11 @@ int main(int argc, char *argv[])
             if(flowcontrol_is_buffering)
             {
                 fprintf(stderr, "flowcontrol: buffering, flowcontrol_bufindex = %d\n", flowcontrol_bufindex);
-                if(flowcontrol_bufindex==flowcontrol_bufsize) { flowcontrol_is_buffering = 0; clock_gettime(CLOCK_MONOTONIC_RAW, &start_time); }
+                if(flowcontrol_bufindex==flowcontrol_bufsize) { flowcontrol_is_buffering = 0; get_monotonic_time(&start_time); }
                 else if(read_return<=0) continue;
             }
             else {
-                clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+                get_monotonic_time(&end_time);
                 int thrust_added=0;
                 while( (all_bytes_written+thrust*flowcontrol_readsize) / TIME_TAKEN(start_time,end_time) < data_rate )
                 {
@@ -2027,7 +2043,7 @@ int main(int argc, char *argv[])
                 //if(!(test++%10)) fprintf(stderr, "abw=%g\n", all_bytes_written / TIME_TAKEN(start_time,end_time));
                 /*if(!thrust_added && TIME_TAKEN(start_time,end_time)>50)
                 {
-                    clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+                    get_monotonic_time(&start_time);
                     all_bytes_written=0;
                 }*/
                 while(all_bytes_written>data_rate && TIME_TAKEN(start_time,end_time)>1)
@@ -2073,11 +2089,11 @@ int main(int argc, char *argv[])
             if(!time_now_sec)
             {
                 time_now_sec=1;
-                clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+                get_monotonic_time(&start_time);
             }
             else
             {
-                clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+                get_monotonic_time(&end_time);
                 float timetaken;
                 if(time_now_sec<(timetaken=TIME_TAKEN(start_time,end_time)))
                 {
