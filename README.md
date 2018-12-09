@@ -624,7 +624,7 @@ Syntax:
 
 It is an automatic gain control function.
 
-- `hang_time` is the number of samples to wait before strating to increase the gain after a peak.
+- `hang_time` is the number of samples to wait before starting to increase the gain after a peak.
 - `reference` is the reference level for the AGC. It tries to keep the amplitude of the output signal close to that.
 - `attack_rate` is the rate of decreasing the signal level if it gets higher than it used to be before.
 - `decay_rate` is the rate of increasing the signal level if it gets lower than it used to be before.
