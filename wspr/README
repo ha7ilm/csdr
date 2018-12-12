@@ -1,0 +1,17 @@
+WSPR TODO
+
+Derive a fractional_decimator_cc from fractional_decimator_ff so WSPR can be used with
+IQ sources other than just the demo file.
+
+Make more "csdr-style"
+    use dual-path FFT/demod?
+    break into smaller csdr units connected by pipes?
+
+UI
+    set band control
+    initial FFT black lines
+    zoom_max_level_hps setting
+    scrolling decode list (use nanoScroller)
+
+Perform wspr.net spot uploads
+    requires call/grid setup

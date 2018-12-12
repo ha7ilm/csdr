@@ -64,6 +64,13 @@ typedef struct complexf_s { float i; float q; } complexf;
 //they dropped M_PI in C99, so we define it:
 #define PI ((float)3.14159265358979323846)
 
+#ifdef OSX
+ //clock_gettime is supposed to be included starting with OSX 10.12 (Sierra)
+ #include <time.h>
+ #define clock_gettime(clock_id, tp) csdr_clock_gettime(clock_id, tp)
+ int csdr_clock_gettime(clockid_t clock_id, struct timespec *tp);
+#endif
+
 #define TIME_TAKEN(start,end) ((end.tv_sec-start.tv_sec)+(end.tv_nsec-start.tv_nsec)/1e9)
 
 //window
@@ -222,7 +229,9 @@ void convert_f_u8(float* input, unsigned char* output, int input_size);
 void convert_s8_f(signed char* input, float* output, int input_size);
 void convert_f_s8(float* input, signed char* output, int input_size);
 void convert_f_s16(float* input, short* output, int input_size);
+void convert_f_s16_big_endian(float* input, short* output, int input_size);
 void convert_s16_f(short* input, float* output, int input_size);
+void convert_s16_big_endian_f(short* input, float* output, int input_size);
 void convert_f_i16(float* input, short* output, int input_size);
 void convert_i16_f(short* input, float* output, int input_size);
 void convert_f_s24(float* input, unsigned char* output, int input_size, int bigendian);
@@ -386,7 +395,7 @@ FILE* init_get_random_samples_f();
 void get_random_samples_f(float* output, int output_size, FILE* status);
 void get_random_gaussian_samples_c(complexf* output, int output_size, FILE* status);
 int deinit_get_random_samples_f(FILE* status);
-float* add_ff(float* input1, float* input2, float* output, int input_size);
+void add_ff(float* input1, float* input2, float* output, int input_size);
 float total_logpower_cf(complexf* input, int input_size);
 float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_size, int samples_per_symbol, int initial_sample_offset, int debug_print);
 
@@ -398,14 +407,14 @@ typedef enum matched_filter_type_e
 
 #define MATCHED_FILTER_DEFAULT MATCHED_FILTER_RRC
 
-int firdes_cosine_f(float* taps, int taps_length, int samples_per_symbol);
-int firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float beta);
+void firdes_cosine_f(float* taps, int taps_length, int samples_per_symbol);
+void firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float beta);
 matched_filter_type_t matched_filter_get_type_from_string(char* input);
 int apply_real_fir_cc(complexf* input, complexf* output, int input_size, float* taps, int taps_length);
 void generic_slicer_f_u8(float* input, unsigned char* output, int input_size, int n_symbols);
 void plain_interpolate_cc(complexf* input, complexf* output, int input_size, int interpolation);;
 void normalize_fir_f(float* input, float* output, int length);
-float* add_const_cc(complexf* input, complexf* output, int input_size, complexf x);
+void add_const_cc(complexf* input, complexf* output, int input_size, complexf x);
 void pack_bits_1to8_u8_u8(unsigned char* input, unsigned char* output, int input_size);
 unsigned char pack_bits_8to1_u8_u8(unsigned char* input);
 void dbpsk_decoder_c_u8(complexf* input, unsigned char* output, int input_size);

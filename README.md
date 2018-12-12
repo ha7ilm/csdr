@@ -952,7 +952,7 @@ Syntax:
 
     csdr add_n_zero_samples_at_beginning_f <n_zero_samples> 
 
-When the function is executed, it furst writes `<n_zero_samples>` 32-bit floating point zeros at the output, after that it just clones the input at the output. 
+When the function is executed, it first writes `<n_zero_samples>` 32-bit floating point zeros at the output, after that it just clones the input at the output. 
 
 ----
 

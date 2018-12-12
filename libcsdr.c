@@ -1537,7 +1537,7 @@ char psk31_varicode_decoder_push(unsigned long long* status_shr, unsigned char s
 {
     *status_shr=((*status_shr)<<1)|(!!symbol); //shift new bit in shift register
     //fprintf(stderr,"*status_shr = %llx\n", *status_shr);
-    if((*status_shr)&0xFFF==0) return 0;
+    if(((*status_shr)&0xFFF)==0) return 0;
     for(int i=0;i<n_psk31_varicode_items;i++)
     {
         //fprintf(stderr,"| i = %d | %llx ?= %llx | bitsall = %d\n", i, psk31_varicode_items[i].code<<2, (*status_shr)&psk31_varicode_masklen_helper[(psk31_varicode_items[i].bitcount+4)&63], (psk31_varicode_items[i].bitcount+4)&63);
@@ -2301,7 +2301,11 @@ float normalized_timing_variance_u32_f(unsigned* input, float* temp, int input_s
         unsigned sinearest_remain = (input[i]-initial_sample_offset) % samples_per_symbol;
         if(sinearest_remain>samples_per_symbol/2) sinearest++;
         unsigned socorrect = initial_sample_offset+(sinearest*samples_per_symbol); //the sample offset which input[i] should have been, in order to sample at the maximum effect point
-        int sodiff = abs(socorrect-input[i]);
+        // FIXME: is this fix correct?
+        // A compiler correctly complains the abs() of the difference of two unsigned quantities has no effect.
+        // But I'm not sure if simply casting the difference to an int gives the correct result. (jks)
+        //int sodiff = abs(socorrect-input[i]);
+        int sodiff = abs((int) (socorrect-input[i]));
         float ndiff = (float)sodiff/samples_per_symbol;
 
         ndiff_rad[i] = ndiff*PI;
@@ -2375,6 +2379,15 @@ void convert_s16_f(short* input, float* output, int input_size)
     for(int i=0;i<input_size;i++) output[i]=(float)input[i]/SHRT_MAX; //@convert_s16_f
 }
 
+void convert_s16_big_endian_f(short* input, float* output, int input_size)
+{
+    for(int i=0;i<input_size;i++) {
+        unsigned short ushort = input[i];
+        short sint = (short) ((ushort & 0xff) << 8) | ((ushort >> 8) & 0xff);
+        output[i]=(float)sint/SHRT_MAX; //@convert_s16_big_endian_f
+    }
+}
+
 void convert_f_u8(float* input, unsigned char* output, int input_size)
 {
     for(int i=0;i<input_size;i++) output[i]=input[i]*UCHAR_MAX*0.5+128; //@convert_f_u8
@@ -2395,6 +2408,15 @@ void convert_f_s16(float* input, short* output, int input_size)
         if(input[i]<-1.0) input[i]=-1.0;
     }*/
     for(int i=0;i<input_size;i++) output[i]=input[i]*SHRT_MAX; //@convert_f_s16
+}
+
+void convert_f_s16_big_endian(float* input, short* output, int input_size)
+{
+    for(int i=0;i<input_size;i++) {
+        unsigned short ushort = (unsigned short) (short) (input[i]*SHRT_MAX);
+        short sint = (short) ((ushort & 0xff) << 8) | ((ushort >> 8) & 0xff);
+        output[i]=sint; //@convert_f_s16_big_endian
+    }
 }
 
 void convert_i16_f(short* input, float* output, int input_size) { convert_s16_f(input, output, input_size); }
@@ -2470,7 +2492,7 @@ int deinit_get_random_samples_f(FILE* status)
     return fclose(status);
 }
 
-int firdes_cosine_f(float* taps, int taps_length, int samples_per_symbol)
+void firdes_cosine_f(float* taps, int taps_length, int samples_per_symbol)
 {
     //needs a taps_length 2 × samples_per_symbol + 1
     int middle_i=taps_length/2;
@@ -2479,7 +2501,7 @@ int firdes_cosine_f(float* taps, int taps_length, int samples_per_symbol)
     normalize_fir_f(taps, taps, taps_length);
 }
 
-int firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float beta)
+void firdes_rrc_f(float* taps, int taps_length, int samples_per_symbol, float beta)
 {
     //needs an odd taps_length
     int middle_i=taps_length/2;
@@ -2515,12 +2537,12 @@ matched_filter_type_t matched_filter_get_type_from_string(char* input)
     return MATCHED_FILTER_DEFAULT;
 }
 
-float* add_ff(float* input1, float* input2, float* output, int input_size)
+void add_ff(float* input1, float* input2, float* output, int input_size)
 {
     for(int i=0;i<input_size;i++) output[i]=input1[i]+input2[i];
 }
 
-float* add_const_cc(complexf* input, complexf* output, int input_size, complexf x)
+void add_const_cc(complexf* input, complexf* output, int input_size, complexf x)
 {
     for(int i=0;i<input_size;i++)
     {
@@ -2539,3 +2561,20 @@ int trivial_vectorize()
     }
     return c[0];
 }
+
+#ifdef OSX
+#include <mach/clock.h>
+#include <mach/mach.h>
+
+int csdr_clock_gettime(clockid_t clock_is, struct timespec *tp)
+{
+    clock_serv_t cclock;
+    mach_timespec_t mts;
+    host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+    clock_get_time(cclock, &mts);
+    mach_port_deallocate(mach_task_self(), cclock);
+    tp->tv_sec = mts.tv_sec;
+    tp->tv_nsec = mts.tv_nsec;
+    return 0;
+}
+#endif

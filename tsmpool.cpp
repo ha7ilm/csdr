@@ -42,7 +42,7 @@ tsmthread_t* tsmpool::register_thread()
 	return thread;
 }
 
-int tsmpool::remove_thread(tsmthread_t* thread)
+void tsmpool::remove_thread(tsmthread_t* thread)
 {
 	pthread_mutex_lock(&this->mutex);
 	for(int i=0;i<threads.size();i++)

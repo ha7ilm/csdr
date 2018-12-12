@@ -53,6 +53,15 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "fastddc.h"
 #include <assert.h>
 
+#ifdef OSX
+ #ifndef F_LINUX_SPECIFIC_BASE
+ #define F_LINUX_SPECIFIC_BASE       1024
+ #endif
+ #ifndef F_SETPIPE_SZ
+ #define F_SETPIPE_SZ	(F_LINUX_SPECIFIC_BASE + 7)
+ #endif
+#endif
+
 char usage[]=
 "csdr - a simple commandline tool for Software Defined Radio receiver DSP.\n\n"
 "usage: \n\n"
@@ -62,10 +71,11 @@ char usage[]=
 "    convert_f_u8\n"
 "    convert_s8_f\n"
 "    convert_f_s8\n"
-"    convert_f_s16\n"
-"    convert_s16_f\n"
+"    convert_f_s16 [--bigendian]\n"
+"    convert_s16_f [--bigendian]\n"
 "    convert_f_s24 [--bigendian]\n"
 "    convert_s24_f [--bigendian]\n"
+"    iq_swap_ff\n"
 "    realpart_cf\n"
 "    clipdetect_ff\n"
 "    limit_ff [max_amplitude]\n"
@@ -114,7 +124,6 @@ char usage[]=
 "    flowcontrol <data_rate> <reads_per_second>\n"
 "    through\n"
 "    dsb_fc [q_value]\n"
-"    convert_f_samperf <wait_for_this_sample> \n"
 "    fmmod_fc\n"
 "    fixed_amplitude_cc <new_amplitude>\n"
 "    mono2stereo_s16\n"
@@ -160,7 +169,7 @@ char usage[]=
 "    bfsk_demod_cf <spacing> <filter_length>\n"
 "    normalized_timing_variance_u32_f <samples_per_symbol> <initial_sample_offset> [--debug]\n"
 "    ?<search_the_function_list>\n"
-"    ??<jump_to_function_docs_on_github>\n"
+"    \?\?<jump_to_function_docs_on_github>\n"
 "    =<evaluate_python_expression>\n"
 "    shift_addfast_cc <rate>   #only if system supports NEON \n"
 "    shift_unroll_cc <rate>\n"
@@ -201,7 +210,7 @@ int bigbufs = 0;
 char **argv_global;
 int argc_global;
 
-int errhead()
+void errhead()
 {
     fprintf(stderr, "%s%s%s: ", argv_global[0], ((argc_global>=2)?" ":""), ((argc_global>=2)?argv_global[1]:""));
 }
@@ -391,7 +400,7 @@ int sendbufsize(int size)
     return size;
 }
 
-int parse_env()
+void parse_env()
 {
     char* envtmp;
     envtmp=getenv("CSDR_DYNAMIC_BUFSIZE_ON");
@@ -530,6 +539,99 @@ int main(int argc, char *argv[])
 
     }
 
+    #include "wspr/wspr.h"
+    if(!strcmp(argv[1], "wspr"))
+    {
+        int fft = (argc>2) && !strcmp(argv[2], "--fft");
+        int demod = (argc>2) && !strcmp(argv[2], "--demod");
+        
+        // csdr wspr --file filename data_rate reads_per_second
+        // essentially same scheme as csdr "flowcontrol" with addition of WSPR time sync
+        int file = (argc>3) && !strcmp(argv[2], "--file");
+        time_t t; time(&t); struct tm tm; gmtime_r(&t, &tm);
+        bool sync = false;
+        int last_min = tm.tm_min, last_sec = tm.tm_sec;
+
+        FILE *fp;
+        int flowcontrol_bufsize, flowcontrol_sleep;
+        unsigned char* flowcontrol_buffer;
+
+        if (file) {
+            if(argc<6) return badsyntax("WSPR need required parameters (data_rate, reads_per_seconds)");
+            int data_rate;
+            sscanf(argv[4],"%d",&data_rate);
+            int reads_per_second;
+            sscanf(argv[5],"%d",&reads_per_second);
+            flowcontrol_bufsize=ceil(1.*(double)data_rate/reads_per_second);
+            //if(!getbufsize()) return -2;
+            sendbufsize(flowcontrol_bufsize);
+            flowcontrol_buffer = (unsigned char*)malloc(sizeof(unsigned char)*flowcontrol_bufsize);
+            flowcontrol_sleep=floor(1000000./reads_per_second);
+            errhead(); fprintf(stderr, "WSPR --file flowcontrol_bufsize = %d, flowcontrol_sleep = %d\n", flowcontrol_bufsize, flowcontrol_sleep);
+            fp = fopen(argv[3], "r");
+        } else {
+            if(!sendbufsize(initialize_buffers())) return -2;
+        }
+
+        // csdr wspr --fft demod_pipe_name decimate
+        if (fft) {
+            if(argc<5) return badsyntax("WSPR need required parameter (demod_pipe_name, decimate)");
+            int decimate=0;
+            sscanf(argv[4],"%d",&decimate);
+            SET_NONBLOCK(STDIN_FILENO);
+            wspr_init(argv[3], decimate, the_bufsize);
+            // doesn't return
+        }
+
+        for(;;)
+        {
+            FEOF_CHECK;
+            
+            if (file) {
+            
+                // Allow samples to pass before the time sync so they appear on the FFT display.
+                // Rewind the file on time sync to position the samples correctly.
+                if (!sync) {
+                    time(&t); gmtime_r(&t, &tm);
+                    if (last_sec != tm.tm_sec) {
+                        //fprintf(stderr, "WSPR --file %02d:%02d\n", tm.tm_min, tm.tm_sec); fflush(stderr);
+        
+                        if ((last_min&1) && !(tm.tm_min&1)) {   // wait for WSPR even 2 min boundary
+                            //fprintf(stderr, "WSPR --file %02d:%02d START\n", tm.tm_min, tm.tm_sec); fflush(stderr);
+                            rewind(fp);
+                            sync = true;
+                        }
+
+                        last_min = tm.tm_min;
+                        last_sec = tm.tm_sec;
+                    }
+                }
+                
+                //fprintf(stderr, "WSPR --file read fp=%p\n", fp); fflush(stderr);
+                int n = fread(flowcontrol_buffer, sizeof(unsigned char), flowcontrol_bufsize, fp);
+                //fprintf(stderr, "WSPR --file n=%d\n", n); fflush(stderr);
+                if (n && n != flowcontrol_bufsize) {
+                    //fprintf(stderr, "WSPR --file n=%d != fcbs=%d\n", n, flowcontrol_bufsize); fflush(stderr);
+                }
+                if (n == 0) {
+                    rewind(fp);
+                    continue;
+                }
+                fwrite(flowcontrol_buffer, sizeof(unsigned char), n, stdout);
+                usleep(flowcontrol_sleep);
+            } else
+            
+            if (demod) {
+                // for now just passes the text output from the WSPR decoder on the FFT chain via the "iqtee2_pipe"
+                // (not used currently)
+                FREAD_C;
+                FWRITE_C;
+            } else
+            
+            TRY_YIELD;
+        }
+        return 0;
+    }
 
     if(!strcmp(argv[1],"convert_u8_f"))
     {
@@ -581,26 +683,50 @@ int main(int argc, char *argv[])
     }
     if((!strcmp(argv[1],"convert_f_i16")) || (!strcmp(argv[1],"convert_f_s16")))
     {
+        int bigendian = (argc>2) && (!strcmp(argv[2],"--bigendian"));
         if(!sendbufsize(initialize_buffers())) return -2;
-        for(;;)
-        {
-            FEOF_CHECK;
-            FREAD_R;
-            convert_f_i16(input_buffer, buffer_i16, the_bufsize);
-            fwrite(buffer_i16, sizeof(short), the_bufsize, stdout);
-            TRY_YIELD;
+        if (bigendian) {
+            for(;;)
+            {
+                FEOF_CHECK;
+                FREAD_R;
+                convert_f_s16_big_endian(input_buffer, buffer_i16, the_bufsize);
+                fwrite(buffer_i16, sizeof(short), the_bufsize, stdout);
+                TRY_YIELD;
+            }
+        } else {
+            for(;;)
+            {
+                FEOF_CHECK;
+                FREAD_R;
+                convert_f_i16(input_buffer, buffer_i16, the_bufsize);
+                fwrite(buffer_i16, sizeof(short), the_bufsize, stdout);
+                TRY_YIELD;
+            }
         }
     }
     if((!strcmp(argv[1],"convert_i16_f")) || (!strcmp(argv[1],"convert_s16_f")))
     {
+        int bigendian = (argc>2) && (!strcmp(argv[2],"--bigendian"));
         if(!sendbufsize(initialize_buffers())) return -2;
-        for(;;)
-        {
-            FEOF_CHECK;
-            fread(buffer_i16, sizeof(short), the_bufsize, stdin);
-            convert_i16_f(buffer_i16, output_buffer, the_bufsize);
-            FWRITE_R;
-            TRY_YIELD;
+        if (bigendian) {
+            for(;;)
+            {
+                FEOF_CHECK;
+                fread(buffer_i16, sizeof(short), the_bufsize, stdin);
+                convert_s16_big_endian_f(buffer_i16, output_buffer, the_bufsize);
+                FWRITE_R;
+                TRY_YIELD;
+            }
+        } else {
+            for(;;)
+            {
+                FEOF_CHECK;
+                fread(buffer_i16, sizeof(short), the_bufsize, stdin);
+                convert_i16_f(buffer_i16, output_buffer, the_bufsize);
+                FWRITE_R;
+                TRY_YIELD;
+            }
         }
     }
     if(!strcmp(argv[1],"convert_f_s24"))
@@ -631,6 +757,19 @@ int main(int argc, char *argv[])
             TRY_YIELD;
         }
     }
+	if(!strcmp(argv[1],"iq_swap_ff"))
+	{
+		double t;
+        if(!sendbufsize(initialize_buffers())) return -2;
+		for(;;)
+		{
+			FEOF_CHECK;
+			FREAD_C;
+			for(int i=0;i<the_bufsize;i++) { t = iof(input_buffer, i); iof(input_buffer, i) = qof(input_buffer, i); qof(input_buffer, i) = t; }
+			fwrite(input_buffer, sizeof(float)*2, the_bufsize, stdout);
+            TRY_YIELD;
+		}
+	}
     if(!strcmp(argv[1],"realpart_cf"))
     {
         if(!sendbufsize(initialize_buffers())) return -2;
@@ -754,7 +893,7 @@ int main(int argc, char *argv[])
         float rate;
 
         int fd;
-        if(fd=init_fifo(argc,argv))
+        if((fd=init_fifo(argc,argv)))
         {
             while(!read_fifo_ctl(fd,"%g\n",&rate)) usleep(10000);
         }
@@ -805,7 +944,7 @@ int main(int argc, char *argv[])
         float rate;
 
         int fd;
-        if(fd=init_fifo(argc,argv))
+        if((fd=init_fifo(argc,argv)))
         {
             while(!read_fifo_ctl(fd,"%g\n",&rate)) usleep(10000);
         }
@@ -882,7 +1021,7 @@ int main(int argc, char *argv[])
         float rate;
 
         int fd;
-        if(fd=init_fifo(argc,argv))
+        if((fd=init_fifo(argc,argv)))
         {
             while(!read_fifo_ctl(fd,"%g\n",&rate)) usleep(10000);
         }
@@ -1814,7 +1953,7 @@ int main(int argc, char *argv[])
         float transition_bw;
         window_t window = WINDOW_DEFAULT;
         int fd;
-        if(fd=init_fifo(argc,argv))
+        if((fd=init_fifo(argc,argv)))
         {
             while(!read_fifo_ctl(fd,"%g %g\n",&low_cut,&high_cut)) usleep(10000);
             if(argc<=4) return badsyntax("need more required parameters (transition_bw)");
@@ -2202,7 +2341,7 @@ int main(int argc, char *argv[])
         int report_cntr=0;
         complexf* zerobuf = (complexf*)malloc(sizeof(complexf)*the_bufsize);
         for(int i=0;i<the_bufsize*2;i++) *(((float*)zerobuf)+i)=0;
-        if(fd=init_fifo(argc,argv)) while(!read_fifo_ctl(fd,"%g\n",&squelch_level)) usleep(10000);
+        if((fd=init_fifo(argc,argv))) while(!read_fifo_ctl(fd,"%g\n",&squelch_level)) usleep(10000);
         else return badsyntax("need required parameter (--fifo <fifo>)");
         errhead(); fprintf(stderr, "initial squelch level is %g\n", squelch_level);
         if((argc<=5)||((argc>5)&&(strcmp(argv[4],"--outfifo")))) return badsyntax("need required parameter (--outfifo <fifo>)");
@@ -2305,7 +2444,7 @@ int main(int argc, char *argv[])
         int plusarg=0;
 
         int fd;
-        if(fd=init_fifo(argc,argv))
+        if((fd=init_fifo(argc,argv)))
         {
             while(!read_fifo_ctl(fd,"%g\n",&shift_rate)) usleep(10000);
             plusarg=1;
@@ -2362,7 +2501,7 @@ int main(int argc, char *argv[])
         complexf* output =   (complexf*)fft_malloc(sizeof(complexf)*ddc.post_input_size);
 
         decimating_shift_addition_status_t shift_stat;
-        bzero(&shift_stat, sizeof(shift_stat));
+        memset(&shift_stat, 0, sizeof(shift_stat));
         for(;;)
         {
             FEOF_CHECK;
@@ -2766,7 +2905,7 @@ int main(int argc, char *argv[])
     {
         if(!initialize_buffers()) return -2;
         sendbufsize(1);
-        char local_input_buffer[8];
+        unsigned char local_input_buffer[8];
         for(;;)
         {
             FEOF_CHECK;
@@ -3346,7 +3485,7 @@ int main(int argc, char *argv[])
             while(current_buffer_write_cntr!=current_buffer_read_cntr)
             {
                 int result = fwrite(async_tee_buffers+(the_bufsize*current_buffer_write_cntr)+current_byte_write_cntr, sizeof(unsigned char), the_bufsize-current_byte_write_cntr, teefile);
-                if(!result) { errhead(); fprintf(stderr, "\t fwrite tee zero, next turn\n"); break; }
+                if(!result) { errhead(); fprintf(stderr, "\t fwrite %s tee zero, next turn\n", argv[2]); break; }
                 current_byte_write_cntr += result;
                 //errhead(); fprintf(stderr, "\tfwrite tee, current_byte_write_cntr = %d, current_buffer_write_cntr = %d, current_buffer_read_cntr = %d\n", 
                 //        current_byte_write_cntr, current_buffer_write_cntr, current_buffer_read_cntr);
@@ -3370,7 +3509,7 @@ int main(int argc, char *argv[])
         float rate;
 
         int fd;
-        if(fd=init_fifo(argc,argv))
+        if((fd=init_fifo(argc,argv)))
         {
             while(!read_fifo_ctl(fd,"%g\n",&rate)) usleep(10000);
         }
