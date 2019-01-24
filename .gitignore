@@ -3,6 +3,7 @@ nmux
 ddcd
 *.o
 *.so
+*.so.*
 tags
 dumpvect.*.vect
 *.swp

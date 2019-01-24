@@ -192,7 +192,7 @@ int main(int argc, char* argv[])
 			if(NMUX_DEBUG) 
 			{
 				fprintf(stderr, "\x1b[1m\x1b[33mmainfor: clients before closing: ");
-				for(int i=0;i<clients.size();i++) fprintf(stderr, "0x%x ", (intptr_t)clients[i]);
+				for(int i=0;i<clients.size();i++) fprintf(stderr, "%p ", clients[i]);
 				fprintf(stderr, "\x1b[0m\n");
 			}
 			if(NMUX_DEBUG) fprintf(stderr, "mainfor: accepted (socket = %d).\n", new_socket);
@@ -211,7 +211,7 @@ int main(int argc, char* argv[])
 			if(NMUX_DEBUG) 
 			{
 				fprintf(stderr, "\x1b[1m\x1b[33mmainfor: clients after closing: ");
-				for(int i=0;i<clients.size();i++) fprintf(stderr, "0x%x ", (intptr_t)clients[i]);
+				for(int i=0;i<clients.size();i++) fprintf(stderr, "%p ", clients[i]);
 				fprintf(stderr, "\x1b[0m\n");
 			}
 
@@ -227,7 +227,7 @@ int main(int argc, char* argv[])
 			if(pthread_create(&new_client->thread, NULL, client_thread, (void*)new_client)==0)
 			{
 				clients.push_back(new_client);
-				fprintf(stderr, MSG_START "pthread_create() done, clients now: %d\n", clients.size());
+				fprintf(stderr, MSG_START "pthread_create() done, clients now: %d\n", (int)clients.size());
 			}
 			else
 			{
@@ -278,14 +278,14 @@ int main(int argc, char* argv[])
 
 void* client_thread (void* param)
 {
-	fprintf(stderr, "client 0x%x: started!\n", (intptr_t)param);
+	fprintf(stderr, "client %p: started!\n", param);
 	client_t* this_client = (client_t*)param;
 	this_client->status = CS_THREAD_RUNNING;
 	int retval;
 	tsmpool* lpool = this_client->lpool;
-	if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: socket = %d!\n", (intptr_t)param, this_client->socket);
+	if(NMUX_DEBUG) fprintf(stderr, "client %p: socket = %d!\n", param, this_client->socket);
 
-	if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: poll init...", (intptr_t)param);
+	if(NMUX_DEBUG) fprintf(stderr, "client %p: poll init...", param);
 	struct pollfd pollfds[1];
 	pollfds[0].fd = this_client->socket;
 	pollfds[0].events = POLLOUT;
@@ -307,10 +307,10 @@ void* client_thread (void* param)
 		//	(Wait for the server process to wake me up.)
 		while(!pool_read_buffer || client_buffer_index >= lpool->size)
 		{
-			if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: trying to grb\n", (intptr_t)param);
+			if(NMUX_DEBUG) fprintf(stderr, "client %p: trying to grb\n", param);
 			pool_read_buffer = (char*)lpool->get_read_buffer(this_client->tsmthread);
 			if(pool_read_buffer) { client_buffer_index = 0; break; }
-			if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: cond_waiting for more data\n", (intptr_t)param);
+			if(NMUX_DEBUG) fprintf(stderr, "client %p: cond_waiting for more data\n", param);
 			pthread_mutex_lock(&wait_mutex);
 			this_client->sleeping = 1;
 			pthread_cond_wait(&wait_condition, &wait_mutex);
@@ -318,14 +318,14 @@ void* client_thread (void* param)
 		}
 
 		//Wait for the socket to be available for write.
-		if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: polling for socket write...", (intptr_t)param);
+		if(NMUX_DEBUG) fprintf(stderr, "client %p: polling for socket write...", param);
 		int ret = poll(pollfds, 1, -1);
 		if(NMUX_DEBUG) fprintf(stderr, "client polled for socket write.\n");
 		if(ret == 0) continue;
 		else if (ret == -1) { client_goto_source = 1; goto client_thread_exit; }
 
 		//Read data from global tsmpool and write it to client socket
-		if(NMUX_DEBUG) fprintf(stderr, "client 0x%x: sending...", (intptr_t)param);
+		if(NMUX_DEBUG) fprintf(stderr, "client %p: sending...", param);
 		ret = send(this_client->socket, pool_read_buffer + client_buffer_index, lpool->size - client_buffer_index, MSG_NOSIGNAL);
 		if(NMUX_DEBUG) fprintf(stderr, "client sent.\n");
 		if(ret == -1) 
@@ -340,7 +340,7 @@ void* client_thread (void* param)
 	}
 
 client_thread_exit:
-	fprintf(stderr, "client 0x%x: CS_THREAD_FINISHED, client_goto_source = %d, errno = %d", (intptr_t)param, client_goto_source, errno);
+	fprintf(stderr, "client %p: CS_THREAD_FINISHED, client_goto_source = %d, errno = %d", param, client_goto_source, errno);
 	this_client->status = CS_THREAD_FINISHED;
 	pthread_exit(NULL);
 	return NULL;

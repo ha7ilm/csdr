@@ -36,7 +36,7 @@ public:
 	tsmpool(size_t size, int num);
 	void* get_write_buffer();
 	tsmthread_t* register_thread();
-	int remove_thread(tsmthread_t* thread);
+	void remove_thread(tsmthread_t* thread);
 	void* get_read_buffer(tsmthread_t* thread);
 	int index_next(int index) { return (index+1==num)?0:index+1; }
 	int index_before(int index) { return (index-1<0)?num-1:index-1; }
