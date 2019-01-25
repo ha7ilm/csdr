@@ -1425,7 +1425,7 @@ psk31_varicode_item_t psk31_varicode_items[] =
     { .code = 0b101111011,  .bitcount=9,    .ascii=0x59 }, //Y
     { .code = 0b1010101101, .bitcount=10,   .ascii=0x5a }, //Z
     { .code = 0b111110111,  .bitcount=9,    .ascii=0x5b }, //[
-    { .code = 0b111101111,  .bitcount=9,    .ascii=0x5c }, //\
+    { .code = 0b111101111,  .bitcount=9,    .ascii=0x5c }, //backslash
     { .code = 0b111111011,  .bitcount=9,    .ascii=0x5d }, //]
     { .code = 0b1010111111, .bitcount=10,   .ascii=0x5e }, //^
     { .code = 0b101101101,  .bitcount=9,    .ascii=0x5f }, //_
