@@ -201,6 +201,12 @@ int main(int argc, char* argv[])
 			{
 				if(clients[i]->status == CS_THREAD_FINISHED)
 				{
+                    if(pthread_detach(clients[i]->thread)!=0)
+                    {
+                        fprintf(stderr,"nmux pthread_detach failed for client %d\n", i);
+                        continue;
+                    }
+
 					if(NMUX_DEBUG) fprintf(stderr, "mainfor: client removed: %d\n", i);
 					//client destructor
 					pool->remove_thread(clients[i]->tsmthread);
