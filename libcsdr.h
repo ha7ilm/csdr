@@ -29,6 +29,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
 #pragma once
+#include <stdint.h>
 #define MIN_M(x,y) (((x)>(y))?(y):(x))
 #define MAX_M(x,y) (((x)<(y))?(y):(x))
 
@@ -410,3 +411,10 @@ void pack_bits_1to8_u8_u8(unsigned char* input, unsigned char* output, int input
 unsigned char pack_bits_8to1_u8_u8(unsigned char* input);
 void dbpsk_decoder_c_u8(complexf* input, unsigned char* output, int input_size);
 int bfsk_demod_cf(complexf* input, float* output, int input_size, complexf* mark_filter, complexf* space_filter, int taps_length);
+
+
+void *cicddc_init(int factor);
+void cicddc_free(void *state);
+void cicddc_s16_c(void *state, int16_t *input, complexf *output, int outsize, float rate);
+void cicddc_cs16_c(void *state, int16_t *input, complexf *output, int outsize, float rate);
+void cicddc_cu8_c(void *state, uint8_t *input, complexf *output, int outsize, float rate);
