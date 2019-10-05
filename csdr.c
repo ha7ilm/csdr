@@ -233,7 +233,9 @@ int clone_(int bufsize_param)
         clone_buffer = (unsigned char*)malloc(bufsize_param*sizeof(unsigned char));
         for(;;)
         {
-            fread(clone_buffer, sizeof(unsigned char), bufsize_param, stdin);
+            if(fread(clone_buffer, sizeof(unsigned char), bufsize_param, stdin) <= 0) {
+              exit(0);
+	    }
             fwrite(clone_buffer, sizeof(unsigned char), bufsize_param, stdout);
             TRY_YIELD;
         }
