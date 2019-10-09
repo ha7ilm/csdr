@@ -233,7 +233,9 @@ int clone_(int bufsize_param)
         clone_buffer = (unsigned char*)malloc(bufsize_param*sizeof(unsigned char));
         for(;;)
         {
-            fread(clone_buffer, sizeof(unsigned char), bufsize_param, stdin);
+            if(fread(clone_buffer, sizeof(unsigned char), bufsize_param, stdin) <= 0) {
+              exit(0);
+	    }
             fwrite(clone_buffer, sizeof(unsigned char), bufsize_param, stdout);
             TRY_YIELD;
         }
@@ -2841,7 +2843,7 @@ int main(int argc, char *argv[])
         if(argc<=3) return badsyntax("need required parameter (damping_factor)");
         sscanf(argv[3],"%f",&damping_factor);
 
-        int decision_directed = !!(argc>4 && (!strcmp(argv[4], "--dd") || !strcmp(argv[5], "--decision_directed")));
+        int decision_directed = !!(argc>4 && (!strcmp(argv[4], "--dd") || !strcmp(argv[4], "--decision_directed")));
         if(decision_directed) { errhead(); fprintf(stderr, "decision directed mode\n"); }
 
         int output_error    =                  !!(argc>4+decision_directed && (!strcmp(argv[4+decision_directed], "--output_error")));
