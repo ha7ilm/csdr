@@ -72,7 +72,9 @@ clean-vect:
 clean: clean-vect
 	rm -f libcsdr.so.$(SOVERSION) csdr ddcd nmux *.o *.so
 install: all 
+	install -d $(PREFIX)/lib
 	install -m 0755 libcsdr.so.$(SOVERSION) $(PREFIX)/lib
+	install -d $(PREFIX)/bin
 	install -m 0755 csdr $(PREFIX)/bin
 	install -m 0755 csdr-fm $(PREFIX)/bin
 	install -m 0755 nmux $(PREFIX)/bin
