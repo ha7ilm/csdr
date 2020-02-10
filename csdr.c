@@ -1793,15 +1793,31 @@ int main(int argc, char *argv[])
         //initialize FFT library, and measure time
         errhead(); fprintf(stderr,"initializing... ");
         struct timespec start_time, end_time;
+#if __FreeBSD__
+        clock_gettime(CLOCK_MONOTONIC_FAST, &start_time);
+#else
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+#endif
         FFT_PLAN_T* plan=make_fft_c2c(fft_size,input,output,1,benchmark);
+#if __FreeBSD__
+        clock_gettime(CLOCK_MONOTONIC_FAST, &end_time);
+#else
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+#endif
         fprintf(stderr,"done in %g seconds.\n",TIME_TAKEN(start_time,end_time));
 
         //do the actual measurement about the FFT
+#if __FreeBSD__
+        clock_gettime(CLOCK_MONOTONIC_FAST, &start_time);
+#else
         clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+#endif
         for(int i=0;i<fft_cycles;i++) fft_execute(plan);
+#if __FreeBSD__
+        clock_gettime(CLOCK_MONOTONIC_FAST, &end_time);
+#else
         clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+#endif
         float time_taken_fft = TIME_TAKEN(start_time,end_time);
         errhead(); fprintf(stderr,"%d transforms of %d processed in %g seconds, %g seconds each.\n",fft_cycles,fft_size,time_taken_fft,time_taken_fft/fft_cycles);
         return 0;
@@ -2004,11 +2020,19 @@ int main(int argc, char *argv[])
             if(flowcontrol_is_buffering)
             {
                 fprintf(stderr, "flowcontrol: buffering, flowcontrol_bufindex = %d\n", flowcontrol_bufindex);
+#if __FreeBSD__
+                if(flowcontrol_bufindex==flowcontrol_bufsize) { flowcontrol_is_buffering = 0; clock_gettime(CLOCK_MONOTONIC_FAST, &start_time); }
+#else
                 if(flowcontrol_bufindex==flowcontrol_bufsize) { flowcontrol_is_buffering = 0; clock_gettime(CLOCK_MONOTONIC_RAW, &start_time); }
+#endif
                 else if(read_return<=0) continue;
             }
             else {
+#if __FreeBSD__
+                clock_gettime(CLOCK_MONOTONIC_FAST, &end_time);
+#else
                 clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+#endif
                 int thrust_added=0;
                 while( (all_bytes_written+thrust*flowcontrol_readsize) / TIME_TAKEN(start_time,end_time) < data_rate )
                 {
@@ -2063,11 +2087,19 @@ int main(int argc, char *argv[])
             if(!time_now_sec)
             {
                 time_now_sec=1;
+#if __FreeBSD__
+                clock_gettime(CLOCK_MONOTONIC_FAST, &start_time);
+#else
                 clock_gettime(CLOCK_MONOTONIC_RAW, &start_time);
+#endif
             }
             else
             {
+#if __FreeBSD__
+                clock_gettime(CLOCK_MONOTONIC_FAST, &end_time);
+#else
                 clock_gettime(CLOCK_MONOTONIC_RAW, &end_time);
+#endif
                 float timetaken;
                 if(time_now_sec<(timetaken=TIME_TAKEN(start_time,end_time)))
                 {
