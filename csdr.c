@@ -188,7 +188,11 @@ char usage[]=
 
 int env_csdr_fixed_bufsize = 1024;
 int env_csdr_fixed_big_bufsize = 1024*16;
+#if __FreeBSD__
+int env_csdr_dynamic_bufsize_on = 1;
+#else
 int env_csdr_dynamic_bufsize_on = 0;
+#endif
 int env_csdr_print_bufsizes = 0;
 int bigbufs = 0;
 
@@ -366,11 +370,16 @@ int initialize_buffers()
     buffer_u8 =     (unsigned char*)malloc(the_bufsize*sizeof(unsigned char));
     buffer_i16 =    (short*)        malloc(the_bufsize*sizeof(short));
     temp_f =        (float*)        malloc(the_bufsize*sizeof(float) * 4);
+
     if(the_bufsize<=4096) //this is hacky, should be done correctly
     {
+#if __FreeBSD__
+#else
         fcntl(STDIN_FILENO, F_SETPIPE_SZ,  4096);
         fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 4096);
+#endif
     }
+
     return the_bufsize;
 }
 
@@ -378,7 +387,10 @@ int sendbufsize(int size)
 {
     if(size<=4096)
     {
+#if __FreeBSD__
+#else
         fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 4096);
+#endif
     }
     //The first word is a preamble, "csdr".
     //If the next csdr process detects it, sets the buffer size according to the second word
@@ -424,8 +436,11 @@ int main(int argc, char *argv[])
     if(argc<=1) return badsyntax(0);
     if(!strcmp(argv[1],"--help")) return badsyntax(0);
 
+#if __FreeBSD__
+#else
     fcntl(STDIN_FILENO, F_SETPIPE_SZ, 65536*32);
     fcntl(STDOUT_FILENO, F_SETPIPE_SZ, 65536*32);
+#endif
     //fprintf(stderr, "csdr: F_SETPIPE_SZ\n");
 
     if(!strcmp(argv[1],"setbuf"))
