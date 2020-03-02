@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/env python2
 print "" # python2.7 is required to run parsevect instead of python3
 """
 This software is part of libcsdr, a set of simple DSP routines for 
