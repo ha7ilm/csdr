@@ -66,6 +66,12 @@ char usage[]=
 "    convert_s16_f\n"
 "    convert_f_s24 [--bigendian]\n"
 "    convert_s24_f [--bigendian]\n"
+"    gen_dc_f\n"
+"    gen_dc_s16\n"
+"    gen_pos_fs4_f\n"
+"    gen_pos_fs4_s16\n"
+"    gen_neg_fs4_f\n"
+"    gen_neg_fs4_s16\n"
 "    realpart_cf\n"
 "    clipdetect_ff\n"
 "    limit_ff [max_amplitude]\n"
@@ -364,7 +370,7 @@ int initialize_buffers()
     input_buffer =  (float*)        malloc(the_bufsize*sizeof(float) * 2); //need the 2× because we might also put complex floats into it
     output_buffer = (float*)        malloc(the_bufsize*sizeof(float) * 2);
     buffer_u8 =     (unsigned char*)malloc(the_bufsize*sizeof(unsigned char));
-    buffer_i16 =    (short*)        malloc(the_bufsize*sizeof(short));
+    buffer_i16 =    (short*)        malloc(the_bufsize*sizeof(short) * 2);
     temp_f =        (float*)        malloc(the_bufsize*sizeof(float) * 4);
     if(the_bufsize<=4096) //this is hacky, should be done correctly
     {
@@ -631,6 +637,75 @@ int main(int argc, char *argv[])
             TRY_YIELD;
         }
     }
+
+    if(!strcmp(argv[1],"gen_dc_f"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_dc_f(output_buffer, the_bufsize);
+            FWRITE_C;
+            TRY_YIELD;
+        }
+    }
+    if(!strcmp(argv[1],"gen_dc_s16"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_dc_s16(buffer_i16, the_bufsize);
+            fwrite(buffer_i16, sizeof(short)*2, the_bufsize, stdout);
+            TRY_YIELD;
+        }
+    }
+    if(!strcmp(argv[1],"gen_pos_fs4_f"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_pos_fs4_f(output_buffer, the_bufsize);
+            FWRITE_C;
+            TRY_YIELD;
+        }
+    }
+    if(!strcmp(argv[1],"gen_pos_fs4_s16"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_pos_fs4_s16(buffer_i16, the_bufsize);
+            fwrite(buffer_i16, sizeof(short)*2, the_bufsize, stdout);
+            TRY_YIELD;
+        }
+    }
+    if(!strcmp(argv[1],"gen_neg_fs4_f"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_neg_fs4_f(output_buffer, the_bufsize);
+            FWRITE_C;
+            TRY_YIELD;
+        }
+    }
+    if(!strcmp(argv[1],"gen_neg_fs4_s16"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_neg_fs4_s16(buffer_i16, the_bufsize);
+            fwrite(buffer_i16, sizeof(short)*2, the_bufsize, stdout);
+            TRY_YIELD;
+        }
+    }
+
+
     if(!strcmp(argv[1],"realpart_cf"))
     {
         if(!sendbufsize(initialize_buffers())) return -2;

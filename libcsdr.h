@@ -229,6 +229,15 @@ void convert_f_s24(float* input, unsigned char* output, int input_size, int bige
 void convert_s24_f(unsigned char* input, float* output, int input_size, int bigendian);
 
 
+/* generation functions */
+void generate_dc_f(float* output, int size);
+void generate_dc_s16(short* output, int size);
+void generate_pos_fs4_f(float* output, int size);
+void generate_pos_fs4_s16(short* output, int size);
+void generate_neg_fs4_f(float* output, int size);
+void generate_neg_fs4_s16(short* output, int size);
+
+
 int is_nan(float f);
 
 //digital demod
