@@ -66,12 +66,22 @@ char usage[]=
 "    convert_s16_f\n"
 "    convert_f_s24 [--bigendian]\n"
 "    convert_s24_f [--bigendian]\n"
+
 "    gen_dc_f\n"
 "    gen_dc_s16\n"
 "    gen_pos_fs4_f\n"
 "    gen_pos_fs4_s16\n"
 "    gen_neg_fs4_f\n"
 "    gen_neg_fs4_s16\n"
+
+"    gen_dc_pos_fs4_s16\n"
+"    gen_dc_neg_fs4_s16\n"
+"    gen_pos_neg_fs4_s16\n"
+"    gen_dc_pos_neg_fs4_s16\n"
+
+"    gen_pos_neg_fs2_s16\n"
+"    gen_dc_pos_neg_fs2_s16\n"
+
 "    realpart_cf\n"
 "    clipdetect_ff\n"
 "    limit_ff [max_amplitude]\n"
@@ -705,6 +715,73 @@ int main(int argc, char *argv[])
         }
     }
 
+    if(!strcmp(argv[1],"gen_dc_pos_fs4_s16"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_dc_pos_fs4_s16(buffer_i16, the_bufsize);
+            fwrite(buffer_i16, sizeof(short)*2, the_bufsize, stdout);
+            TRY_YIELD;
+        }
+    }
+    if(!strcmp(argv[1],"gen_dc_neg_fs4_s16"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_dc_neg_fs4_s16(buffer_i16, the_bufsize);
+            fwrite(buffer_i16, sizeof(short)*2, the_bufsize, stdout);
+            TRY_YIELD;
+        }
+    }
+    if(!strcmp(argv[1],"gen_pos_neg_fs4_s16"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_pos_neg_fs4_s16(buffer_i16, the_bufsize);
+            fwrite(buffer_i16, sizeof(short)*2, the_bufsize, stdout);
+            TRY_YIELD;
+        }
+    }
+    if(!strcmp(argv[1],"gen_dc_pos_neg_fs4_s16"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_dc_pos_neg_fs4_s16(buffer_i16, the_bufsize);
+            fwrite(buffer_i16, sizeof(short)*2, the_bufsize, stdout);
+            TRY_YIELD;
+        }
+    }
+
+    if(!strcmp(argv[1],"gen_pos_neg_fs2_s16"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_pos_neg_fs2_s16(buffer_i16, the_bufsize);
+            fwrite(buffer_i16, sizeof(short)*2, the_bufsize, stdout);
+            TRY_YIELD;
+        }
+    }
+    if(!strcmp(argv[1],"gen_dc_pos_neg_fs2_s16"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            generate_dc_pos_neg_fs2_s16(buffer_i16, the_bufsize);
+            fwrite(buffer_i16, sizeof(short)*2, the_bufsize, stdout);
+            TRY_YIELD;
+        }
+    }
 
     if(!strcmp(argv[1],"realpart_cf"))
     {

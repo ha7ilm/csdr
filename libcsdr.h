@@ -237,6 +237,14 @@ void generate_pos_fs4_s16(short* output, int size);
 void generate_neg_fs4_f(float* output, int size);
 void generate_neg_fs4_s16(short* output, int size);
 
+void generate_dc_pos_fs4_s16(short* output, int size);
+void generate_dc_neg_fs4_s16(short* output, int size);
+void generate_pos_neg_fs4_s16(short* output, int size);
+void generate_dc_pos_neg_fs4_s16(short* output, int size);
+
+void generate_pos_neg_fs2_s16(short* output, int size);
+void generate_dc_pos_neg_fs2_s16(short* output, int size);
+
 
 int is_nan(float f);
 
