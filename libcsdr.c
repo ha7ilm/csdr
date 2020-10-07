@@ -2436,6 +2436,255 @@ void convert_s24_f(unsigned char* input, float* output, int input_size, int bige
     }
 }
 
+
+void generate_dc_f(float* output, int size)
+{
+    for(int i=0;i<2*size;)
+    {
+        /* exp(i*0) = 1+i*0 */
+        output[i++]=(127.0F / 128.0F);
+        output[i++]=0.0F;
+    }
+}
+
+void generate_dc_s16(short* output, int size)
+{
+    for(int i=0;i<2*size;)
+    {
+        /* exp(i*0) = 1+i*0 */
+        output[i++]=SHRT_MAX;
+        output[i++]=0;
+    }
+}
+
+void generate_pos_fs4_f(float* output, int size)
+{
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* exp(i*0) = 1+i*0 */
+        output[i++]=(127.0F / 128.0F);
+        output[i++]=0.0F;
+        /* exp(i* +pi/2) = 0+i*1 */
+        output[i++]=0.0F;
+        output[i++]=(127.0F / 128.0F);
+        /* exp(i* +pi) = -1+i*0 */
+        output[i++]=(-127.0F / 128.0F);
+        output[i++]=0.0F;
+        /* exp(i* -pi/2) = 0+i*-1 */
+        output[i++]=0.0F;
+        output[i++]=(-127.0F / 128.0F);
+    }
+}
+
+void generate_pos_fs4_s16(short* output, int size)
+{
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* exp(i*0) = 1+i*0 */
+        output[i++]=SHRT_MAX;
+        output[i++]=0;
+        /* exp(i* +pi/2) = 0+i*1 */
+        output[i++]=0;
+        output[i++]=SHRT_MAX;
+        /* exp(i* +pi) = -1+i*0 */
+        output[i++]=-SHRT_MAX;
+        output[i++]=0;
+        /* exp(i* -pi/2) = 0+i*-1 */
+        output[i++]=0;
+        output[i++]=-SHRT_MAX;
+    }
+}
+
+void generate_neg_fs4_f(float* output, int size)
+{
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* exp(i*0) = 1+i*0 */
+        output[i++]=(127.0F / 128.0F);
+        output[i++]=0.0F;
+        /* exp(i* -pi/2) = 0+i*-1 */
+        output[i++]=0.0F;
+        output[i++]=(-127.0F / 128.0F);
+        /* exp(i* +pi) = -1+i*0 */
+        output[i++]=(-127.0F / 128.0F);
+        output[i++]=0.0F;
+        /* exp(i* +pi/2) = 0+i*1 */
+        output[i++]=0.0F;
+        output[i++]=(127.0F / 128.0F);
+    }
+}
+
+void generate_neg_fs4_s16(short* output, int size)
+{
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* exp(i*0) = 1+i*0 */
+        output[i++]=SHRT_MAX;
+        output[i++]=0;
+        /* exp(i* -pi/2) = 0+i*-1 */
+        output[i++]=0;
+        output[i++]=-SHRT_MAX;
+        /* exp(i* +pi) = -1+i*0 */
+        output[i++]=-SHRT_MAX;
+        output[i++]=0;
+        /* exp(i* +pi/2) = 0+i*1 */
+        output[i++]=0;
+        output[i++]=SHRT_MAX;
+    }
+}
+
+/****************************************************/
+
+void generate_dc_pos_fs4_s16(short* output, int size)
+{
+    const int m = SHRT_MAX / 2;
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* exp(i*0) = 1+1+i*0 */
+        output[i++]=m+m;
+        output[i++]=0;
+        /* exp(i* +pi/2) = 1+0+i*1 */
+        output[i++]=m+0;
+        output[i++]=m;
+        /* exp(i* +pi) = 1-1+i*0 */
+        output[i++]=m-m;
+        output[i++]=0;
+        /* exp(i* -pi/2) = 1+0+i*-1 */
+        output[i++]=m;
+        output[i++]=-m;
+    }
+}
+
+void generate_dc_neg_fs4_s16(short* output, int size)
+{
+    const int m = SHRT_MAX / 2;
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* exp(i*0) = 1+1+i*0 */
+        output[i++]=m+m;
+        output[i++]=0;
+        /* exp(i* -pi/2) = 1+0+i*-1 */
+        output[i++]=m+0;
+        output[i++]=-m;
+        /* exp(i* +pi) = 1-1+i*0 */
+        output[i++]=m-m;
+        output[i++]=0;
+        /* exp(i* +pi/2) = 1+0+i*1 */
+        output[i++]=m+0;
+        output[i++]=m;
+    }
+}
+
+void generate_pos_neg_fs4_s16(short* output, int size)
+{
+    const int m = SHRT_MAX / 2;
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* pos(0) + neg(0) = exp(i*  0   ) + exp(i*  0   ) =  1 +i*  0  +  1 +i*  0 */
+        output[i++]=m;
+        output[i++]=-m;
+
+        /* pos(1) + neg(1) = exp(i* +pi/2) + exp(i* -pi/2) =  0 +i*  1  +  0 +i* -1 */
+        output[i++]=-m;
+        output[i++]=m;
+
+        /* pos(2) + neg(2) = exp(i* +pi  ) + exp(i* +pi  ) = -1 +i*  0  + -1 +i*  0 */
+        output[i++]=-m;
+        output[i++]=m;
+
+        /* pos(3) + neg(3) = exp(i* -pi/2) + exp(i* +pi/2) =  0 +i* -1  +  0 +i*  1 */
+        output[i++]=m;
+        output[i++]=-m;
+    }
+}
+
+void generate_dc_pos_neg_fs4_s16(short* output, int size)
+{
+    const int m = SHRT_MAX / 2;
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* dc + pos(0) + neg(0) = dc + exp(i*  0   ) + exp(i*  0   ) =  1 +i*  0  +  1 +i*  0 */
+        output[i++]=m+m;
+        output[i++]=-m;
+
+        /* dc + pos(1) + neg(1) = dc + exp(i* +pi/2) + exp(i* -pi/2) =  0 +i*  1  +  0 +i* -1 */
+        output[i++]=0;
+        output[i++]=m;
+
+        /* dc + pos(2) + neg(2) = dc + exp(i* +pi  ) + exp(i* +pi  ) = -1 +i*  0  + -1 +i*  0 */
+        output[i++]=0;
+        output[i++]=m;
+
+        /* dc + pos(3) + neg(3) = dc + exp(i* -pi/2) + exp(i* +pi/2) =  0 +i* -1  +  0 +i*  1 */
+        output[i++]=m+m;
+        output[i++]=-m;
+    }
+}
+
+
+void generate_pos_neg_fs2_s16(short* output, int size)
+{
+    const int m = SHRT_MAX / 2;
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* dc + exp(i* 0 ) = +1 */
+        output[i++]=m;
+        output[i++]=0;
+        /* dc + exp(i* pi) = -1 */
+        output[i++]=-m;
+        output[i++]=0;
+        /* dc + exp(i* 0 ) = +1 */
+        output[i++]=m;
+        output[i++]=0;
+        /* dc + exp(i* pi) = -1 */
+        output[i++]=-m;
+        output[i++]=0;
+    }
+}
+
+void generate_dc_pos_neg_fs2_s16(short* output, int size)
+{
+    const int m = SHRT_MAX / 2;
+    /* size must be multiple of 4 */
+    assert(!(size&3));
+    for(int i=0;i<2*size;)
+    {
+        /* with dc = i*1 */
+        /* dc + exp(i* 0 ) = i*1 +1 */
+        output[i++]=m;
+        output[i++]=m;
+        /* dc + exp(i* pi) = i*1 -1 */
+        output[i++]=-m;
+        output[i++]=m;
+        /* dc + exp(i* 0 ) = i*1 +1 */
+        output[i++]=m;
+        output[i++]=m;
+        /* dc + exp(i* pi) = i*1 -1 */
+        output[i++]=-m;
+        output[i++]=m;
+    }
+}
+
+
+
 FILE* init_get_random_samples_f()
 {
     return fopen("/dev/urandom", "r");
