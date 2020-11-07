@@ -1488,6 +1488,7 @@ int main(int argc, char *argv[])
             {
                 sscanf(argv[4],"%g",&transition_bw);
                 if(argc>=6) window = firdes_get_window_from_string(argv[5]);
+                use_prefilter = 1;
             }
         }
         errhead(); fprintf(stderr,"use_prefilter = %d, num_poly_points = %d, transition_bw = %g, window = %s\n", 
