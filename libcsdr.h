@@ -289,14 +289,14 @@ void serial_line_decoder_f_u8(serial_line_t* s, float* input, unsigned char* out
 void binary_slicer_f_u8(float* input, unsigned char* output, int input_size);
 
 int binary_decoder_f_u8(float* input,
-						unsigned char* output,
-						int input_size,
-						int samples_per_symbol,
-						int min_samples_per_symbol);
+                        unsigned char* output,
+                        int input_size,
+                        int samples_per_symbol,
+                        int min_samples_per_symbol);
 
 void binary_to_ascii_u8_u8(unsigned char* input,
-						  unsigned char* output,
-						  int input_size);
+                          unsigned char* output,
+                          int input_size);
 
 typedef enum pll_type_e
 {

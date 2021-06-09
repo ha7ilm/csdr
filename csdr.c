@@ -2491,32 +2491,32 @@ int main(int argc, char *argv[])
 
     if(!strcmp(argv[1],"binary_decoder_f_u8"))
     {
-		int samples_per_symbol;
-		int min_samples_per_symbol;
-		int output_size;
+        int samples_per_symbol;
+        int min_samples_per_symbol;
+        int output_size;
 
-		if(argc<=2) return badsyntax("need required parameter (samples_per_symbol)");
+        if(argc<=2) return badsyntax("need required parameter (samples_per_symbol)");
         sscanf(argv[2],"%d",&samples_per_symbol);
 
-		if(argc>3)
-		{
-			sscanf(argv[3],"%d",&min_samples_per_symbol);
-		}
-		else
-		{
-			min_samples_per_symbol = (samples_per_symbol*3)/4;
-		}
+        if(argc>3)
+        {
+            sscanf(argv[3],"%d",&min_samples_per_symbol);
+        }
+        else
+        {
+            min_samples_per_symbol = (samples_per_symbol*3)/4;
+        }
 
-		if(!sendbufsize(initialize_buffers())) return -2;
+        if(!sendbufsize(initialize_buffers())) return -2;
         for(;;)
         {
-			FEOF_CHECK;
+            FEOF_CHECK;
             if(!FREAD_R) break;
             output_size = binary_decoder_f_u8(  input_buffer,
-												(unsigned char*)output_buffer,
-												the_bufsize,
-												samples_per_symbol,
-												min_samples_per_symbol);
+                                                (unsigned char*)output_buffer,
+                                                the_bufsize,
+                                                samples_per_symbol,
+                                                min_samples_per_symbol);
             fwrite(output_buffer, sizeof(unsigned char), output_size, stdout);
             TRY_YIELD;
         }
