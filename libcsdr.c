@@ -1769,6 +1769,67 @@ void binary_slicer_f_u8(float* input, unsigned char* output, int input_size)
     for(int i=0;i<input_size;i++) output[i] = input[i] > 0;
 }
 
+int binary_decoder_f_u8(float* input,
+						unsigned char* output,
+						int input_size,
+						int samples_per_symbol,
+						int min_samples_per_symbol)
+{
+	static float previous_sample;
+	static float sample_accumulator;
+	static int sample_offset;
+
+	int i;
+	int output_size = 0;
+	float sample;
+
+	//notice rising edges crossing zero and assume they coincide with a symbol boundary.
+	//add all samples within a symbol and base the output on whether this accumulation is overall positive or negative.
+
+	for(i=0;i<input_size;i++)
+	{
+		sample = input[i];
+
+		//calibrate symbol position at a cross over (could have used either edge).
+		if ((previous_sample < 0) && (sample >= 0))
+		{
+			//if we've almost got a symbol, accept it and publish early.
+			if(sample_offset >= min_samples_per_symbol)
+			{
+				output[output_size] = (sample_accumulator > 0);
+				output_size++;
+				//fprintf(stderr, "symbol (%d:%f:%d)\n", sample_offset, sample_accumulator, output[output_size]);
+			}
+
+			sample_accumulator = 0;
+			sample_offset = 0;
+		}
+
+		sample_accumulator += sample;
+		sample_offset++;
+		if(sample_offset == samples_per_symbol)
+		{
+			output[output_size] = (sample_accumulator > 0);
+			output_size++;
+			//fprintf(stderr, "symbol (%d:%f:%d)\n", sample_offset, sample_accumulator, output[output_size]);
+
+			sample_accumulator = 0;
+			sample_offset = 0;
+		}
+
+		previous_sample = input[i];
+	}
+
+	return(output_size);
+}
+
+void binary_to_ascii_u8_u8(unsigned char* input,
+						  unsigned char* output,
+						  int input_size)
+{
+    for(int i=0;i<input_size;i++) output[i] = input[i] ? '1' : '0';
+}
+
 void psk_modulator_u8_c(unsigned char* input, complexf* output, int input_size, int n_psk)
 {
     //outputs one complex sample per input symbol

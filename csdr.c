@@ -138,6 +138,8 @@ char usage[]=
 "    duplicate_samples_ntimes_u8_u8 <sample_size_bytes> <ntimes>\n"
 "    bpsk_costas_loop_cc <loop_bandwidth> <damping_factor> [--dd | --decision_directed] [--output_error | --output_dphase | --output_nco | --output_combined <error_file> <dphase_file> <nco_file>]\n"
 "    binary_slicer_f_u8\n"
+"    binary_decoder_f_u8 <samples_per_symbol> [min_samples_per_symbol]\n"
+"    binary_to_ascii_u8_u8\n"
 "    simple_agc_cc <rate> [reference [max_gain]]\n"
 "    firdes_peak_c <rate> <length> [window [--octave]]\n"
 "    peaks_fir_cc <taps_length> [peak_rate × N]\n"
@@ -2481,6 +2483,54 @@ int main(int argc, char *argv[])
             FEOF_CHECK;
             if(!FREAD_R) break;
             binary_slicer_f_u8(input_buffer, (unsigned char*)output_buffer, the_bufsize);
+            FWRITE_U8;
+            TRY_YIELD;
+        }
+        return 0;
+    }
+
+    if(!strcmp(argv[1],"binary_decoder_f_u8"))
+    {
+		int samples_per_symbol;
+		int min_samples_per_symbol;
+		int output_size;
+
+		if(argc<=2) return badsyntax("need required parameter (samples_per_symbol)");
+        sscanf(argv[2],"%d",&samples_per_symbol);
+
+		if(argc>3)
+		{
+			sscanf(argv[3],"%d",&min_samples_per_symbol);
+		}
+		else
+		{
+			min_samples_per_symbol = (samples_per_symbol*3)/4;
+		}
+
+		if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+			FEOF_CHECK;
+            if(!FREAD_R) break;
+            output_size = binary_decoder_f_u8(  input_buffer,
+												(unsigned char*)output_buffer,
+												the_bufsize,
+												samples_per_symbol,
+												min_samples_per_symbol);
+            fwrite(output_buffer, sizeof(unsigned char), output_size, stdout);
+            TRY_YIELD;
+        }
+        return 0;
+    }
+
+    if(!strcmp(argv[1],"binary_to_ascii_u8_u8"))
+    {
+        if(!sendbufsize(initialize_buffers())) return -2;
+        for(;;)
+        {
+            FEOF_CHECK;
+            if(!FREAD_U8) break;
+            binary_to_ascii_u8_u8((unsigned char*)input_buffer, (unsigned char*)output_buffer, the_bufsize);
             FWRITE_U8;
             TRY_YIELD;
         }
