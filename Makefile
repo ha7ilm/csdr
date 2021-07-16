@@ -29,11 +29,17 @@
 LIBSOURCES =  fft_fftw.c libcsdr_wrapper.c 
 #SOURCES = csdr.c $(LIBSOURCES)
 cpufeature = $(if $(findstring $(1),$(shell cat /proc/cpuinfo)),$(2))
+kcmdfeature = $(if $(findstring $(1),$(shell cat /proc/cmdline)),$(2))
+dpkghostarch = $(if $(findstring $(1),$(shell dpkg --print-architecture)),$(2))
 PARAMS_SSE = $(call cpufeature,sse,-msse) $(call cpufeature,sse2,-msse2) $(call cpufeature,sse3,-msse3) $(call cpufeature,sse4a,-msse4a) $(call cpufeature,sse4_1,-msse4.1) $(call cpufeature,sse4_2,-msse4.2 -msse4) -mfpmath=sse 
 PARAMS_NEON = -mfloat-abi=hard -march=armv7-a -mtune=cortex-a8 -mfpu=neon -mvectorize-with-neon-quad -funsafe-math-optimizations -Wformat=0 -DNEON_OPTS
 #tnx Jan Szumiec for the Raspberry Pi support
-PARAMS_RASPI = -mfloat-abi=hard -mcpu=arm1176jzf-s -mfpu=vfp -funsafe-math-optimizations -Wformat=0
-PARAMS_ARM = $(if $(call cpufeature,BCM2708,dummy-text),$(PARAMS_RASPI),$(PARAMS_NEON))
+PARAMS_RASPI_3 = -mfloat-abi=hard -mcpu=arm1176jzf-s -mfpu=vfp -funsafe-math-optimizations -Wformat=0
+PARAMS_RASPI_4_ARMHF = -mcpu=cortex-a72 -mfloat-abi=hard -mfpu=neon-fp-armv8 -mneon-for-64bits -mtune=cortex-a72 -funsafe-math-optimizations -Wformat=0
+PARAMS_RASPI_4_ARM64 = -mcpu=cortex-a72 -mtune=cortex-a72 -funsafe-math-optimizations -Wformat=0
+PARAMS_RASPI_4 = $(if $(call dpkghostarch,arm64,dummy-text),$(PARAMS_RASPI_4_ARM64),$(PARAMS_RASPI_4_ARMHF))
+PARAMS_RASPI = $(if $(call kcmdfeature,bcm2709,dummy-text),$(PARAMS_RASPI_4),$(PARAMS_RASPI_3))
+PARAMS_ARM = $(if $(call kcmdfeature,bcm270,dummy-text),$(PARAMS_RASPI),$(PARAMS_NEON))
 PARAMS_SIMD = $(if $(call cpufeature,sse,dummy-text),$(PARAMS_SSE),$(PARAMS_ARM))
 PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
 PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM

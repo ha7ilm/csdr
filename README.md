@@ -1040,6 +1040,31 @@ Syntax:
 
 ----
 
+### [binary_decoder_f_u8](#binary_decoder_f_u8)
+
+Syntax:
+
+    csdr binary_decoder_f_u8 <samples_per_symbol> [min_samples_per_symbol]
+
+It tries to find symbol boundaries then has an algorithm for deciding whether each symbol is a 1 or a 0 the result of which it then outputs.
+For this to function, a data preamble of either 5's or A's is helpful.
+
+If a symbol boundary occurs before samples_per_symbol samples have been processed since the last symbol boundary, what has been processed so far is output as a valid symbol only if at least min_samples_per_symbol have been processed (otherwise it is discarded).
+min_samples_per_symbol defaults to 3/4 of samples_per_symbol.
+
+----
+
+### [binary_to_ascii_u8_u8](#binary_to_ascii_u8_u8)
+
+Syntax:
+
+    csdr binary_to_ascii_u8_u8
+
+* If the input sample is 0, it outputs '0' (0x30).
+* If the input sample is not 0, it outputs '1' (0x31).
+
+----
+
 ### [serial_line_decoder_f_u8](#serial_line_decoder_f_u8)
 
 Syntax:
