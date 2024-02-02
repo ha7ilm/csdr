@@ -4,7 +4,7 @@ Priority: optional
 Maintainer: Debian Hamradio Maintainers <debian-hams@lists.debian.org>
 Uploaders: Iain R. Learmonth <irl@debian.org>
 Build-Depends: debhelper (>= 9),
-               fftw3-dev
+               libfftw3-dev
 Standards-Version: 3.9.7
 Vcs-Browser: http://anonscm.debian.org/cgit/pkg-hamradio/csdr.git
 Vcs-Git: http://anonscm.debian.org/git/pkg-hamradio/csdr.git
