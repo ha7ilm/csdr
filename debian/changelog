@@ -1,5 +1,5 @@
-csdr (0.12+git20160415-1) UNRELEASED; urgency=medium
+csdr (0.15-1) UNRELEASED; urgency=medium
 
-  * Initial release. (Closes: #821115)
+  * Initial Rhizomatica release.
 
- -- Iain R. Learmonth <irl@debian.org>  Fri, 15 Apr 2016 18:24:27 +0100
+ -- Rafael Diniz <rafael@riseup.net>  Fri, 02 Feb 2024 10:02:22 +0000
