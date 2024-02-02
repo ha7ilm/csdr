@@ -1,0 +1,3 @@
+libcsdr.so /usr/lib
+csdr /usr/bin
+csdr-fm /usr/bin
