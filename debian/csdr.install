@@ -3,3 +3,4 @@ libcsdr.so /usr/lib
 *.h /usr/include/csdr
 csdr /usr/bin
 csdr-fm /usr/bin
+nmux /usr/bin
