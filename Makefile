@@ -33,12 +33,10 @@ PARAMS_SSE = -march=x86-64-v2
 PARAMS_ARM = -march=armv8-a+crc
 PARAMS_SIMD = $(if $(call cpufeature,sse,dummy-text),$(PARAMS_SSE),$(PARAMS_ARM))
 PARAMS_LOOPVECT = -O3 -ffast-math -fdump-tree-vect-details -dumpbase dumpvect
-PARAMS_LIBS = -g -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
+PARAMS_LIBS = -lm -lrt -lfftw3f -DUSE_FFTW -DLIBCSDR_GPL -DUSE_IMA_ADPCM
 PARAMS_SO = -fpic  
 PARAMS_MISC = -Wno-unused-result
-#DEBUG_ON = 0 #debug is always on by now (anyway it could be compiled with `make DEBUG_ON=1`)
-#PARAMS_DEBUG = $(if $(DEBUG_ON),-g,)
-FFTW_PACKAGE = fftw-3.3.3
+FFTW_PACKAGE = fftw-3.3.10
 PREFIX ?= /usr
 SOVERSION = 0.15
 PARSEVECT ?= yes
