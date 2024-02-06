@@ -1,0 +1,6 @@
+libcsdr.so.0.15 /usr/lib
+libcsdr.so /usr/lib
+*.h /usr/include/csdr
+csdr /usr/bin
+csdr-fm /usr/bin
+nmux /usr/bin

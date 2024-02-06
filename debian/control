@@ -1,0 +1,24 @@
+Source: csdr
+Section: hamradio
+Priority: optional
+Maintainer: Debian Hamradio Maintainers <debian-hams@lists.debian.org>
+Uploaders: Iain R. Learmonth <irl@debian.org>
+Build-Depends: debhelper (>= 9),
+               libfftw3-dev
+Standards-Version: 3.9.7
+Vcs-Browser: http://anonscm.debian.org/cgit/pkg-hamradio/csdr.git
+Vcs-Git: http://anonscm.debian.org/git/pkg-hamradio/csdr.git
+Homepage: https://github.com/simonyiszk/csdr
+
+Package: csdr
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: DSP library and command-line tool for Software Defined Radio
+ libcsdr is a set of simple DSP routines for Software Defined Radio. It
+ is mostly useful for AM/FM/SSB demodulation and spectrum display. The
+ package comes with a command-line tool csdr, which lets you build DSP
+ processing chains by shell pipes. The code of libcsdr was intended to
+ be easy to follow. libcsdr was designed to use auto-vectorization
+ available in gcc. It means that it can achieve some speedup by taking
+ advantage of SIMD command sets available in today's CPUs (e.g. SSE on
+ x86 and NEON on ARM).

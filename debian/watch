@@ -1,0 +1,2 @@
+version=3
+https://github.com/simonyiszk/csdr/releases .*/archive/v?(\d[\d.-]+)\.(?:tar(?:\.gz|\.bz2)?|tgz)

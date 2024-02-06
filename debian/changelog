@@ -1,0 +1,11 @@
+csdr (0.15-2) UNRELEASED; urgency=medium
+
+  * Bump version
+
+ -- Rafael Diniz <rafael@riseup.net>  Tue, 06 Feb 2024 12:32:42 +0000
+
+csdr (0.15-1) UNRELEASED; urgency=medium
+
+  * Initial Rhizomatica release.
+
+ -- Rafael Diniz <rafael@riseup.net>  Fri, 02 Feb 2024 10:02:22 +0000
